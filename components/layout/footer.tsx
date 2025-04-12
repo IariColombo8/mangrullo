@@ -99,18 +99,18 @@ export default function Footer() {
             <ul className="space-y-2">
               <li className="flex items-start">
                 <MapPin className="h-5 w-5 mr-2 mt-0.5 text-green" />
-                <span className="text-gray-300">Ruta 14, Km 258, Federación, Entre Ríos, Argentina</span>
+                <span className="text-gray-300">Av. Coronel J. M. Salas, Federación, Entre Ríos, Argentina</span>
               </li>
               <li className="flex items-center">
                 <Phone className="h-5 w-5 mr-2 text-green" />
-                <a href="tel:+5493456123456" className="text-gray-300 hover:text-white transition-colors">
-                  +54 9 3456 123456
+                <a href="tel:+5493456551550" className="text-gray-300 hover:text-white transition-colors">
+                  +54 9 3456 551550
                 </a>
               </li>
               <li className="flex items-center">
                 <Mail className="h-5 w-5 mr-2 text-green" />
-                <a href="mailto:info@elmangrullo.com" className="text-gray-300 hover:text-white transition-colors">
-                  info@elmangrullo.com
+                <a href="mailto:elmangrullofederacion@gmail.com" className="text-gray-300 hover:text-white transition-colors">
+                  elmangrullofederacion@gmail.com
                 </a>
               </li>
             </ul>

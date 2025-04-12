@@ -167,7 +167,7 @@ export default function Contact() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-800">{t("contact.info.address")}</h4>
-                    <p className="text-gray-600">Ruta 14, Km 258, Federación, Entre Ríos, Argentina</p>
+                    <p className="text-gray-600">Av. Coronel J. M. Salas, Federación, Entre Ríos</p>
                   </div>
                 </div>
 
@@ -178,8 +178,8 @@ export default function Contact() {
                   <div>
                     <h4 className="font-semibold text-gray-800">{t("contact.info.phone")}</h4>
                     <p className="text-gray-600">
-                      <a href="tel:+5493456123456" className="hover:text-green transition-colors">
-                        +54 9 3456 123456
+                      <a href="tel:+5493456551550" className="hover:text-green transition-colors">
+                        +54 9 3456 551550
                       </a>
                     </p>
                   </div>
@@ -192,8 +192,8 @@ export default function Contact() {
                   <div>
                     <h4 className="font-semibold text-gray-800">{t("contact.info.email")}</h4>
                     <p className="text-gray-600">
-                      <a href="mailto:info@elmangrullo.com" className="hover:text-green transition-colors">
-                        info@elmangrullo.com
+                      <a href="mailto:elmangrullofederacion@gmail.com" className="hover:text-green transition-colors">
+                      elmangrullofederacion@gmail.com
                       </a>
                     </p>
                   </div>
@@ -204,7 +204,7 @@ export default function Contact() {
             {/* Map */}
             <div className="mt-8 h-64 bg-gray-200 rounded-lg overflow-hidden">
               <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d27289.976927312532!2d-57.95!3d-30.983333!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95ae33efe3a7d4e3%3A0x8f676ca6c1c1875d!2zRmVkZXJhY2nDs24sIEVudHJlIFLDrW9z!5e0!3m2!1sen!2sar!4v1650000000000!5m2!1sen!2sar"
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3420.912827110814!2d-57.94400812437604!3d-30.972914774953384!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95ada3de5d7ab995%3A0x997f47e1684e06a8!2sEl%20Mangrullo!5e0!3m2!1ses-419!2sar!4v1744424477822!5m2!1ses-419!2sar"
                 width="100%"
                 height="100%"
                 style={{ border: 0 }}
