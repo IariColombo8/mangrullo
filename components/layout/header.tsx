@@ -50,9 +50,13 @@ export default function Header() {
       }`}
     >
       <div className="container mx-auto px-4 flex justify-between items-center">
-        <Link href="/" className="text-white text-2xl font-bold">
-          El Mangrullo
-        </Link>
+      <Link href="/" className="flex items-center">
+      <img 
+        src="logo1.png" // logo
+        alt="El Mangrullo" 
+        className="h-30000 w-auto max-w-[150px]" // Ajusta la altura según necesites
+      />
+    </Link>
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-6">
