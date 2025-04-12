@@ -21,7 +21,7 @@ export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const { t } = useLanguage()
-  const { user, logout, loading: authLoading } = useAuth()
+  const { user, logout } = useAuth()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   useEffect(() => {
@@ -38,7 +38,7 @@ export default function Header() {
     try {
       await logout()
     } catch (error) {
-      console.error("Logout failed", error)
+      console.error("Error al cerrar sesión:", error)
       setIsLoggingOut(false)
     }
   }
@@ -96,7 +96,7 @@ export default function Header() {
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none truncate">
-                        {user?.displayName || "User"}
+                        {user?.displayName || "Usuario"}
                       </p>
                       <p className="text-xs leading-none text-muted-foreground truncate">
                         {user?.email}
@@ -104,20 +104,23 @@ export default function Header() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin" className="w-full flex items-center">
-                      <User className="mr-2 h-4 w-4" />
-                      {t("nav.admin")}
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
+                  {user?.isAdmin && (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin" className="w-full flex items-center">
+                          <User className="mr-2 h-4 w-4" />
+                          Panel de Admin
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
                   <DropdownMenuItem 
-                    onClick={handleLogout} 
-                    disabled={isLoggingOut || authLoading}
-                    className="cursor-pointer"
+                    onSelect={handleLogout} // Cambiado de onClick a onSelect
+                    className="cursor-pointer focus:bg-gray-100"
                   >
                     <LogOut className="mr-2 h-4 w-4" />
-                    <span>{isLoggingOut ? t("nav.loggingOut") : t("nav.logout")}</span>
+                    <span>{isLoggingOut ? "Cerrar sesión" : "Cerrar sesión"}</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -133,7 +136,7 @@ export default function Header() {
         <button
           className="md:hidden text-white"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+          aria-label={isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
         >
           {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
@@ -198,7 +201,7 @@ export default function Header() {
                       <DropdownMenuLabel className="font-normal">
                         <div className="flex flex-col space-y-1">
                           <p className="text-sm font-medium leading-none truncate">
-                            {user?.displayName || "User"}
+                            {user?.displayName || "Usuario"}
                           </p>
                           <p className="text-xs leading-none text-muted-foreground truncate">
                             {user?.email}
@@ -206,27 +209,30 @@ export default function Header() {
                         </div>
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link 
-                          href="/admin" 
-                          className="w-full flex items-center"
-                          onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                          <User className="mr-2 h-4 w-4" />
-                          {t("nav.admin")}
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
+                      {user?.isAdmin && (
+                        <>
+                          <DropdownMenuItem asChild>
+                            <Link 
+                              href="/admin" 
+                              className="w-full flex items-center"
+                              onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                              <User className="mr-2 h-4 w-4" />
+                              Panel de Admin
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                        </>
+                      )}
                       <DropdownMenuItem 
-                        onClick={() => {
+                        onSelect={() => {
                           handleLogout()
                           setIsMobileMenuOpen(false)
-                        }} 
-                        disabled={isLoggingOut || authLoading}
-                        className="cursor-pointer"
+                        }}
+                        className="cursor-pointer focus:bg-gray-100"
                       >
                         <LogOut className="mr-2 h-4 w-4" />
-                        <span>{isLoggingOut ? t("nav.loggingOut") : t("nav.logout")}</span>
+                        <span>{isLoggingOut ? "Cerrando sesión..." : "Cerrar sesión"}</span>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
