@@ -52,8 +52,8 @@ const translations = {
       title: "Actividades Cercanas",
       subtitle: "Descubra las maravillosas actividades y atracciones que puede disfrutar durante su estadía.",
       distance: "A {{distance}} de distancia",
-      addNew: "Agregar Actividad",
-      addNewDescription: "Agregar una nueva actividad para mostrar a los huéspedes.",
+      
+     
       close: "Cerrar",
     },
     testimonials: {
