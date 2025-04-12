@@ -44,16 +44,7 @@ export default function AdminHeader() {
                   variant="ghost" 
                   className="relative h-8 w-8 rounded-full p-0" // Añadido p-0 para eliminar padding interno
                 >
-                  <Avatar className="h-8 w-8">
-                    {/* Usar la photoURL de user si existe, de lo contrario placeholder */}
-                    <AvatarImage 
-                      src={user?.photoURL || "/placeholder-user.jpg"} 
-                      alt={user?.displayName || "User"} 
-                    />
-                    <AvatarFallback className="bg-brown-light text-white">
-                      {user?.displayName?.charAt(0).toUpperCase() || "U"}
-                    </AvatarFallback>
-                  </Avatar>
+                 
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
