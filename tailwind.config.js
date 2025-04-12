@@ -52,9 +52,9 @@ module.exports = {
           foreground: "hsl(var(--card-foreground))",
         },
         // Custom colors for El Mangrullo
-        green: "#3A5A40",
-        brown: "#6B4D2D",
-        beige: "#F5F5DC",
+        green: "#2980b9", //azul (fondo de boton)
+        brown: "#5499c7", //azul (inicio y contacto fondo)
+        beige: "#FFFFFF", //blanco
       },
       borderRadius: {
         lg: "var(--radius)",
