@@ -5,14 +5,24 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { useLanguage } from "@/context/language-context"
 import { useAuth } from "@/context/auth-context"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { LogOut, User, Menu, X } from "lucide-react"
 import LanguageSelector from "@/components/ui/language-selector"
-import { Menu, X } from "lucide-react"
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const { t } = useLanguage()
-  const { user } = useAuth()
+  const { user, logout, loading: authLoading } = useAuth()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -22,6 +32,16 @@ export default function Header() {
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    try {
+      await logout()
+    } catch (error) {
+      console.error("Logout failed", error)
+      setIsLoggingOut(false)
+    }
+  }
 
   return (
     <header
@@ -52,9 +72,56 @@ export default function Header() {
           <LanguageSelector />
 
           {user ? (
-            <Button asChild variant="outline" className="text-white border-white hover:bg-white/20">
-              <Link href="/admin">{t("nav.admin")}</Link>
-            </Button>
+            <div className="flex items-center gap-4">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    className="relative h-8 w-8 rounded-full p-0 hover:bg-brown-light"
+                    aria-label="User menu"
+                  >
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage 
+                        src={user?.photoURL || "/placeholder-user.jpg"} 
+                        alt={user?.displayName || "User"} 
+                        className="object-cover"
+                      />
+                      <AvatarFallback className="bg-brown-light text-white">
+                        {user?.displayName?.charAt(0).toUpperCase() || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none truncate">
+                        {user?.displayName || "User"}
+                      </p>
+                      <p className="text-xs leading-none text-muted-foreground truncate">
+                        {user?.email}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin" className="w-full flex items-center">
+                      <User className="mr-2 h-4 w-4" />
+                      {t("nav.admin")}
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={handleLogout} 
+                    disabled={isLoggingOut || authLoading}
+                    className="cursor-pointer"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>{isLoggingOut ? t("nav.loggingOut") : t("nav.logout")}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           ) : (
             <Button asChild variant="outline" className="text-white border-white hover:bg-white/20">
               <Link href="/login">{t("nav.login")}</Link>
@@ -109,16 +176,69 @@ export default function Header() {
               <LanguageSelector />
 
               {user ? (
-                <Button asChild variant="outline" className="text-white border-white hover:bg-white/20">
-                  <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)}>
-                    {t("nav.admin")}
-                  </Link>
-                </Button>
+                <div className="flex items-center gap-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        className="relative h-8 w-8 rounded-full p-0 hover:bg-brown-light"
+                      >
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage 
+                            src={user?.photoURL || "/placeholder-user.jpg"} 
+                            alt={user?.displayName || "User"} 
+                          />
+                          <AvatarFallback className="bg-brown-light text-white">
+                            {user?.displayName?.charAt(0).toUpperCase() || "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56" align="end" forceMount>
+                      <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col space-y-1">
+                          <p className="text-sm font-medium leading-none truncate">
+                            {user?.displayName || "User"}
+                          </p>
+                          <p className="text-xs leading-none text-muted-foreground truncate">
+                            {user?.email}
+                          </p>
+                        </div>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link 
+                          href="/admin" 
+                          className="w-full flex items-center"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <User className="mr-2 h-4 w-4" />
+                          {t("nav.admin")}
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        onClick={() => {
+                          handleLogout()
+                          setIsMobileMenuOpen(false)
+                        }} 
+                        disabled={isLoggingOut || authLoading}
+                        className="cursor-pointer"
+                      >
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>{isLoggingOut ? t("nav.loggingOut") : t("nav.logout")}</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               ) : (
-                <Button asChild variant="outline" className="text-white border-white hover:bg-white/20">
-                  <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                    {t("nav.login")}
-                  </Link>
+                <Button 
+                  asChild 
+                  variant="outline" 
+                  className="text-white border-white hover:bg-white/20"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <Link href="/login">{t("nav.login")}</Link>
                 </Button>
               )}
             </div>
