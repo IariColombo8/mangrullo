@@ -14,16 +14,17 @@ const cabins = [
   {
     id: 1,
     name: {
-      es: "Cabaña Río",
-      en: "River Cabin",
-      pt: "Cabana Rio",
+      es: "Las Calandrias",
+      en: "The Larks",
+      pt: "As Cotovias",
     },
+
     description: {
       es: "Hermosa cabaña con vista al río, perfecta para parejas o familias pequeñas.",
       en: "Beautiful cabin with river view, perfect for couples or small families.",
       pt: "Linda cabana com vista para o rio, perfeita para casais ou famílias pequenas.",
     },
-    image: "/placeholder.svg?height=600&width=800",
+    image: "cama 1.jpg",
     price: 120,
     capacity: 4,
     amenities: ["wifi", "ac", "pets", "kitchen"],
@@ -31,16 +32,16 @@ const cabins = [
   {
     id: 2,
     name: {
-      es: "Cabaña Bosque",
-      en: "Forest Cabin",
-      pt: "Cabana Floresta",
+      es: "Los Cuices",
+      en: "The Guinea Pigs",
+      pt: "Os Preás",
     },
     description: {
       es: "Rodeada de naturaleza, esta cabaña ofrece tranquilidad y confort.",
       en: "Surrounded by nature, this cabin offers tranquility and comfort.",
       pt: "Rodeada pela natureza, esta cabana oferece tranquilidade e conforto.",
     },
-    image: "/placeholder.svg?height=600&width=800",
+    image: "cama 2.jpg",
     price: 140,
     capacity: 6,
     amenities: ["wifi", "ac", "pets", "kitchen"],
@@ -48,16 +49,16 @@ const cabins = [
   {
     id: 3,
     name: {
-      es: "Cabaña Lago",
-      en: "Lake Cabin",
-      pt: "Cabana Lago",
+      es: "Los Lagartos",
+      en: "The Lizards",
+      pt: "Os Lagartos",
     },
     description: {
       es: "Con acceso directo al lago, ideal para los amantes de la pesca y la naturaleza.",
       en: "With direct access to the lake, ideal for fishing and nature lovers.",
       pt: "Com acesso direto ao lago, ideal para os amantes da pesca e da natureza.",
     },
-    image: "/placeholder.svg?height=600&width=800",
+    image: "cama 3.jpg",
     price: 160,
     capacity: 8,
     amenities: ["wifi", "ac", "kitchen"],
@@ -65,16 +66,17 @@ const cabins = [
   {
     id: 4,
     name: {
-      es: "Cabaña Montaña",
-      en: "Mountain Cabin",
-      pt: "Cabana Montanha",
+      es: "Los Horneros",
+      en: "The Horneros",
+      pt: "Os Horneros",
     },
+
     description: {
       es: "Ubicada en lo alto, con vistas panorámicas y todas las comodidades.",
       en: "Located at the top, with panoramic views and all amenities.",
       pt: "Localizada no alto, com vistas panorâmicas e todas as comodidades.",
     },
-    image: "/placeholder.svg?height=600&width=800",
+    image: "cama 4.jpg",
     price: 180,
     capacity: 10,
     amenities: ["wifi", "ac", "pets", "kitchen"],
