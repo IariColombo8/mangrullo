@@ -18,7 +18,7 @@ export default function Footer() {
             <p className="text-white-300 mb-4">{t("footer.about")}</p>
             <div className="flex space-x-4">
               <a
-                href="https://www.facebook.com"
+                href="https://www.facebook.com/elmangrullo.federacion/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-white hover:text-white-300 transition-colors"
@@ -27,7 +27,7 @@ export default function Footer() {
                 <Facebook />
               </a>
               <a
-                href="https://www.instagram.com"
+                href="https://www.instagram.com/el_mangrullo_federacion/?hl=es"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-white hover:text-white-300 transition-colors"
@@ -40,7 +40,7 @@ export default function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-white hover:text-white-300 transition-colors"
-                aria-label="Booking.com"
+                aria-label="Booking"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
