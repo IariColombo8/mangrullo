@@ -10,7 +10,7 @@ import { useLanguage } from "@/context/language-context"
 const slides = [
   {
     id: 1,
-    image: "/placeholder.svg?height=800&width=1600",
+    image: "foto 7.jpg",
     title: {
       es: "Bienvenido a El Mangrullo",
       en: "Welcome to El Mangrullo",
@@ -24,7 +24,7 @@ const slides = [
   },
   {
     id: 2,
-    image: "/placeholder.svg?height=800&width=1600",
+    image: "foto 3.jpg",
     title: {
       es: "Cabañas de Lujo",
       en: "Luxury Cabins",
@@ -38,7 +38,7 @@ const slides = [
   },
   {
     id: 3,
-    image: "/placeholder.svg?height=800&width=1600",
+    image: "foto 4.jpg",
     title: {
       es: "Experiencias Inolvidables",
       en: "Unforgettable Experiences",
