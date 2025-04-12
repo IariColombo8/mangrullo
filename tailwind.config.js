@@ -54,7 +54,8 @@ module.exports = {
         // Custom colors for El Mangrullo
         green: "#2980b9", //azul (fondo de boton)
         brown: "#5499c7", //azul (inicio y contacto fondo)
-        beige: "#FFFFFF", //blanco
+        beige: "#FFFFFF", //blanco #E0F7FA
+        celeste: "##E0F7FA",
       },
       borderRadius: {
         lg: "var(--radius)",

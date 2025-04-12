@@ -28,9 +28,9 @@ const initialActivities = [
       en: "Enjoy the hot springs just 10 minutes from our cabins. Federación hot springs are known for their healing and relaxing properties.",
       pt: "Desfrute das águas termais a apenas 10 minutos de nossas cabanas. As termas de Federación são conhecidas por suas propriedades curativas e relaxantes.",
     },
-    image: "/placeholder.svg?height=600&width=800",
+    image: "termas.jpg",
     location: "Federación, Entre Ríos",
-    distance: "10 min",
+    distance: "4 min",
   },
   {
     id: 2,
@@ -44,9 +44,9 @@ const initialActivities = [
       en: "The Uruguay River offers excellent opportunities for sport fishing. Golden fish, catfish and other species abound in these waters.",
       pt: "O Rio Uruguai oferece excelentes oportunidades para a pesca esportiva. Dourados, surubis e outras espécies abundam nestas águas.",
     },
-    image: "/placeholder.svg?height=600&width=800",
+    image: "pesca.jpg",
     location: "Río Uruguay",
-    distance: "5 min",
+    distance: "8 min",
   },
   {
     id: 3,
@@ -60,9 +60,9 @@ const initialActivities = [
       en: "Explore the natural beauty of the Chaviyú reserve, with hiking trails, bird watching and direct contact with nature.",
       pt: "Explore a beleza natural da reserva Chaviyú, com trilhas para caminhadas, observação de pássaros e contato direto com a natureza.",
     },
-    image: "/placeholder.svg?height=600&width=800",
+    image: "chaviyu.jpg",
     location: "Chaviyú, Entre Ríos",
-    distance: "15 min",
+    distance: "30 min",
   },
 ]
 
