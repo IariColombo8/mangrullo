@@ -85,7 +85,7 @@ const translations = {
     },
     footer: {
       about:
-        "El Mangrullo ofrece cabañas de lujo en un entorno natural único, con todas las comodidades para una estadía inolvidable.",
+        "Un rincón para desconectar y disfrutar de nuestros departamentos totalmente equipados, pensados para tu confort. Naturaleza, tranquilidad y la mejor atención.",
       quickLinks: "Enlaces rápidos",
       contactUs: "Contáctenos",
       rights: "Todos los derechos reservados.",

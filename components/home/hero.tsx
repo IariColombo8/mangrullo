@@ -12,12 +12,12 @@ const slides = [
     id: 1,
     image: "foto 7.jpg",
     title: {
-      es: "Bienvenido a El Mangrullo",
-      en: "Welcome to El Mangrullo",
-      pt: "Bem-vindo ao El Mangrullo",
+      es: "Bienvenido",
+      en: "Welcome",
+      pt: "Bem-vindo",
     },
     subtitle: {
-      es: "Su hogar lejos de casa en Federación, Entre Ríos",
+      es: "Relajate, conectate con la naturaleza y sentite como en casa.",
       en: "Your home away from home in Federación, Entre Ríos",
       pt: "Sua casa longe de casa em Federación, Entre Ríos",
     },
@@ -26,12 +26,12 @@ const slides = [
     id: 2,
     image: "foto 3.jpg",
     title: {
-      es: "Cabañas de Lujo",
+      es: "Tu descanso, nuestra prioridad",
       en: "Luxury Cabins",
       pt: "Cabanas de Luxo",
     },
     subtitle: {
-      es: "Confort y naturaleza en perfecta armonía",
+      es: "Elegí con quién venir, nosotros nos encargamos del resto.",
       en: "Comfort and nature in perfect harmony",
       pt: "Conforto e natureza em perfeita harmonia",
     },
@@ -40,12 +40,12 @@ const slides = [
     id: 3,
     image: "foto 4.jpg",
     title: {
-      es: "Experiencias Inolvidables",
+      es: "Un rincón para desconectar y disfrutar.",
       en: "Unforgettable Experiences",
       pt: "Experiências Inesquecíveis",
     },
     subtitle: {
-      es: "Descubra la belleza de Entre Ríos",
+      es: "Departamentos totalmente equipados, pensados para tu confort.",
       en: "Discover the beauty of Entre Ríos",
       pt: "Descubra a beleza de Entre Ríos",
     },

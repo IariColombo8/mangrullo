@@ -19,7 +19,7 @@ const playfair = Playfair_Display({
 
 export const metadata = {
   title: "El Mangrullo - Cabañas",
-  description: "Cabañas El Mangrullo - Su hogar lejos de casa",
+  description: "El Mangrullo - Su hogar lejos de casa",
   generator: 'v0.dev'
 }
 
