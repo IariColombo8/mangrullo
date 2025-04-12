@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow public read access to cabins, activities, and approved testimonials
+    match /cabins/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    match /activities/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    match /testimonials/{testimonialId} {
+      allow read: if true || resource.data.status == 'approved';
+      allow write: if request.auth != null;
+    }
+    
+    // Only allow authenticated users to read and write bookings
+    match /bookings/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Only allow authenticated users to read and write settings
+    match /settings/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}
