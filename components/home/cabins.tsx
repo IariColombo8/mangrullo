@@ -8,92 +8,60 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { useLanguage } from "@/context/language-context"
-
-// This would come from your Firebase in a real app
-const cabins = [
-  {
-    id: 1,
-    name: {
-      es: "Las Calandrias",
-      en: "The Larks",
-      pt: "As Cotovias",
-    },
-
-    description: {
-      es: "Hermosa cabaña con vista al río, perfecta para parejas o familias pequeñas.",
-      en: "Beautiful cabin with river view, perfect for couples or small families.",
-      pt: "Linda cabana com vista para o rio, perfeita para casais ou famílias pequenas.",
-    },
-    image: "cama 1.jpg",
-    price: 120,
-    capacity: 4,
-    amenities: ["wifi", "ac", "pets", "kitchen"],
-  },
-  {
-    id: 2,
-    name: {
-      es: "Los Cuices",
-      en: "The Guinea Pigs",
-      pt: "Os Preás",
-    },
-    description: {
-      es: "Rodeada de naturaleza, esta cabaña ofrece tranquilidad y confort.",
-      en: "Surrounded by nature, this cabin offers tranquility and comfort.",
-      pt: "Rodeada pela natureza, esta cabana oferece tranquilidade e conforto.",
-    },
-    image: "cama 2.jpg",
-    price: 140,
-    capacity: 6,
-    amenities: ["wifi", "ac", "pets", "kitchen"],
-  },
-  {
-    id: 3,
-    name: {
-      es: "Los Lagartos",
-      en: "The Lizards",
-      pt: "Os Lagartos",
-    },
-    description: {
-      es: "Con acceso directo al lago, ideal para los amantes de la pesca y la naturaleza.",
-      en: "With direct access to the lake, ideal for fishing and nature lovers.",
-      pt: "Com acesso direto ao lago, ideal para os amantes da pesca e da natureza.",
-    },
-    image: "cama 3.jpg",
-    price: 160,
-    capacity: 8,
-    amenities: ["wifi", "ac", "kitchen"],
-  },
-  {
-    id: 4,
-    name: {
-      es: "Los Horneros",
-      en: "The Horneros",
-      pt: "Os Horneros",
-    },
-
-    description: {
-      es: "Ubicada en lo alto, con vistas panorámicas y todas las comodidades.",
-      en: "Located at the top, with panoramic views and all amenities.",
-      pt: "Localizada no alto, com vistas panorâmicas e todas as comodidades.",
-    },
-    image: "cama 4.jpg",
-    price: 180,
-    capacity: 10,
-    amenities: ["wifi", "ac", "pets", "kitchen"],
-  },
-]
+import { collection, getDocs } from "firebase/firestore"
+import { db } from "@/lib/firebase" // Asegúrate de tener configurado tu archivo de inicialización de Firebase
 
 export default function Cabins() {
-  const [selectedCabin, setSelectedCabin] = useState<null | (typeof cabins)[0]>(null)
+  const [cabins, setCabins] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [selectedCabin, setSelectedCabin] = useState(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [date, setDate] = useState<Date | undefined>(undefined)
+  const [date, setDate] = useState(undefined)
   const { language, t } = useLanguage()
 
-  // This would be replaced with actual Booking.com API integration
-  const [bookedDates, setBookedDates] = useState<Date[]>([])
+  // Fechas reservadas (simuladas)
+  const [bookedDates, setBookedDates] = useState([])
 
   useEffect(() => {
-    // Simulate fetching booked dates from Booking.com API
+    // Cargar cabañas desde Firebase
+    const fetchCabins = async () => {
+      try {
+       
+        const cabinsCollection = collection(db, "cabins")
+        const cabinsSnapshot = await getDocs(cabinsCollection)
+        
+       
+        
+        if (cabinsSnapshot.empty) {
+        
+          setError("No se encontraron cabañas en la base de datos")
+          setLoading(false)
+          return
+        }
+        
+        const cabinsList = cabinsSnapshot.docs.map(doc => {
+          const data = doc.data()
+         
+          return {
+            id: doc.id,
+            ...data
+          }
+        })
+        
+     
+        setCabins(cabinsList)
+        setLoading(false)
+      } catch (error) {
+       
+        setError(`Error al cargar datos: ${error.message}`)
+        setLoading(false)
+      }
+    }
+
+    fetchCabins()
+
+    // Simular fechas reservadas
     const today = new Date()
     const simulatedBookedDates = [
       new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5),
@@ -105,12 +73,12 @@ export default function Cabins() {
     setBookedDates(simulatedBookedDates)
   }, [])
 
-  const handleCabinClick = (cabin: (typeof cabins)[0]) => {
+  const handleCabinClick = (cabin) => {
     setSelectedCabin(cabin)
     setIsDialogOpen(true)
   }
 
-  const getAmenityIcon = (amenity: string) => {
+  const getAmenityIcon = (amenity) => {
     switch (amenity) {
       case "wifi":
         return <Wifi className="h-5 w-5" />
@@ -125,7 +93,7 @@ export default function Cabins() {
     }
   }
 
-  const getAmenityLabel = (amenity: string) => {
+  const getAmenityLabel = (amenity) => {
     switch (amenity) {
       case "wifi":
         return t("cabins.amenities.wifi")
@@ -140,51 +108,95 @@ export default function Cabins() {
     }
   }
 
+  // Función para manejar errores de imagen
+  const handleImageError = (e) => {
+    e.target.src = "/placeholder.svg"
+  }
+
+  if (loading) {
+    return (
+      <section id="cabins" className="section-padding bg-beige">
+        <div className="container-custom">
+          <h2 className="section-title text-brown">{t("cabins.title")}</h2>
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-green"></div>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  if (error) {
+    return (
+      <section id="cabins" className="section-padding bg-beige">
+        <div className="container-custom">
+          <h2 className="section-title text-brown">{t("cabins.title")}</h2>
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+            <strong className="font-bold">Error: </strong>
+            <span className="block sm:inline">{error}</span>
+            <p className="mt-2">Verifica la consola para más detalles o intenta recargar la página.</p>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section id="cabins" className="section-padding bg-beige">
       <div className="container-custom">
         <h2 className="section-title text-brown">{t("cabins.title")}</h2>
         <p className="text-center text-gray-600 mb-12 max-w-3xl mx-auto">{t("cabins.subtitle")}</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {cabins.map((cabin) => (
-            <div
-              key={cabin.id}
-              className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow"
-            >
-              <div className="relative h-48">
-                <Image
-                  src={cabin.image || "/placeholder.svg"}
-                  alt={cabin.name[language as keyof typeof cabin.name]}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              <div className="p-4">
-                <h3 className="text-xl font-bold text-brown mb-2">{cabin.name[language as keyof typeof cabin.name]}</h3>
-                <div className="flex items-center text-gray-600 mb-4">
-                  <Users className="h-4 w-4 mr-1" />
-                  <span>{t("cabins.capacity", { count: cabin.capacity })}</span>
+      
+
+        {cabins.length === 0 ? (
+          <p className="text-center text-gray-600">No hay cabañas disponibles actualmente.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {cabins.map((cabin) => (
+              <div
+                key={cabin.id}
+                className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow"
+              >
+                <div className="relative h-48">
+                  <Image
+                    src={cabin.image || "/placeholder.svg"}
+                    alt={cabin.name?.[language] || cabin.name || "Cabaña"}
+                    fill
+                    className="object-cover"
+                    onError={handleImageError}
+                    unoptimized={true} // Evita problemas con optimización de imágenes
+                  />
                 </div>
-                <p className="text-gray-600 mb-4 line-clamp-2">
-                  {cabin.description[language as keyof typeof cabin.description]}
-                </p>
-                <div className="flex justify-between items-center">
-                  <span className="text-green font-bold text-lg">
-                    ${cabin.price} USD <span className="text-sm font-normal">{t("cabins.perNight")}</span>
-                  </span>
-                  <Button
-                    variant="outline"
-                    className="border-green text-green hover:bg-green hover:text-white"
-                    onClick={() => handleCabinClick(cabin)}
-                  >
-                    {t("cabins.details")}
-                  </Button>
+                <div className="p-4">
+                  <pre className="text-xs text-gray-500 mb-2">ID: {cabin.id}</pre>
+                  <h3 className="text-xl font-bold text-brown mb-2">
+                    {cabin.name?.[language] || cabin.name || `Cabaña ${cabin.id}`}
+                  </h3>
+                  <div className="flex items-center text-gray-600 mb-4">
+                    <Users className="h-4 w-4 mr-1" />
+                    <span>{t("cabins.capacity", { count: cabin.capacity || "?" })}</span>
+                  </div>
+                  <p className="text-gray-600 mb-4 line-clamp-2">
+                    {cabin.description?.[language] || cabin.description || "Sin descripción disponible."}
+                  </p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-green font-bold text-lg">
+                      ${cabin.price || "?"} USD <span className="text-sm font-normal">{t("cabins.perNight")}</span>
+                    </span>
+                    <Button
+                      variant="outline"
+                      className="border-green text-green hover:bg-green hover:text-white"
+                      onClick={() => handleCabinClick(cabin)}
+                    >
+                      {t("cabins.details")}
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Cabin Detail Dialog */}
@@ -194,7 +206,7 @@ export default function Cabins() {
             <>
               <DialogHeader>
                 <DialogTitle className="text-2xl text-brown">
-                  {selectedCabin.name[language as keyof typeof selectedCabin.name]}
+                  {selectedCabin.name?.[language] || selectedCabin.name || `Cabaña ${selectedCabin.id}`}
                 </DialogTitle>
               </DialogHeader>
 
@@ -209,20 +221,22 @@ export default function Cabins() {
                   <div className="relative h-64 rounded-lg overflow-hidden">
                     <Image
                       src={selectedCabin.image || "/placeholder.svg"}
-                      alt={selectedCabin.name[language as keyof typeof selectedCabin.name]}
+                      alt={selectedCabin.name?.[language] || selectedCabin.name || "Cabaña"}
                       fill
                       className="object-cover"
+                      onError={handleImageError}
+                      unoptimized={true}
                     />
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-brown mb-2">{t("cabins.modal.description")}</h3>
                     <p className="text-gray-600">
-                      {selectedCabin.description[language as keyof typeof selectedCabin.description]}
+                      {selectedCabin.description?.[language] || selectedCabin.description || "Sin descripción disponible."}
                     </p>
                   </div>
                   <div className="flex justify-between items-center">
                     <div>
-                      <span className="text-green font-bold text-2xl">${selectedCabin.price} USD</span>
+                      <span className="text-green font-bold text-2xl">${selectedCabin.price || "?"} USD</span>
                       <span className="text-sm text-gray-600 ml-1">{t("cabins.perNight")}</span>
                     </div>
                     <Button
@@ -235,14 +249,18 @@ export default function Cabins() {
                 </TabsContent>
 
                 <TabsContent value="amenities" className="pt-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    {selectedCabin.amenities.map((amenity) => (
-                      <div key={amenity} className="flex items-center p-3 bg-gray-50 rounded-lg">
-                        <div className="mr-3 text-green">{getAmenityIcon(amenity)}</div>
-                        <span>{getAmenityLabel(amenity)}</span>
-                      </div>
-                    ))}
-                  </div>
+                  {selectedCabin.amenities && selectedCabin.amenities.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      {selectedCabin.amenities.map((amenity) => (
+                        <div key={amenity} className="flex items-center p-3 bg-gray-50 rounded-lg">
+                          <div className="mr-3 text-green">{getAmenityIcon(amenity)}</div>
+                          <span>{getAmenityLabel(amenity)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-600">No hay amenidades disponibles.</p>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="availability" className="pt-4">
