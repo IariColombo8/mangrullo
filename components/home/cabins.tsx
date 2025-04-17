@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { useLanguage } from "@/context/language-context"
 import { collection, getDocs } from "firebase/firestore"
-import { db } from "@/lib/firebase" // Asegúrate de tener configurado tu archivo de inicialización de Firebase
+import { db } from "@/lib/firebase"
 
 export default function Cabins() {
   const [cabins, setCabins] = useState([])
@@ -20,40 +20,34 @@ export default function Cabins() {
   const [date, setDate] = useState(undefined)
   const { language, t } = useLanguage()
 
-  // Fechas reservadas (simuladas)
   const [bookedDates, setBookedDates] = useState([])
 
+  const getLocalizedText = (field) => {
+    if (!field) return ""
+    if (typeof field === "object") return field[language] || Object.values(field)[0] || ""
+    return field
+  }
+
   useEffect(() => {
-    // Cargar cabañas desde Firebase
     const fetchCabins = async () => {
       try {
-       
         const cabinsCollection = collection(db, "cabins")
         const cabinsSnapshot = await getDocs(cabinsCollection)
-        
-       
-        
+
         if (cabinsSnapshot.empty) {
-        
           setError("No se encontraron cabañas en la base de datos")
           setLoading(false)
           return
         }
-        
-        const cabinsList = cabinsSnapshot.docs.map(doc => {
-          const data = doc.data()
-         
-          return {
-            id: doc.id,
-            ...data
-          }
-        })
-        
-     
+
+        const cabinsList = cabinsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+
         setCabins(cabinsList)
         setLoading(false)
       } catch (error) {
-       
         setError(`Error al cargar datos: ${error.message}`)
         setLoading(false)
       }
@@ -61,7 +55,6 @@ export default function Cabins() {
 
     fetchCabins()
 
-    // Simular fechas reservadas
     const today = new Date()
     const simulatedBookedDates = [
       new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5),
@@ -108,7 +101,6 @@ export default function Cabins() {
     }
   }
 
-  // Función para manejar errores de imagen
   const handleImageError = (e) => {
     e.target.src = "/placeholder.svg"
   }
@@ -147,38 +139,31 @@ export default function Cabins() {
         <h2 className="section-title text-brown">{t("cabins.title")}</h2>
         <p className="text-center text-gray-600 mb-12 max-w-3xl mx-auto">{t("cabins.subtitle")}</p>
 
-      
-
         {cabins.length === 0 ? (
           <p className="text-center text-gray-600">No hay cabañas disponibles actualmente.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {cabins.map((cabin) => (
-              <div
-                key={cabin.id}
-                className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow"
-              >
+              <div key={cabin.id} className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
                 <div className="relative h-48">
                   <Image
                     src={cabin.image || "/placeholder.svg"}
-                    alt={cabin.name?.[language] || cabin.name || "Cabaña"}
+                    alt={getLocalizedText(cabin.name) || "Cabaña"}
                     fill
                     className="object-cover"
                     onError={handleImageError}
-                    unoptimized={true} // Evita problemas con optimización de imágenes
+                    unoptimized={true}
                   />
                 </div>
                 <div className="p-4">
                   <pre className="text-xs text-gray-500 mb-2">ID: {cabin.id}</pre>
-                  <h3 className="text-xl font-bold text-brown mb-2">
-                    {cabin.name?.[language] || cabin.name || `Cabaña ${cabin.id}`}
-                  </h3>
+                  <h3 className="text-xl font-bold text-brown mb-2">{getLocalizedText(cabin.name) || `Cabaña ${cabin.id}`}</h3>
                   <div className="flex items-center text-gray-600 mb-4">
                     <Users className="h-4 w-4 mr-1" />
                     <span>{t("cabins.capacity", { count: cabin.capacity || "?" })}</span>
                   </div>
                   <p className="text-gray-600 mb-4 line-clamp-2">
-                    {cabin.description?.[language] || cabin.description || "Sin descripción disponible."}
+                    {getLocalizedText(cabin.description) || "Sin descripción disponible."}
                   </p>
                   <div className="flex justify-between items-center">
                     <span className="text-green font-bold text-lg">
@@ -199,14 +184,13 @@ export default function Cabins() {
         )}
       </div>
 
-      {/* Cabin Detail Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-4xl">
           {selectedCabin && (
             <>
               <DialogHeader>
                 <DialogTitle className="text-2xl text-brown">
-                  {selectedCabin.name?.[language] || selectedCabin.name || `Cabaña ${selectedCabin.id}`}
+                  {getLocalizedText(selectedCabin.name) || `Cabaña ${selectedCabin.id}`}
                 </DialogTitle>
               </DialogHeader>
 
@@ -221,7 +205,7 @@ export default function Cabins() {
                   <div className="relative h-64 rounded-lg overflow-hidden">
                     <Image
                       src={selectedCabin.image || "/placeholder.svg"}
-                      alt={selectedCabin.name?.[language] || selectedCabin.name || "Cabaña"}
+                      alt={getLocalizedText(selectedCabin.name) || "Cabaña"}
                       fill
                       className="object-cover"
                       onError={handleImageError}
@@ -231,7 +215,7 @@ export default function Cabins() {
                   <div>
                     <h3 className="text-xl font-bold text-brown mb-2">{t("cabins.modal.description")}</h3>
                     <p className="text-gray-600">
-                      {selectedCabin.description?.[language] || selectedCabin.description || "Sin descripción disponible."}
+                      {getLocalizedText(selectedCabin.description) || "Sin descripción disponible."}
                     </p>
                   </div>
                   <div className="flex justify-between items-center">
@@ -279,7 +263,7 @@ export default function Cabins() {
                           (bookedDate) =>
                             bookedDate.getDate() === date.getDate() &&
                             bookedDate.getMonth() === date.getMonth() &&
-                            bookedDate.getFullYear() === date.getFullYear(),
+                            bookedDate.getFullYear() === date.getFullYear()
                         )
                       }
                       className="rounded-md border"
