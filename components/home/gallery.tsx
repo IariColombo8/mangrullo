@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -63,9 +63,36 @@ export default function Gallery() {
   const [filter, setFilter] = useState("all")
   const [selectedImage, setSelectedImage] = useState<null | (typeof images)[0]>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [isMobile, setIsMobile] = useState(false)
   const { t } = useLanguage()
 
-  const filteredImages = filter === "all" ? images : images.filter((image) => image.category === filter)
+  // Detectar si es dispositivo móvil
+  useEffect(() => {
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth < 640)
+    }
+    
+    checkIfMobile()
+    window.addEventListener('resize', checkIfMobile)
+    
+    return () => {
+      window.removeEventListener('resize', checkIfMobile)
+    }
+  }, [])
+
+  // Filtrar y limitar imágenes según el dispositivo
+  const getFilteredImages = () => {
+    let filtered = filter === "all" ? images : images.filter((image) => image.category === filter)
+    
+    // En móvil, limitamos a 6 imágenes para no sobrecargar
+    if (isMobile) {
+      filtered = filtered.slice(0, 6)
+    }
+    
+    return filtered
+  }
+
+  const filteredImages = getFilteredImages()
 
   const handleImageClick = (image: (typeof images)[0]) => {
     setSelectedImage(image)
@@ -142,8 +169,8 @@ export default function Gallery() {
           </Button>
         </div>
 
-        {/* Gallery Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {/* Gallery Grid - Modified for better mobile display */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
           {filteredImages.map((image) => (
             <div
               key={image.id}
@@ -160,6 +187,13 @@ export default function Gallery() {
             </div>
           ))}
         </div>
+
+        {/* Show More Button on Mobile */}
+        {isMobile && images.length > 6 && filter === "all" && (
+          <div className="mt-6 text-center">
+           
+          </div>
+        )}
       </div>
 
       {/* Lightbox Dialog */}
