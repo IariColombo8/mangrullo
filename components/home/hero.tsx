@@ -13,13 +13,9 @@ const slides = [
     image: "foto 7.jpg",
     title: {
       es: "Bienvenido",
-      en: "Welcome",
-      pt: "Bem-vindo",
     },
     subtitle: {
       es: "Relajate, conectate con la naturaleza y sentite como en casa.",
-      en: "Your home away from home in Federación, Entre Ríos",
-      pt: "Sua casa longe de casa em Federación, Entre Ríos",
     },
   },
   {
@@ -27,13 +23,9 @@ const slides = [
     image: "foto 3.jpg",
     title: {
       es: "Tu descanso, nuestra prioridad",
-      en: "Luxury Cabins",
-      pt: "Cabanas de Luxo",
     },
     subtitle: {
       es: "Elegí con quién venir, nosotros nos encargamos del resto.",
-      en: "Comfort and nature in perfect harmony",
-      pt: "Conforto e natureza em perfeita harmonia",
     },
   },
   {
@@ -41,13 +33,9 @@ const slides = [
     image: "foto 4.jpg",
     title: {
       es: "Un rincón para desconectar y disfrutar.",
-      en: "Unforgettable Experiences",
-      pt: "Experiências Inesquecíveis",
     },
     subtitle: {
       es: "Departamentos totalmente equipados, pensados para tu confort.",
-      en: "Discover the beauty of Entre Ríos",
-      pt: "Descubra a beleza de Entre Ríos",
     },
   },
 ]
