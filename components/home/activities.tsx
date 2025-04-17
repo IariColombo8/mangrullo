@@ -1,74 +1,96 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useLanguage } from "@/context/language-context"
 import { useAuth } from "@/context/auth-context"
-import { MapPin, Calendar, Plus } from "lucide-react"
+import { MapPin, Calendar } from "lucide-react"
+import { collection, getDocs } from "firebase/firestore"
+import { db } from "@/lib/firebase" // Asegúrate de tener configurado tu archivo firebase
 
-// This would come from your Firebase in a real app
-const activities = [
-  {
-    id: 1,
-    title: {
-      es: "Termas de Federación",
-      en: "Federación Hot Springs",
-      pt: "Termas de Federación",
-    },
-    description: {
-      es: "Disfrute de las aguas termales a solo 10 minutos de nuestras cabañas. Las termas de Federación son conocidas por sus propiedades curativas y relajantes.",
-      en: "Enjoy the hot springs just 10 minutes from our cabins. Federación hot springs are known for their healing and relaxing properties.",
-      pt: "Desfrute das águas termais a apenas 10 minutos de nossas cabanas. As termas de Federación são conhecidas por suas propriedades curativas e relaxantes.",
-    },
-    image: "termas.jpg",
-    location: "Federación, Entre Ríos",
-    distance: "4 min",
-  },
-  {
-    id: 2,
-    title: {
-      es: "Pesca en el Río Uruguay",
-      en: "Fishing in Uruguay River",
-      pt: "Pesca no Rio Uruguai",
-    },
-    description: {
-      es: "El Río Uruguay ofrece excelentes oportunidades para la pesca deportiva. Dorados, surubíes y otras especies abundan en estas aguas.",
-      en: "The Uruguay River offers excellent opportunities for sport fishing. Golden fish, catfish and other species abound in these waters.",
-      pt: "O Rio Uruguai oferece excelentes oportunidades para a pesca esportiva. Dourados, surubis e outras espécies abundam nestas águas.",
-    },
-    image: "pesca.jpg",
-    location: "Río Uruguay",
-    distance: "8 min",
-  },
-  {
-    id: 3,
-    title: {
-      es: "Reserva Natural Chaviyú",
-      en: "Chaviyú Nature Reserve",
-      pt: "Reserva Natural Chaviyú",
-    },
-    description: {
-      es: "Explore la belleza natural de la reserva Chaviyú, con senderos para caminatas, observación de aves y contacto directo con la naturaleza.",
-      en: "Explore the natural beauty of the Chaviyú reserve, with hiking trails, bird watching and direct contact with nature.",
-      pt: "Explore a beleza natural da reserva Chaviyú, com trilhas para caminhadas, observação de pássaros e contato direto com a natureza.",
-    },
-    image: "chaviyu.jpg",
-    location: "Chaviyú, Entre Ríos",
-    distance: "30 min",
-  },
-]
+// Define la interfaz para las actividades
+interface Activity {
+  id: string;
+  title: {
+    es: string;
+    en: string;
+    pt: string;
+  };
+  description: {
+    es: string;
+    en: string;
+    pt: string;
+  };
+  image: string;
+  location: string;
+  distance: string;
+}
 
 export default function Activities() {
-  const [selectedActivity, setSelectedActivity] = useState<null | (typeof activities)[0]>(null)
+  const [activities, setActivities] = useState<Activity[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const { language, t } = useLanguage()
   const { user } = useAuth()
 
-  const handleActivityClick = (activity: (typeof activities)[0]) => {
+  useEffect(() => {
+    const fetchActivities = async () => {
+      try {
+        setLoading(true)
+        const activitiesCollection = collection(db, "activities")
+        const activitiesSnapshot = await getDocs(activitiesCollection)
+        
+        const activitiesData: Activity[] = activitiesSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...(doc.data() as Omit<Activity, 'id'>)
+        }))
+        
+        setActivities(activitiesData)
+        setError(null)
+      } catch (err) {
+        console.error("Error fetching activities:", err)
+        setError("Error al cargar las actividades")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchActivities()
+  }, [])
+
+  const handleActivityClick = (activity: Activity) => {
     setSelectedActivity(activity)
     setIsDialogOpen(true)
+  }
+
+  if (loading) {
+    return (
+      <section id="activities" className="section-padding bg-beige">
+        <div className="container-custom">
+          <h2 className="section-title text-brown">{t("activities.title")}</h2>
+          <div className="flex justify-center items-center h-64">
+            <p className="text-gray-600">Cargando actividades...</p>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  if (error) {
+    return (
+      <section id="activities" className="section-padding bg-beige">
+        <div className="container-custom">
+          <h2 className="section-title text-brown">{t("activities.title")}</h2>
+          <div className="flex justify-center items-center h-64">
+            <p className="text-red-500">{error}</p>
+          </div>
+        </div>
+      </section>
+    )
   }
 
   return (
@@ -110,17 +132,6 @@ export default function Activities() {
               </div>
             </div>
           ))}
-
-          {/* Add Activity Button (Admin only) */}
-          {user && (
-            <div className="bg-white/50 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center p-8 cursor-pointer hover:bg-white/80 transition-colors">
-              <div className="bg-green/10 text-green rounded-full p-4 mb-4">
-                <Plus size={24} />
-              </div>
-              <h3 className="text-xl font-bold text-brown mb-2">{t("activities.addNew")}</h3>
-              <p className="text-gray-600 text-center">{t("activities.addNewDescription")}</p>
-            </div>
-          )}
         </div>
       </div>
 
