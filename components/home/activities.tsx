@@ -99,14 +99,14 @@ export default function Activities() {
         <h2 className="section-title text-brown">{t("activities.title")}</h2>
         <p className="text-center text-gray-600 mb-12 max-w-3xl mx-auto">{t("activities.subtitle")}</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* Grid modificado para mostrar 2 columnas en móvil */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
           {activities.map((activity) => (
             <div
               key={activity.id}
-              className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow cursor-pointer"
-              onClick={() => handleActivityClick(activity)}
+              className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow"
             >
-              <div className="relative h-48">
+              <div className="relative h-36 md:h-48">
                 <Image
                   src={activity.image || "/placeholder.svg"}
                   alt={activity.title[language as keyof typeof activity.title]}
@@ -114,21 +114,33 @@ export default function Activities() {
                   className="object-cover"
                 />
               </div>
-              <div className="p-4">
-                <h3 className="text-xl font-bold text-brown mb-2">
+              <div className="p-3 md:p-4">
+                <h3 className="text-sm md:text-xl font-bold text-brown mb-2 line-clamp-1">
                   {activity.title[language as keyof typeof activity.title]}
                 </h3>
                 <div className="flex items-center text-gray-600 mb-2">
-                  <MapPin className="h-4 w-4 mr-1" />
-                  <span>{activity.location}</span>
+                  <MapPin className="h-3 w-3 md:h-4 md:w-4 mr-1 flex-shrink-0" />
+                  <span className="text-xs md:text-base line-clamp-1">{activity.location}</span>
                 </div>
-                <div className="flex items-center text-gray-600 mb-4">
+                
+                {/* Ocultar esta información en móvil */}
+                <div className="hidden md:flex items-center text-gray-600 mb-4">
                   <Calendar className="h-4 w-4 mr-1" />
                   <span>{t("activities.distance", { distance: activity.distance })}</span>
                 </div>
-                <p className="text-gray-600 line-clamp-3">
+                
+                {/* Mostrar descripción solo en pantallas medianas y grandes */}
+                <p className="hidden md:block text-gray-600 line-clamp-3">
                   {activity.description[language as keyof typeof activity.description]}
                 </p>
+                
+                {/* Botón "Ver más" */}
+                <Button 
+                  className="w-full mt-2 bg-green hover:bg-green/90 text-xs md:text-sm py-1 md:py-2"
+                  onClick={() => handleActivityClick(activity)}
+                >
+                  { "Ver más"}
+                </Button>
               </div>
             </div>
           ))}
@@ -141,13 +153,13 @@ export default function Activities() {
           {selectedActivity && (
             <>
               <DialogHeader>
-                <DialogTitle className="text-2xl text-brown">
+                <DialogTitle className="text-xl md:text-2xl text-brown">
                   {selectedActivity.title[language as keyof typeof selectedActivity.title]}
                 </DialogTitle>
               </DialogHeader>
 
               <div className="space-y-4 pt-4">
-                <div className="relative h-64 rounded-lg overflow-hidden">
+                <div className="relative h-48 md:h-64 rounded-lg overflow-hidden">
                   <Image
                     src={selectedActivity.image || "/placeholder.svg"}
                     alt={selectedActivity.title[language as keyof typeof selectedActivity.title]}
@@ -175,7 +187,7 @@ export default function Activities() {
 
                 <div className="flex justify-end">
                   <Button className="bg-green hover:bg-green/90" onClick={() => setIsDialogOpen(false)}>
-                    {t("activities.close")}
+                    {t("activities.close") || "Cerrar"}
                   </Button>
                 </div>
               </div>
