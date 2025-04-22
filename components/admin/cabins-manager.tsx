@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { useLanguage } from "@/context/language-context"
-import { Edit, Trash, Plus, Upload, Wifi, Wind, Thermometer, PawPrint } from "lucide-react"
+import { Edit, Trash, Plus, Upload, Wifi, Wind, Thermometer, PawPrint, X, Image as ImageIcon } from "lucide-react"
 
 // Firebase imports
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from "firebase/firestore"
@@ -27,9 +27,10 @@ export default function CabinsManager() {
   const [currentCabin, setCurrentCabin] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [imageBase64, setImageBase64] = useState("")
+  const [images, setImages] = useState([])
   const { language, t } = useLanguage()
   const { toast } = useToast()
+  const MAX_IMAGES = 5
 
   const [formData, setFormData] = useState({
     nameEs: "",
@@ -40,7 +41,7 @@ export default function CabinsManager() {
     descriptionPt: "",
     price: 0,
     capacity: 0,
-    image: "",
+    images: [],
     amenities: {
       wifi: false,
       ac: false,
@@ -78,7 +79,7 @@ export default function CabinsManager() {
   const handleAddNew = () => {
     setIsEditing(false)
     setCurrentCabin(null)
-    setImageBase64("")
+    setImages([])
     setFormData({
       nameEs: "",
       nameEn: "",
@@ -88,7 +89,7 @@ export default function CabinsManager() {
       descriptionPt: "",
       price: 0,
       capacity: 0,
-      image: "",
+      images: [],
       amenities: {
         wifi: false,
         ac: false,
@@ -102,7 +103,12 @@ export default function CabinsManager() {
   const handleEdit = (cabin) => {
     setIsEditing(true)
     setCurrentCabin(cabin)
-    setImageBase64(cabin.image || "")
+    
+    // Preparar imágenes para edición
+    const cabinImages = Array.isArray(cabin.images) ? cabin.images : 
+                        cabin.image ? [cabin.image] : []
+    setImages(cabinImages)
+    
     setFormData({
       nameEs: cabin.name?.es || "",
       nameEn: cabin.name?.en || "",
@@ -112,7 +118,7 @@ export default function CabinsManager() {
       descriptionPt: cabin.description?.pt || "",
       price: cabin.price || 0,
       capacity: cabin.capacity || 0,
-      image: cabin.image || "",
+      images: cabinImages,
       amenities: {
         wifi: cabin.amenities?.includes("wifi") || false,
         ac: cabin.amenities?.includes("ac") || false,
@@ -173,19 +179,43 @@ export default function CabinsManager() {
   }
 
   const handleImageChange = (e) => {
-    const file = e.target.files[0]
-    if (file) {
+    const files = Array.from(e.target.files)
+    
+    if (images.length + files.length > MAX_IMAGES) {
+      toast({
+        title: "Límite de imágenes",
+        description: `Solo se permiten ${MAX_IMAGES} imágenes por cabaña.`,
+        variant: "destructive"
+      })
+      return
+    }
+
+    files.forEach(file => {
       const reader = new FileReader()
       reader.onloadend = () => {
         const base64String = reader.result
-        setImageBase64(base64String)
+        setImages(prev => [...prev, base64String])
         setFormData(prev => ({
           ...prev,
-          image: base64String
+          images: [...prev.images, base64String]
         }))
       }
       reader.readAsDataURL(file)
-    }
+    })
+    
+    // Limpiar el input para permitir subir archivos repetidos
+    e.target.value = null
+  }
+
+  const removeImage = (index) => {
+    const newImages = [...images]
+    newImages.splice(index, 1)
+    setImages(newImages)
+    
+    setFormData(prev => ({
+      ...prev,
+      images: newImages
+    }))
   }
 
   const handleSubmit = async (e) => {
@@ -208,7 +238,8 @@ export default function CabinsManager() {
           en: formData.descriptionEn,
           pt: formData.descriptionPt,
         },
-        image: imageBase64, // Guardamos la imagen como base64 directamente
+        images: formData.images, // Guardar array de imágenes
+        image: formData.images[0] || "", // Para retrocompatibilidad
         price: formData.price,
         capacity: formData.capacity,
         amenities: amenitiesArray,
@@ -248,6 +279,14 @@ export default function CabinsManager() {
     }
   }
 
+  // Obtener la imagen principal para mostrar en la tarjeta
+  const getMainImage = (cabin) => {
+    if (Array.isArray(cabin.images) && cabin.images.length > 0) {
+      return cabin.images[0];
+    }
+    return cabin.image || "";
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -264,21 +303,27 @@ export default function CabinsManager() {
         </div>
       ) : cabins.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-12 bg-gray-50 rounded-lg border border-dashed">
-         
+          <p>No hay cabañas disponibles.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {cabins.map((cabin) => (
             <Card key={cabin.id} className="overflow-hidden">
               <div className="relative h-48">
-                {cabin.image ? (
+                {getMainImage(cabin) ? (
                   <div className="w-full h-full relative">
                     <Image
-                      src={cabin.image}
+                      src={getMainImage(cabin)}
                       alt={cabin.name[language] || cabin.name.en}
                       fill
                       className="object-cover"
                     />
+                    {Array.isArray(cabin.images) && cabin.images.length > 1 && (
+                      <div className="absolute bottom-2 right-2 bg-black/60 text-white px-2 py-1 rounded-md text-xs flex items-center">
+                        <ImageIcon className="h-3 w-3 mr-1" />
+                        {cabin.images.length}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="w-full h-full bg-gray-200 flex items-center justify-center">
@@ -344,8 +389,9 @@ export default function CabinsManager() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <Tabs defaultValue="general">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="general">{t("admin.cabins.tabs.general")}</TabsTrigger>
+                <TabsTrigger value="images">Imágenes</TabsTrigger>
                 <TabsTrigger value="descriptions">{t("admin.cabins.tabs.descriptions")}</TabsTrigger>
                 <TabsTrigger value="amenities">{t("admin.cabins.tabs.amenities")}</TabsTrigger>
               </TabsList>
@@ -393,34 +439,60 @@ export default function CabinsManager() {
                     />
                   </div>
                 </div>
+              </TabsContent>
 
+              <TabsContent value="images" className="space-y-4 pt-4">
                 <div>
-                  <Label htmlFor="image">{t("admin.cabins.form.image")}</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="image"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="flex-1"
-                    />
-                  </div>
-                  <div className="mt-2 relative h-40 bg-gray-100 rounded-md overflow-hidden">
-                    {formData.image ? (
-                      <div className="w-full h-full relative">
-                        <Image
-                          src={formData.image}
-                          alt="Cabin preview"
-                          fill
-                          className="object-cover"
+                  <div className="flex items-center justify-between mb-2">
+                    <Label htmlFor="images">Imágenes ({images.length}/{MAX_IMAGES})</Label>
+                    {images.length < MAX_IMAGES && (
+                      <div>
+                        <Input
+                          id="images"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          className="hidden"
+                          multiple
                         />
-                      </div>
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <p className="text-gray-400">Sin imagen seleccionada</p>
+                        <Label htmlFor="images" className="inline-flex items-center px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-md cursor-pointer text-sm transition-colors">
+                          <Upload className="h-4 w-4 mr-2" />
+                          Subir imágenes
+                        </Label>
                       </div>
                     )}
                   </div>
+                  
+                  {images.length === 0 ? (
+                    <div className="bg-gray-100 border border-dashed border-gray-300 rounded-md p-8 text-center">
+                      <p className="text-gray-500">No hay imágenes cargadas. La primera imagen se usará como principal.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      {images.map((img, index) => (
+                        <div key={index} className="relative aspect-square bg-gray-100 rounded-md overflow-hidden group">
+                          <Image
+                            src={img}
+                            alt={`Imagen de cabaña ${index + 1}`}
+                            fill
+                            className="object-cover"
+                          />
+                          {index === 0 && (
+                            <div className="absolute top-2 left-2 bg-green/80 text-white text-xs px-2 py-0.5 rounded">
+                              Principal
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </TabsContent>
 
