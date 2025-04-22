@@ -304,7 +304,7 @@ export default function Cabins() {
                       
                       <Button
                         className="bg-blue-500 hover:bg-blue-600 text-sm sm:text-base"
-                        onClick={() => window.open("https://www.airbnb.com", "_blank")}
+                        onClick={() => window.open("https://airbnb.com/h/loslagartos", "_blank")}
                       >
                         Reservar por Airbnb
                       </Button>

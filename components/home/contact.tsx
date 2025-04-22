@@ -60,17 +60,18 @@ export default function Contact() {
 
   return (
     <section id="contact" className="section-padding bg-beige py-16">
-      <div className="container mx-auto px-4 max-w-4xl">
+      <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="section-title text-brown">{t("contact.title")}</h2>
           <p className="text-gray-600 max-w-3xl mx-auto">{t("contact.subtitle")}</p>
         </div>
 
-        {/* Contact Info - Centered */}
-        <div className="max-w-2xl mx-auto">
-          <div className="flex flex-col justify-between">
-            <div>
-              <h3 className="text-xl font-bold text-brown mb-4 text-center">{t("contact.infoTitle")}</h3>
+        {/* Contact Info and Map - Horizontal layout on desktop */}
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Contact Info */}
+            <div className="bg-white p-6 rounded-lg shadow-sm">
+              <h3 className="text-xl font-bold text-brown mb-6">{t("contact.infoTitle")}</h3>
 
               <div className="space-y-6">
                 <div className="flex items-start">
@@ -113,8 +114,8 @@ export default function Contact() {
               </div>
             </div>
 
-            {/* Map - Full width and centered */}
-            <div className="mt-8 h-64 bg-gray-200 rounded-lg overflow-hidden">
+            {/* Map */}
+            <div className="h-80 lg:h-full min-h-64 bg-gray-200 rounded-lg overflow-hidden shadow-sm">
               <iframe
                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3420.912827110814!2d-57.94400812437604!3d-30.972914774953384!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95ada3de5d7ab995%3A0x997f47e1684e06a8!2sEl%20Mangrullo!5e0!3m2!1ses-419!2sar!4v1744424477822!5m2!1ses-419!2sar"
                 width="100%"
