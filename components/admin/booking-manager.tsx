@@ -294,7 +294,7 @@ function GoogleCalendarView() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Seleccionar calendario:
                     </label>
-                    <select 
+                    <select
                       className="w-full p-2 border rounded-md"
                       value={selectedCalendar}
                       onChange={(e) => handleCalendarChange(e.target.value)}

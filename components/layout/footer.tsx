@@ -119,23 +119,23 @@ export default function Footer() {
             <h3 className="text-xl font-bold mb-4">{t("footer.quickLinks")}</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/#cabins" className="text-white hover:text-white transition-colors">
-                  {t("nav.cabins")}
+                <Link href="/#gallery" className="text-white hover:text-white transition-colors">
+                  {t("Galeria")}
                 </Link>
               </li>
               <li>
-                <Link href="/#gallery" className="text-white hover:text-white transition-colors">
-                  {t("nav.gallery")}
+                <Link href="/#cabins" className="text-white hover:text-white transition-colors">
+                  {t("Cabañas")}
                 </Link>
               </li>
               <li>
                 <Link href="/#activities" className="text-white hover:text-white transition-colors">
-                  {t("nav.activities")}
+                  {t("Actividades")}
                 </Link>
               </li>
               <li>
                 <Link href="/#contact" className="text-white hover:text-white transition-colors">
-                  {t("nav.contact")}
+                  {t("Contacto")}
                 </Link>
               </li>
               <li>

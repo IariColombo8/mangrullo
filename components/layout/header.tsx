@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { usePathname } from "next/navigation" // Importamos usePathname
 import { Button } from "@/components/ui/button"
 import { useLanguage } from "@/context/language-context"
 import { useAuth } from "@/context/auth-context"
@@ -15,7 +16,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { LogOut, User, Menu, X } from "lucide-react"
-import LanguageSelector from "@/components/ui/language-selector"
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -23,6 +23,7 @@ export default function Header() {
   const { t } = useLanguage()
   const { user, logout } = useAuth()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const pathname = usePathname() // Obtenemos la ruta actual
 
   useEffect(() => {
     const handleScroll = () => {
@@ -32,6 +33,9 @@ export default function Header() {
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
+
+  // Verificamos si estamos en la página de login
+  const isLoginPage = pathname === "/login"
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
@@ -46,34 +50,33 @@ export default function Header() {
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? "bg-brown shadow-md py-2" : "bg-transparent py-4"
+        isScrolled || isLoginPage ? "bg-brown shadow-md py-2" : "bg-transparent py-4"
       }`}
     >
+      {/* El resto del código permanece igual */}
       <div className="container mx-auto px-4 flex justify-between items-center">
-      <Link href="/" className="flex items-center">
-      <img 
-        src="logo1.png" // logo
-        alt="El Mangrullo" 
-        className="h-30000 w-auto max-w-[150px]" // Ajusta la altura según necesites
-      />
-    </Link>
+        <Link href="/" className="flex items-center">
+          <img 
+            src="logo1.png"
+            alt="El Mangrullo" 
+            className="h-30000 w-auto max-w-[150px]"
+          />
+        </Link>
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-6">
-          <Link href="/#cabins" className="text-white hover:text-gray-200 transition-colors">
-            {t("nav.cabins")}
-          </Link>
           <Link href="/#gallery" className="text-white hover:text-gray-200 transition-colors">
-            {t("nav.gallery")}
+            {t("Galeria")}
+          </Link>
+          <Link href="/#cabins" className="text-white hover:text-gray-200 transition-colors">
+            {t("Cabañas")}
           </Link>
           <Link href="/#activities" className="text-white hover:text-gray-200 transition-colors">
-            {t("nav.activities")}
+            {t("Actividades")}
           </Link>
           <Link href="/#contact" className="text-white hover:text-gray-200 transition-colors">
-            {t("nav.contact")}
+            {t("Contacto")}
           </Link>
-
-          <LanguageSelector />
 
           {user ? (
             <div className="flex items-center gap-4">
@@ -120,7 +123,7 @@ export default function Header() {
                     </>
                   )}
                   <DropdownMenuItem 
-                    onSelect={handleLogout} // Cambiado de onClick a onSelect
+                    onSelect={handleLogout}
                     className="cursor-pointer focus:bg-gray-100"
                   >
                     <LogOut className="mr-2 h-4 w-4" />
@@ -130,7 +133,7 @@ export default function Header() {
               </DropdownMenu>
             </div>
           ) : (
-            <Button asChild variant="outline" className="text-white border-white hover:bg-white/20">
+            <Button asChild variant="outline" className="text-white border- :bg-white/20">
               <Link href="/login">{t("nav.login")}</Link>
             </Button>
           )}
@@ -150,19 +153,19 @@ export default function Header() {
       {isMobileMenuOpen && (
         <div className="md:hidden bg-brown py-4">
           <nav className="container mx-auto px-4 flex flex-col space-y-4">
+           <Link
+              href="/#gallery"
+              className="text-white hover:text-gray-200 transition-colors"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              {t("nav.gallery")}
+            </Link>
             <Link
               href="/#cabins"
               className="text-white hover:text-gray-200 transition-colors"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               {t("nav.cabins")}
-            </Link>
-            <Link
-              href="/#gallery"
-              className="text-white hover:text-gray-200 transition-colors"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              {t("nav.gallery")}
             </Link>
             <Link
               href="/#activities"
@@ -180,8 +183,6 @@ export default function Header() {
             </Link>
 
             <div className="flex items-center justify-between pt-2">
-              <LanguageSelector />
-
               {user ? (
                 <div className="flex items-center gap-2">
                   <DropdownMenu>
@@ -245,7 +246,7 @@ export default function Header() {
                 <Button 
                   asChild 
                   variant="outline" 
-                  className="text-white border-white hover:bg-white/20"
+                  className="text-white border- :bg-white/20"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <Link href="/login">{t("nav.login")}</Link>

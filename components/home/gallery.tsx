@@ -11,7 +11,7 @@ import { useLanguage } from "@/context/language-context"
 const images = [
   {
     id: 1,
-    src: "cama 3.jpg",
+    src: "foto 3.jpg",
     alt: "Pileta",
     category: "pool",
   },
@@ -29,7 +29,7 @@ const images = [
   },
   {
     id: 4,
-    src: "foto 3.jpg",
+    src: "cama 3.jpg",
     alt: "Surrounding nature",
     category: "surroundings",
   },
