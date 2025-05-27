@@ -5,32 +5,61 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label" 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/components/ui/use-toast"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useLanguage } from "@/context/language-context"
-import { Star, Plus, Edit, Trash, Check, X, Upload } from "lucide-react"
+import {
+  Star,
+  Plus,
+  Edit,
+  Trash,
+  Check,
+  X,
+  Upload,
+  Search,
+  MessageSquare,
+  Clock,
+  CheckCircle,
+  XCircle,
+  User,
+  MapPin,
+  Grid3X3,
+  List,
+} from "lucide-react"
 
-import { db } from "@/lib/firebase"
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  doc, 
-  updateDoc, 
-  deleteDoc,
-  serverTimestamp 
-} from "firebase/firestore"
+// Firebase imports - TUS IMPORTS ORIGINALES
+import { db } from "../../lib/firebase"
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore"
 
 export default function TestimonialsManager() {
   const [testimonials, setTestimonials] = useState([])
+  const [filteredTestimonials, setFilteredTestimonials] = useState([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [currentTestimonial, setCurrentTestimonial] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [ratingFilter, setRatingFilter] = useState("all")
+  const [viewMode, setViewMode] = useState("grid")
   const { language, t } = useLanguage()
   const { toast } = useToast()
 
@@ -44,6 +73,7 @@ export default function TestimonialsManager() {
     image: "",
   })
 
+  // TU LÓGICA ORIGINAL DE FIREBASE
   useEffect(() => {
     fetchTestimonials()
   }, [])
@@ -53,22 +83,52 @@ export default function TestimonialsManager() {
       setIsLoading(true)
       const testimonialsCollection = collection(db, "testimonials")
       const testimonialsSnapshot = await getDocs(testimonialsCollection)
-      const testimonialsList = testimonialsSnapshot.docs.map(doc => ({
+      const testimonialsList = testimonialsSnapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }))
       setTestimonials(testimonialsList)
+      setFilteredTestimonials(testimonialsList)
     } catch (error) {
       console.error("Error fetching testimonials:", error)
       toast({
         title: "Error",
         description: "No se pudieron cargar los testimonios",
-        variant: "destructive"
+        variant: "destructive",
       })
     } finally {
       setIsLoading(false)
     }
   }
+
+  // Filtrar testimonios
+  useEffect(() => {
+    let filtered = testimonials
+
+    // Filtro por búsqueda
+    if (searchQuery) {
+      filtered = filtered.filter(
+        (testimonial) =>
+          testimonial.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          testimonial.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          testimonial.text?.[language]?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          testimonial.text?.es?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          testimonial.text?.en?.toLowerCase().includes(searchQuery.toLowerCase()),
+      )
+    }
+
+    // Filtro por estado
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((testimonial) => testimonial.status === statusFilter)
+    }
+
+    // Filtro por calificación
+    if (ratingFilter !== "all") {
+      filtered = filtered.filter((testimonial) => testimonial.rating === Number.parseInt(ratingFilter))
+    }
+
+    setFilteredTestimonials(filtered)
+  }, [searchQuery, statusFilter, ratingFilter, testimonials, language])
 
   const handleAddNew = () => {
     setIsEditing(false)
@@ -112,15 +172,15 @@ export default function TestimonialsManager() {
       await deleteDoc(doc(db, "testimonials", currentTestimonial.id))
       setTestimonials(testimonials.filter((t) => t.id !== currentTestimonial.id))
       toast({
-        title: t("admin.testimonials.deleteSuccess"),
-        description: t("admin.testimonials.deleteSuccessMessage"),
+        title: t("admin.testimonials.deleteSuccess") || "Testimonio eliminado",
+        description: t("admin.testimonials.deleteSuccessMessage") || "El testimonio ha sido eliminado exitosamente.",
       })
     } catch (error) {
       console.error("Error deleting testimonial:", error)
       toast({
         title: "Error",
         description: "No se pudo eliminar el testimonio",
-        variant: "destructive"
+        variant: "destructive",
       })
     } finally {
       setIsLoading(false)
@@ -139,11 +199,11 @@ export default function TestimonialsManager() {
   const handleImageUpload = (e) => {
     const file = e.target.files[0]
     if (file) {
-      if (!file.type.match('image.*')) {
+      if (!file.type.match("image.*")) {
         toast({
           title: "Error",
           description: "Solo se permiten archivos de imagen",
-          variant: "destructive"
+          variant: "destructive",
         })
         return
       }
@@ -152,16 +212,16 @@ export default function TestimonialsManager() {
         toast({
           title: "Error",
           description: "La imagen no debe superar los 2MB",
-          variant: "destructive"
+          variant: "destructive",
         })
         return
       }
 
       const reader = new FileReader()
       reader.onloadend = () => {
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
-          image: reader.result
+          image: reader.result,
         }))
       }
       reader.readAsDataURL(file)
@@ -189,28 +249,37 @@ export default function TestimonialsManager() {
 
       if (isEditing && currentTestimonial) {
         await updateDoc(doc(db, "testimonials", currentTestimonial.id), testimonialData)
-        setTestimonials(testimonials.map((t) => 
-          t.id === currentTestimonial.id ? { 
-            ...t, 
-            ...testimonialData,
-            id: currentTestimonial.id 
-          } : t
-        ))
+        setTestimonials(
+          testimonials.map((t) =>
+            t.id === currentTestimonial.id
+              ? {
+                  ...t,
+                  ...testimonialData,
+                  id: currentTestimonial.id,
+                }
+              : t,
+          ),
+        )
         toast({
-          title: t("admin.testimonials.updateSuccess"),
-          description: t("admin.testimonials.updateSuccessMessage"),
+          title: t("admin.testimonials.updateSuccess") || "Testimonio actualizado",
+          description:
+            t("admin.testimonials.updateSuccessMessage") || "El testimonio ha sido actualizado exitosamente.",
         })
       } else {
         testimonialData.createdAt = serverTimestamp()
         const docRef = await addDoc(collection(db, "testimonials"), testimonialData)
-        setTestimonials([...testimonials, { 
-          ...testimonialData, 
-          id: docRef.id,
-          createdAt: new Date()
-        }])
+        setTestimonials([
+          ...testimonials,
+          {
+            ...testimonialData,
+            id: docRef.id,
+            createdAt: new Date(),
+          },
+        ])
         toast({
-          title: t("admin.testimonials.addSuccess"),
-          description: t("admin.testimonials.addSuccessMessage"),
+          title: t("admin.testimonials.addSuccess") || "Testimonio agregado",
+          description:
+            t("admin.testimonials.addSuccessMessage") || "El nuevo testimonio ha sido agregado exitosamente.",
         })
       }
       setIsDialogOpen(false)
@@ -219,7 +288,7 @@ export default function TestimonialsManager() {
       toast({
         title: "Error",
         description: "No se pudo guardar el testimonio",
-        variant: "destructive"
+        variant: "destructive",
       })
     } finally {
       setIsLoading(false)
@@ -230,361 +299,589 @@ export default function TestimonialsManager() {
     try {
       setIsLoading(true)
       const testimonialRef = doc(db, "testimonials", testimonial.id)
-      await updateDoc(testimonialRef, { 
+      await updateDoc(testimonialRef, {
         status: newStatus,
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       })
-      setTestimonials(testimonials.map((t) => 
-        t.id === testimonial.id ? { 
-          ...t, 
-          status: newStatus,
-          updatedAt: new Date()
-        } : t
-      ))
+      setTestimonials(
+        testimonials.map((t) =>
+          t.id === testimonial.id
+            ? {
+                ...t,
+                status: newStatus,
+                updatedAt: new Date(),
+              }
+            : t,
+        ),
+      )
       toast({
-        title: newStatus === "approved" 
-          ? t("admin.testimonials.approveSuccess") 
-          : t("admin.testimonials.rejectSuccess"),
-        description: newStatus === "approved"
-          ? t("admin.testimonials.approveSuccessMessage")
-          : t("admin.testimonials.rejectSuccessMessage"),
+        title:
+          newStatus === "approved"
+            ? t("admin.testimonials.approveSuccess") || "Testimonio aprobado"
+            : t("admin.testimonials.rejectSuccess") || "Testimonio rechazado",
+        description:
+          newStatus === "approved"
+            ? t("admin.testimonials.approveSuccessMessage") || "El testimonio ha sido aprobado."
+            : t("admin.testimonials.rejectSuccessMessage") || "El testimonio ha sido rechazado.",
       })
     } catch (error) {
       console.error("Error updating testimonial status:", error)
       toast({
         title: "Error",
         description: "No se pudo actualizar el estado del testimonio",
-        variant: "destructive"
+        variant: "destructive",
       })
     } finally {
       setIsLoading(false)
     }
   }
 
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "pending":
+        return <Clock className="h-4 w-4" />
+      case "approved":
+        return <CheckCircle className="h-4 w-4" />
+      case "rejected":
+        return <XCircle className="h-4 w-4" />
+      default:
+        return <MessageSquare className="h-4 w-4" />
+    }
+  }
 
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-brown">{t("admin.testimonials.title")}</h2>
-        <Button onClick={handleAddNew} className="bg-green hover:bg-green/90">
-          <Plus className="h-4 w-4 mr-2" />
-          {t("admin.testimonials.addNew")}
-        </Button>
-      </div>
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "pending":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200"
+      case "approved":
+        return "bg-green-100 text-green-800 border-green-200"
+      case "rejected":
+        return "bg-red-100 text-red-800 border-red-200"
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200"
+    }
+  }
 
-      {isLoading ? (
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green"></div>
-        </div>
-      ) : (
-        <div className="space-y-8">
-          {/* Sección de testimonios pendientes */}
-          <section>
-            <h3 className="text-lg font-semibold mb-4">{t("admin.testimonials.pendingReviews")}</h3>
-            {testimonials.filter((t) => t.status === "pending").length === 0 ? (
-              <div className="bg-gray-50 rounded-lg p-6 text-center">
-                <p className="text-gray-500">{t("admin.testimonials.noPendingReviews")}</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {testimonials
-                  .filter((t) => t.status === "pending")
-                  .map((testimonial) => (
-                    <TestimonialCard 
-                      key={testimonial.id}
-                      testimonial={testimonial}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                      onStatusChange={handleStatusChange}
-                      language={language}
-                      t={t}
-                      isPending={true}
-                    />
-                  ))}
-              </div>
-            )}
-          </section>
-
-          {/* Sección de testimonios aprobados */}
-          <section>
-            <h3 className="text-lg font-semibold mb-4">{t("admin.testimonials.approvedReviews")}</h3>
-            {testimonials.filter((t) => t.status === "approved").length === 0 ? (
-              <div className="bg-gray-50 rounded-lg p-6 text-center">
-                <p className="text-gray-500">{t("admin.testimonials.noApprovedReviews")}</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {testimonials
-                  .filter((t) => t.status === "approved")
-                  .map((testimonial) => (
-                    <TestimonialCard 
-                      key={testimonial.id}
-                      testimonial={testimonial}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                      language={language}
-                      t={t}
-                    />
-                  ))}
-              </div>
-            )}
-          </section>
-        </div>
-      )}
-
-      {/* Diálogo para añadir/editar testimonios */}
-      <TestimonialDialog
-        isOpen={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        formData={formData}
-        onInputChange={handleInputChange}
-        onImageUpload={handleImageUpload}
-        onSubmit={handleSubmit}
-        isEditing={isEditing}
-        t={t}
-      />
-
-      {/* Diálogo de confirmación para eliminar */}
-      <DeleteDialog
-        isOpen={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-        onConfirm={confirmDelete}
-        itemName={currentTestimonial?.name}
-        t={t}
-      />
-    </div>
-  )
-}
-
-// Componente de tarjeta de testimonio
-function TestimonialCard({ testimonial, onEdit, onDelete, onStatusChange, language, t, isPending = false }) {
-  return (
-    <Card className="h-full">
-      <CardContent className="p-4 h-full flex flex-col">
-        <div className="flex items-start gap-4">
-          <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
-            <Image
-              src={testimonial.image || "/placeholder-user.jpg"}
-              alt={testimonial.name}
-              width={48}
-              height={48}
-              className="object-cover"
-            />
+  const TestimonialCardSkeleton = () => (
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-12 w-12 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-3 w-20" />
           </div>
-
-          <div className="flex-1">
-            <div className="flex justify-between items-start">
-              <div>
-                <h4 className="font-semibold">{testimonial.name}</h4>
-                <p className="text-sm text-gray-500">{testimonial.location}</p>
-              </div>
-              <Badge 
-                variant={isPending ? "outline" : "default"} 
-                className={isPending ? "text-yellow-600 border-yellow-600" : "bg-green"}
-              >
-                {isPending ? t("admin.testimonials.pending") : t("admin.testimonials.approved")}
-              </Badge>
-            </div>
-
-            <div className="flex my-2">
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  className={`h-4 w-4 ${i < testimonial.rating ? "text-yellow-500 fill-yellow-500" : "text-gray-300"}`}
-                />
-              ))}
-            </div>
-
-            <p className="text-gray-700 mt-2">
-              {testimonial.text?.[language] || testimonial.text?.en || "No description available"}
-            </p>
-
-            <div className="flex justify-end mt-4 space-x-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => onEdit(testimonial)}
-                className="h-8"
-              >
-                <Edit className="h-3 w-3 mr-1" />
-                {t("admin.testimonials.edit")}
-              </Button>
-              
-              {isPending ? (
-                <>
-                  <Button
-                    className="bg-green hover:bg-green/90 h-8"
-                    size="sm"
-                    onClick={() => onStatusChange(testimonial, "approved")}
-                  >
-                    <Check className="h-3 w-3 mr-1" />
-                    {t("admin.testimonials.approve")}
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => onStatusChange(testimonial, "rejected")}
-                    className="h-8"
-                  >
-                    <X className="h-3 w-3 mr-1" />
-                    {t("admin.testimonials.reject")}
-                  </Button>
-                </>
-              ) : (
-                <Button 
-                  variant="destructive" 
-                  size="sm" 
-                  onClick={() => onDelete(testimonial)}
-                  className="h-8"
-                >
-                  <Trash className="h-3 w-3 mr-1" />
-                  {t("admin.testimonials.delete")}
-                </Button>
-              )}
-            </div>
-          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-16 w-full" />
+        <div className="flex gap-2">
+          <Skeleton className="h-8 w-16" />
+          <Skeleton className="h-8 w-16" />
         </div>
       </CardContent>
     </Card>
   )
-}
 
-// Componente de diálogo para formulario de testimonio
-function TestimonialDialog({ isOpen, onOpenChange, formData, onInputChange, onImageUpload, onSubmit, isEditing, t }) {
+  const stats = {
+    total: testimonials.length,
+    pending: testimonials.filter((t) => t.status === "pending").length,
+    approved: testimonials.filter((t) => t.status === "approved").length,
+    rejected: testimonials.filter((t) => t.status === "rejected").length,
+    avgRating:
+      testimonials.length > 0
+        ? (testimonials.reduce((acc, t) => acc + t.rating, 0) / testimonials.length).toFixed(1)
+        : 0,
+  }
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {isEditing ? t("admin.testimonials.editTestimonial") : t("admin.testimonials.addTestimonial")}
-          </DialogTitle>
-        </DialogHeader>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-bold text-slate-900">
+            {t("admin.testimonials.title") || "Gestión de Testimonios"}
+          </h2>
+          <p className="text-slate-600 mt-1">Administra las reseñas y testimonios de los huéspedes</p>
+        </div>
+        <Button onClick={handleAddNew} className="bg-emerald-600 hover:bg-emerald-700" disabled={isLoading}>
+          <Plus className="h-4 w-4 mr-2" />
+          {t("admin.testimonials.addNew") || "Agregar Testimonio"}
+        </Button>
+      </div>
 
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="name">{t("admin.testimonials.form.name")}</Label>
-              <Input 
-                id="name" 
-                name="name" 
-                value={formData.name} 
-                onChange={onInputChange} 
-                required 
+      {/* Estadísticas */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-slate-900">{stats.total}</div>
+            <div className="text-sm text-slate-600">Total</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+            <div className="text-sm text-slate-600">Pendientes</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-green-600">{stats.approved}</div>
+            <div className="text-sm text-slate-600">Aprobados</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-red-600">{stats.rejected}</div>
+            <div className="text-sm text-slate-600">Rechazados</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-emerald-600">{stats.avgRating}</div>
+            <div className="text-sm text-slate-600">Promedio</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filtros y Búsqueda */}
+      <Card className="p-4">
+        <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+          <div className="flex flex-col sm:flex-row gap-4 flex-1">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+              <Input
+                placeholder="Buscar testimonios..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
               />
             </div>
-            <div>
-              <Label htmlFor="location">{t("admin.testimonials.form.location")}</Label>
-              <Input 
-                id="location" 
-                name="location" 
-                value={formData.location} 
-                onChange={onInputChange} 
-                required 
-              />
-            </div>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los estados</SelectItem>
+                <SelectItem value="pending">Pendientes</SelectItem>
+                <SelectItem value="approved">Aprobados</SelectItem>
+                <SelectItem value="rejected">Rechazados</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={ratingFilter} onValueChange={setRatingFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Calificación" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las calificaciones</SelectItem>
+                <SelectItem value="5">5 estrellas</SelectItem>
+                <SelectItem value="4">4 estrellas</SelectItem>
+                <SelectItem value="3">3 estrellas</SelectItem>
+                <SelectItem value="2">2 estrellas</SelectItem>
+                <SelectItem value="1">1 estrella</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="flex items-center gap-1">
+              <MessageSquare className="h-3 w-3" />
+              {filteredTestimonials.length} testimonios
+            </Badge>
 
+            <div className="flex border rounded-lg p-1">
+              <Button
+                variant={viewMode === "grid" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("grid")}
+                className="h-8 w-8 p-0"
+              >
+                <Grid3X3 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === "list" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("list")}
+                className="h-8 w-8 p-0"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
 
-          <div>
-            <Label htmlFor="image">{t("admin.testimonials.form.image")}</Label>
-            <div className="flex flex-col gap-2">
-              <Input 
-                type="file" 
-                id="image" 
-                accept="image/*" 
-                onChange={onImageUpload} 
-                className="flex-1" 
-              />
-              {formData.image && (
-                <div className="mt-2 flex items-center gap-4">
-                  <div className="relative w-16 h-16 rounded-full overflow-hidden">
-                    <Image
-                      src={formData.image}
-                      alt="Preview"
-                      width={64}
-                      height={64}
-                      className="object-cover"
-                    />
+      {/* Lista de Testimonios */}
+      {isLoading && !isDialogOpen && !isDeleteDialogOpen ? (
+        <div
+          className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"}`}
+        >
+          {[...Array(6)].map((_, i) => (
+            <TestimonialCardSkeleton key={i} />
+          ))}
+        </div>
+      ) : filteredTestimonials.length === 0 ? (
+        <Card className="p-12">
+          <div className="text-center">
+            <MessageSquare className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+              {searchQuery || statusFilter !== "all" || ratingFilter !== "all"
+                ? "No se encontraron testimonios"
+                : "No hay testimonios disponibles"}
+            </h3>
+            <p className="text-slate-600 mb-4">
+              {searchQuery || statusFilter !== "all" || ratingFilter !== "all"
+                ? "Intenta ajustar los filtros de búsqueda"
+                : "Comienza agregando el primer testimonio al sistema"}
+            </p>
+            {!searchQuery && statusFilter === "all" && ratingFilter === "all" && (
+              <Button onClick={handleAddNew} className="bg-emerald-600 hover:bg-emerald-700">
+                <Plus className="h-4 w-4 mr-2" />
+                Agregar Primer Testimonio
+              </Button>
+            )}
+          </div>
+        </Card>
+      ) : (
+        <div
+          className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"}`}
+        >
+          {filteredTestimonials.map((testimonial) => (
+            <Card key={testimonial.id} className="overflow-hidden hover:shadow-lg transition-all duration-300 group">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+                      <Image
+                        src={testimonial.image || "/placeholder.svg?height=48&width=48"}
+                        alt={testimonial.name}
+                        width={48}
+                        height={48}
+                        className="object-cover"
+                      />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-slate-900">{testimonial.name}</h4>
+                      <div className="flex items-center gap-1 text-sm text-slate-600">
+                        <MapPin className="h-3 w-3" />
+                        {testimonial.location}
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-sm text-gray-500">{t("admin.testimonials.form.imagePreview")}</span>
+                  <Badge className={`${getStatusColor(testimonial.status)} border`}>
+                    <div className="flex items-center gap-1">
+                      {getStatusIcon(testimonial.status)}
+                      <span className="capitalize">
+                        {testimonial.status === "pending"
+                          ? "Pendiente"
+                          : testimonial.status === "approved"
+                            ? "Aprobado"
+                            : "Rechazado"}
+                      </span>
+                    </div>
+                  </Badge>
                 </div>
-              )}
-            </div>
-          </div>
+              </CardHeader>
 
-          <div>
-            <Label htmlFor="textEs">{t("admin.testimonials.form.textEs")}</Label>
-            <Textarea
-              id="textEs"
-              name="textEs"
-              value={formData.textEs}
-              onChange={onInputChange}
-              required
-              className="min-h-[100px]"
-            />
-          </div>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-1">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`h-4 w-4 ${i < testimonial.rating ? "text-yellow-500 fill-yellow-500" : "text-slate-300"}`}
+                    />
+                  ))}
+                  <span className="text-sm text-slate-600 ml-2">({testimonial.rating}/5)</span>
+                </div>
 
-          <div>
-            <Label htmlFor="textEn">{t("admin.testimonials.form.textEn")}</Label>
-            <Textarea
-              id="textEn"
-              name="textEn"
-              value={formData.textEn}
-              onChange={onInputChange}
-              required
-              className="min-h-[100px]"
-            />
-          </div>
+                <p className="text-slate-700 line-clamp-3">
+                  {testimonial.text?.[language] || testimonial.text?.en || "No hay descripción disponible"}
+                </p>
 
-          <div>
-            <Label htmlFor="textPt">{t("admin.testimonials.form.textPt")}</Label>
-            <Textarea
-              id="textPt"
-              name="textPt"
-              value={formData.textPt}
-              onChange={onInputChange}
-              required
-              className="min-h-[100px]"
-            />
-          </div>
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <Button variant="outline" size="sm" onClick={() => handleEdit(testimonial)} disabled={isLoading}>
+                    <Edit className="h-3 w-3 mr-1" />
+                    Editar
+                  </Button>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              {t("admin.testimonials.cancel")}
+                  {testimonial.status === "pending" ? (
+                    <>
+                      <Button
+                        className="bg-emerald-600 hover:bg-emerald-700"
+                        size="sm"
+                        onClick={() => handleStatusChange(testimonial, "approved")}
+                        disabled={isLoading}
+                      >
+                        <Check className="h-3 w-3 mr-1" />
+                        Aprobar
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleStatusChange(testimonial, "rejected")}
+                        disabled={isLoading}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Rechazar
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDelete(testimonial)}
+                      disabled={isLoading}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash className="h-3 w-3 mr-1" />
+                      Eliminar
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Dialog para Agregar/Editar Testimonio */}
+      <Dialog open={isDialogOpen} onOpenChange={(open) => !isLoading && setIsDialogOpen(open)}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="text-xl">
+              {isEditing
+                ? t("admin.testimonials.editTestimonial") || "Editar Testimonio"
+                : t("admin.testimonials.addTestimonial") || "Agregar Testimonio"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <ScrollArea className="max-h-[70vh] pr-4">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <Tabs defaultValue="general" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="general">Información General</TabsTrigger>
+                  <TabsTrigger value="content">Contenido</TabsTrigger>
+                  <TabsTrigger value="image">Imagen</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="general" className="space-y-6 pt-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Nombre del Cliente</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+                        <Input
+                          id="name"
+                          name="name"
+                          value={formData.name}
+                          onChange={handleInputChange}
+                          required
+                          className="pl-10"
+                          placeholder="Ej: Juan Pérez"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="location">Ubicación</Label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+                        <Input
+                          id="location"
+                          name="location"
+                          value={formData.location}
+                          onChange={handleInputChange}
+                          required
+                          className="pl-10"
+                          placeholder="Ej: Buenos Aires, Argentina"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="rating">Calificación</Label>
+                    <Select
+                      value={formData.rating.toString()}
+                      onValueChange={(value) => setFormData((prev) => ({ ...prev, rating: Number.parseInt(value) }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[5, 4, 3, 2, 1].map((rating) => (
+                          <SelectItem key={rating} value={rating.toString()}>
+                            <div className="flex items-center gap-2">
+                              <div className="flex">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`h-4 w-4 ${i < rating ? "text-yellow-500 fill-yellow-500" : "text-slate-300"}`}
+                                  />
+                                ))}
+                              </div>
+                              <span>
+                                {rating} estrella{rating !== 1 ? "s" : ""}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="content" className="space-y-6 pt-6">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="textEs">Testimonio en Español</Label>
+                      <Textarea
+                        id="textEs"
+                        name="textEs"
+                        value={formData.textEs}
+                        onChange={handleInputChange}
+                        required
+                        className="min-h-[100px]"
+                        placeholder="Escribe el testimonio en español..."
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="textEn">Testimonio en Inglés</Label>
+                      <Textarea
+                        id="textEn"
+                        name="textEn"
+                        value={formData.textEn}
+                        onChange={handleInputChange}
+                        required
+                        className="min-h-[100px]"
+                        placeholder="Write the testimonial in English..."
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="textPt">Testimonio en Portugués</Label>
+                      <Textarea
+                        id="textPt"
+                        name="textPt"
+                        value={formData.textPt}
+                        onChange={handleInputChange}
+                        required
+                        className="min-h-[100px]"
+                        placeholder="Escreva o depoimento em português..."
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="image" className="space-y-6 pt-6">
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-base font-medium">Foto del Cliente</Label>
+                      <p className="text-sm text-slate-600">Sube una foto del cliente (opcional, máximo 2MB)</p>
+                    </div>
+
+                    <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-emerald-400 transition-colors">
+                      <Input type="file" id="image" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                      <Label htmlFor="image" className="cursor-pointer">
+                        <Upload className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                        <p className="text-sm font-medium text-slate-700">Haz clic para subir una imagen</p>
+                        <p className="text-xs text-slate-500">PNG, JPG hasta 2MB</p>
+                      </Label>
+                    </div>
+
+                    {formData.image && (
+                      <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg">
+                        <div className="relative w-16 h-16 rounded-full overflow-hidden">
+                          <Image
+                            src={formData.image || "/placeholder.svg"}
+                            alt="Preview"
+                            width={64}
+                            height={64}
+                            className="object-cover"
+                          />
+                        </div>
+                        <div>
+                          <p className="font-medium">Vista previa de la imagen</p>
+                          <p className="text-sm text-slate-600">La imagen se mostrará en el testimonio</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setFormData((prev) => ({ ...prev, image: "" }))}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Quitar
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </form>
+          </ScrollArea>
+
+          <DialogFooter className="border-t pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => !isLoading && setIsDialogOpen(false)}
+              disabled={isLoading}
+            >
+              Cancelar
             </Button>
-            <Button type="submit" className="bg-green hover:bg-green/90">
-              {isEditing ? t("admin.testimonials.update") : t("admin.testimonials.create")}
+            <Button
+              type="submit"
+              onClick={handleSubmit}
+              className="bg-emerald-600 hover:bg-emerald-700"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Guardando...
+                </>
+              ) : isEditing ? (
+                "Actualizar"
+              ) : (
+                "Crear"
+              )}
             </Button>
           </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
+        </DialogContent>
+      </Dialog>
 
-// Componente de diálogo de confirmación para eliminar
-function DeleteDialog({ isOpen, onOpenChange, onConfirm, itemName, t }) {
-  return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("admin.testimonials.confirmDelete")}</DialogTitle>
-        </DialogHeader>
-        <p>
-          {t("admin.testimonials.confirmDeleteMessage", {
-            name: itemName || "este testimonio",
-          })}
-        </p>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {t("admin.testimonials.cancel")}
-          </Button>
-          <Button variant="destructive" onClick={onConfirm}>
-            {t("admin.testimonials.delete")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      {/* Dialog de Confirmación de Eliminación */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => !isLoading && setIsDeleteDialogOpen(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Eliminación</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que quieres eliminar el testimonio de{" "}
+              <span className="font-semibold">{currentTestimonial?.name}</span>?
+              <br />
+              <span className="text-red-600 font-medium">Esta acción no se puede deshacer.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} disabled={isLoading} className="bg-red-600 hover:bg-red-700">
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Eliminando...
+                </>
+              ) : (
+                "Eliminar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   )
 }
