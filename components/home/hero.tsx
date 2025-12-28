@@ -5,8 +5,8 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useLanguage } from "@/context/language-context"
+import PublicAvailabilitySearch from "@/components/booking/public-availability-search"
 
-// This would come from your CMS in a real app
 const slides = [
   {
     id: 1,
@@ -86,13 +86,17 @@ export default function Hero() {
               <p className="text-xl md:text-2xl mb-8 max-w-2xl">
                 {slide.subtitle[language as keyof typeof slide.subtitle]}
               </p>
-              <Button
-                size="lg"
-                className="bg-green hover:bg-green/90 text-white"
-                onClick={() => window.open("https://www.booking.com", "_blank")}
-              >
-                {t("hero.bookNow")}
-              </Button>
+              <div className="flex gap-4">
+                <PublicAvailabilitySearch />
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="bg-white/10 hover:bg-white/20 text-white border-white"
+                  onClick={() => window.open("https://www.booking.com", "_blank")}
+                >
+                  Ver en Booking.com
+                </Button>
+              </div>
             </div>
           </div>
         ))}
@@ -120,7 +124,7 @@ export default function Hero() {
           <button
             key={index}
             onClick={() => setCurrentSlide(index)}
-            className={`w-3 h-3 rounded-full transition-colors ${index === currentSlide ? "bg-white" : "bg-red/50"}`}
+            className={`w-3 h-3 rounded-full transition-colors ${index === currentSlide ? "bg-white" : "bg-white/50"}`}
             aria-label={`Go to slide ${index + 1}`}
           />
         ))}

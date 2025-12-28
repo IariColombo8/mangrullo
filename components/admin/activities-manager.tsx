@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -7,11 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/components/ui/use-toast"
 import {
   AlertDialog,
@@ -24,13 +24,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useLanguage } from "@/context/language-context"
 import {
   MapPin,
   Plus,
   Edit,
   Trash,
-  Upload,
   Search,
   ExternalLink,
   Clock,
@@ -60,7 +58,6 @@ import {
   orderBy,
 } from "firebase/firestore"
 
-// Categorías de actividades
 const ACTIVITY_CATEGORIES = [
   { id: "adventure", name: "Aventura", icon: Mountain, color: "bg-orange-500", lightColor: "bg-orange-100" },
   { id: "nature", name: "Naturaleza", icon: TreePine, color: "bg-green-500", lightColor: "bg-green-100" },
@@ -69,35 +66,48 @@ const ACTIVITY_CATEGORIES = [
   { id: "transport", name: "Transporte", icon: Car, color: "bg-gray-500", lightColor: "bg-gray-100" },
 ]
 
-// Niveles de dificultad
 const DIFFICULTY_LEVELS = [
   { id: "easy", name: "Fácil", color: "bg-green-500" },
   { id: "moderate", name: "Moderado", color: "bg-yellow-500" },
   { id: "hard", name: "Difícil", color: "bg-red-500" },
 ]
 
+interface Activity {
+  id: string
+  title: string
+  description: string
+  location: string
+  distance: string
+  duration: string
+  difficulty: string
+  category: string
+  price: number
+  maxParticipants: number
+  image: string
+  infoLink: string
+  included: string
+  requirements: string
+  createdAt?: any
+  updatedAt?: any
+}
+
 export default function ActivitiesManager() {
-  const [activities, setActivities] = useState([])
-  const [filteredActivities, setFilteredActivities] = useState([])
+  const [activities, setActivities] = useState<Activity[]>([])
+  const [filteredActivities, setFilteredActivities] = useState<Activity[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [currentActivity, setCurrentActivity] = useState(null)
+  const [currentActivity, setCurrentActivity] = useState<Activity | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [difficultyFilter, setDifficultyFilter] = useState("all")
-  const [viewMode, setViewMode] = useState("grid")
-  const { language, t } = useLanguage()
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const { toast } = useToast()
 
   const [formData, setFormData] = useState({
-    titleEs: "",
-    titleEn: "",
-    titlePt: "",
-    descriptionEs: "",
-    descriptionEn: "",
-    descriptionPt: "",
+    title: "",
+    description: "",
     location: "",
     distance: "",
     duration: "",
@@ -118,16 +128,22 @@ export default function ActivitiesManager() {
   const fetchActivities = async () => {
     try {
       setIsLoading(true)
+      console.log("[v0] Fetching activities from Firestore...")
       const activitiesCollection = collection(db, "activities")
-      const activitiesSnapshot = await getDocs(query(activitiesCollection, orderBy("createdAt", "desc")))
+      const activitiesQuery = query(activitiesCollection, orderBy("createdAt", "desc"))
+      const activitiesSnapshot = await getDocs(activitiesQuery)
+      console.log("[v0] Activities snapshot size:", activitiesSnapshot.size)
+
       const activitiesList = activitiesSnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      }))
+      })) as Activity[]
+
+      console.log("[v0] Activities loaded:", activitiesList.length)
       setActivities(activitiesList)
       setFilteredActivities(activitiesList)
     } catch (error) {
-      console.error("Error fetching activities:", error)
+      console.error("[v0] Error fetching activities:", error)
       toast({
         title: "Error",
         description: "No se pudieron cargar las actividades",
@@ -138,18 +154,15 @@ export default function ActivitiesManager() {
     }
   }
 
-  // Filtrar actividades
   useEffect(() => {
     let filtered = activities
 
     if (searchQuery) {
       filtered = filtered.filter(
         (activity) =>
-          activity.title?.[language]?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          activity.title?.es?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          activity.title?.en?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          activity.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           activity.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          activity.description?.[language]?.toLowerCase().includes(searchQuery.toLowerCase()),
+          activity.description?.toLowerCase().includes(searchQuery.toLowerCase()),
       )
     }
 
@@ -162,18 +175,14 @@ export default function ActivitiesManager() {
     }
 
     setFilteredActivities(filtered)
-  }, [searchQuery, categoryFilter, difficultyFilter, activities, language])
+  }, [searchQuery, categoryFilter, difficultyFilter, activities])
 
   const handleAddNew = () => {
     setIsEditing(false)
     setCurrentActivity(null)
     setFormData({
-      titleEs: "",
-      titleEn: "",
-      titlePt: "",
-      descriptionEs: "",
-      descriptionEn: "",
-      descriptionPt: "",
+      title: "",
+      description: "",
       location: "",
       distance: "",
       duration: "",
@@ -189,16 +198,12 @@ export default function ActivitiesManager() {
     setIsDialogOpen(true)
   }
 
-  const handleEdit = (activity) => {
+  const handleEdit = (activity: Activity) => {
     setIsEditing(true)
     setCurrentActivity(activity)
     setFormData({
-      titleEs: activity.title?.es || "",
-      titleEn: activity.title?.en || "",
-      titlePt: activity.title?.pt || "",
-      descriptionEs: activity.description?.es || "",
-      descriptionEn: activity.description?.en || "",
-      descriptionPt: activity.description?.pt || "",
+      title: activity.title || "",
+      description: activity.description || "",
       location: activity.location || "",
       distance: activity.distance || "",
       duration: activity.duration || "",
@@ -214,7 +219,7 @@ export default function ActivitiesManager() {
     setIsDialogOpen(true)
   }
 
-  const handleDelete = (activity) => {
+  const handleDelete = (activity: Activity) => {
     setCurrentActivity(activity)
     setIsDeleteDialogOpen(true)
   }
@@ -242,7 +247,7 @@ export default function ActivitiesManager() {
     }
   }
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
@@ -250,8 +255,8 @@ export default function ActivitiesManager() {
     }))
   }
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0]
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
     if (file) {
       if (!file.type.match("image.*")) {
         toast({
@@ -275,29 +280,21 @@ export default function ActivitiesManager() {
       reader.onloadend = () => {
         setFormData((prev) => ({
           ...prev,
-          image: reader.result,
+          image: reader.result as string,
         }))
       }
       reader.readAsDataURL(file)
     }
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
       const activityData = {
-        title: {
-          es: formData.titleEs,
-          en: formData.titleEn,
-          pt: formData.titlePt,
-        },
-        description: {
-          es: formData.descriptionEs,
-          en: formData.descriptionEn,
-          pt: formData.descriptionPt,
-        },
+        title: formData.title,
+        description: formData.description,
         location: formData.location,
         distance: formData.distance,
         duration: formData.duration,
@@ -329,13 +326,15 @@ export default function ActivitiesManager() {
           description: "La actividad ha sido actualizada exitosamente.",
         })
       } else {
-        activityData.createdAt = serverTimestamp()
-        const docRef = await addDoc(collection(db, "activities"), activityData)
+        const docRef = await addDoc(collection(db, "activities"), {
+          ...activityData,
+          createdAt: serverTimestamp(),
+        })
         setActivities([
           {
             ...activityData,
             id: docRef.id,
-          },
+          } as Activity,
           ...activities,
         ])
         toast({
@@ -356,11 +355,11 @@ export default function ActivitiesManager() {
     }
   }
 
-  const getCategoryInfo = (categoryId) => {
+  const getCategoryInfo = (categoryId: string) => {
     return ACTIVITY_CATEGORIES.find((cat) => cat.id === categoryId) || ACTIVITY_CATEGORIES[0]
   }
 
-  const getDifficultyInfo = (difficultyId) => {
+  const getDifficultyInfo = (difficultyId: string) => {
     return DIFFICULTY_LEVELS.find((diff) => diff.id === difficultyId) || DIFFICULTY_LEVELS[0]
   }
 
@@ -581,98 +580,84 @@ export default function ActivitiesManager() {
                 <div className="relative h-48 overflow-hidden">
                   <Image
                     src={activity.image || "/placeholder.svg?height=200&width=400"}
-                    alt={activity.title?.[language] || activity.title?.en || "Actividad"}
+                    alt={activity.title || "Actividad"}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                   <div className="absolute top-3 left-3">
-                    <Badge
-                      className={`${categoryInfo.lightColor} ${categoryInfo.color.replace("bg-", "text-")} border-0`}
-                    >
+                    <Badge className={`${categoryInfo.color} text-white border-none`}>
                       <categoryInfo.icon className="h-3 w-3 mr-1" />
                       {categoryInfo.name}
                     </Badge>
                   </div>
                   <div className="absolute top-3 right-3">
-                    <Badge className={`${difficultyInfo.color} text-white border-0`}>{difficultyInfo.name}</Badge>
+                    <Badge className={`${difficultyInfo.color} text-white border-none`}>{difficultyInfo.name}</Badge>
                   </div>
-                  {activity.price > 0 && (
-                    <div className="absolute bottom-3 right-3">
-                      <Badge className="bg-black/70 text-white border-0">
-                        <DollarSign className="h-3 w-3 mr-1" />${activity.price}
-                      </Badge>
-                    </div>
-                  )}
                 </div>
 
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-slate-900 line-clamp-1">
-                        {activity.title?.[language] || activity.title?.en || "Sin título"}
-                      </h4>
-                      <div className="flex items-center gap-1 text-sm text-slate-600 mt-1">
-                        <MapPin className="h-3 w-3" />
-                        {activity.location}
-                      </div>
+                <CardHeader>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold text-slate-900 line-clamp-1">{activity.title}</h3>
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <MapPin className="h-4 w-4" />
+                      <span>{activity.location}</span>
                     </div>
                   </div>
                 </CardHeader>
 
                 <CardContent className="space-y-4">
-                  <p className="text-slate-700 text-sm line-clamp-2">
-                    {activity.description?.[language] || activity.description?.en || "Sin descripción"}
-                  </p>
+                  <p className="text-slate-600 text-sm line-clamp-2">{activity.description}</p>
 
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    {activity.distance && (
-                      <div className="flex items-center gap-2">
-                        <Car className="h-4 w-4 text-slate-500" />
-                        <span>{activity.distance}</span>
-                      </div>
-                    )}
-                    {activity.duration && (
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-slate-500" />
-                        <span>{activity.duration}</span>
-                      </div>
-                    )}
-                    {activity.maxParticipants > 0 && (
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-slate-500" />
-                        <span>Máx. {activity.maxParticipants}</span>
-                      </div>
-                    )}
-                    {activity.infoLink && (
-                      <div className="flex items-center gap-2">
-                        <ExternalLink className="h-4 w-4 text-slate-500" />
-                        <a
-                          href={activity.infoLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-emerald-600 hover:text-emerald-700 text-sm"
-                        >
-                          Más info
-                        </a>
-                      </div>
-                    )}
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-slate-500" />
+                      <span className="text-slate-600">{activity.duration}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-slate-500" />
+                      <span className="text-slate-600">{activity.distance}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-slate-500" />
+                      <span className="text-slate-600">${activity.price}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-slate-500" />
+                      <span className="text-slate-600">Máx. {activity.maxParticipants}</span>
+                    </div>
                   </div>
 
                   <div className="flex gap-2 pt-2">
-                    <Button variant="outline" size="sm" onClick={() => handleEdit(activity)} disabled={isLoading}>
-                      <Edit className="h-3 w-3 mr-1" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 bg-transparent"
+                      onClick={() => handleEdit(activity)}
+                      disabled={isLoading}
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
                       Editar
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
+                      className="flex-1 text-red-600 hover:bg-red-50 bg-transparent"
                       onClick={() => handleDelete(activity)}
                       disabled={isLoading}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
-                      <Trash className="h-3 w-3 mr-1" />
+                      <Trash className="h-4 w-4 mr-1" />
                       Eliminar
                     </Button>
+                    {activity.infoLink && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(activity.infoLink, "_blank")}
+                        disabled={isLoading}
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -681,380 +666,237 @@ export default function ActivitiesManager() {
         </div>
       )}
 
-      {/* Dialog para Agregar/Editar Actividad */}
-      <Dialog open={isDialogOpen} onOpenChange={(open) => !isLoading && setIsDialogOpen(open)}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
+      {/* Dialog para agregar/editar actividad */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl">{isEditing ? "Editar Actividad" : "Agregar Nueva Actividad"}</DialogTitle>
+            <DialogTitle>{isEditing ? "Editar Actividad" : "Agregar Nueva Actividad"}</DialogTitle>
           </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="title">Título</Label>
+                  <Input
+                    id="title"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="Ej: Trekking al Cerro Champaquí"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="description">Descripción</Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    required
+                    rows={4}
+                    placeholder="Descripción detallada de la actividad..."
+                  />
+                </div>
+              </div>
 
-          <ScrollArea className="max-h-[70vh] pr-4">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <Tabs defaultValue="general" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="general">General</TabsTrigger>
-                  <TabsTrigger value="content">Contenido</TabsTrigger>
-                  <TabsTrigger value="details">Detalles</TabsTrigger>
-                  <TabsTrigger value="media">Imagen</TabsTrigger>
-                </TabsList>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="location">Ubicación</Label>
+                  <Input
+                    id="location"
+                    name="location"
+                    value={formData.location}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="Ej: Villa Alpina"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="distance">Distancia</Label>
+                  <Input
+                    id="distance"
+                    name="distance"
+                    value={formData.distance}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="Ej: 15 km"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="duration">Duración</Label>
+                  <Input
+                    id="duration"
+                    name="duration"
+                    value={formData.duration}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="Ej: 6 horas"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="price">Precio (USD)</Label>
+                  <Input
+                    id="price"
+                    name="price"
+                    type="number"
+                    min="0"
+                    value={formData.price}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="maxParticipants">Máximo de Participantes</Label>
+                  <Input
+                    id="maxParticipants"
+                    name="maxParticipants"
+                    type="number"
+                    min="1"
+                    value={formData.maxParticipants}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="category">Categoría</Label>
+                  <Select
+                    name="category"
+                    value={formData.category}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ACTIVITY_CATEGORIES.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          <div className="flex items-center gap-2">
+                            <cat.icon className="h-4 w-4" />
+                            {cat.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="difficulty">Dificultad</Label>
+                  <Select
+                    name="difficulty"
+                    value={formData.difficulty}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, difficulty: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DIFFICULTY_LEVELS.map((diff) => (
+                        <SelectItem key={diff.id} value={diff.id}>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-full ${diff.color}`}></div>
+                            {diff.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="infoLink">Link de Información (opcional)</Label>
+                  <Input
+                    id="infoLink"
+                    name="infoLink"
+                    type="url"
+                    value={formData.infoLink}
+                    onChange={handleInputChange}
+                    placeholder="https://..."
+                  />
+                </div>
+              </div>
 
-                <TabsContent value="general" className="space-y-6 pt-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="titleEs">Título (Español)</Label>
-                      <Input
-                        id="titleEs"
-                        name="titleEs"
-                        value={formData.titleEs}
-                        onChange={handleInputChange}
-                        required
-                        placeholder="Ej: Trekking en la Montaña"
+              <div>
+                <Label htmlFor="included">Qué incluye</Label>
+                <Textarea
+                  id="included"
+                  name="included"
+                  value={formData.included}
+                  onChange={handleInputChange}
+                  rows={2}
+                  placeholder="Ej: Guía, transporte, almuerzo..."
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="requirements">Requisitos</Label>
+                <Textarea
+                  id="requirements"
+                  name="requirements"
+                  value={formData.requirements}
+                  onChange={handleInputChange}
+                  rows={2}
+                  placeholder="Ej: Buen estado físico, ropa deportiva..."
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="image">Imagen</Label>
+                <div className="space-y-2">
+                  <Input
+                    id="image"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="cursor-pointer"
+                  />
+                  {formData.image && (
+                    <div className="relative h-48 w-full">
+                      <Image
+                        src={formData.image || "/placeholder.svg"}
+                        alt="Preview"
+                        fill
+                        className="object-cover rounded-lg"
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="titleEn">Título (Inglés)</Label>
-                      <Input
-                        id="titleEn"
-                        name="titleEn"
-                        value={formData.titleEn}
-                        onChange={handleInputChange}
-                        required
-                        placeholder="Ex: Mountain Trekking"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="titlePt">Título (Portugués)</Label>
-                    <Input
-                      id="titlePt"
-                      name="titlePt"
-                      value={formData.titlePt}
-                      onChange={handleInputChange}
-                      required
-                      placeholder="Ex: Trekking na Montanha"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="category">Categoría</Label>
-                      <Select
-                        value={formData.category}
-                        onValueChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-2 right-2"
+                        onClick={() => setFormData((prev) => ({ ...prev, image: "" }))}
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar categoría" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ACTIVITY_CATEGORIES.map((cat) => (
-                            <SelectItem key={cat.id} value={cat.id}>
-                              <div className="flex items-center gap-2">
-                                <cat.icon className="h-4 w-4" />
-                                {cat.name}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
+                  )}
+                </div>
+              </div>
+            </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="difficulty">Dificultad</Label>
-                      <Select
-                        value={formData.difficulty}
-                        onValueChange={(value) => setFormData((prev) => ({ ...prev, difficulty: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar dificultad" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {DIFFICULTY_LEVELS.map((diff) => (
-                            <SelectItem key={diff.id} value={diff.id}>
-                              <div className="flex items-center gap-2">
-                                <div className={`w-3 h-3 rounded-full ${diff.color}`}></div>
-                                {diff.name}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="location">Ubicación</Label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-                        <Input
-                          id="location"
-                          name="location"
-                          value={formData.location}
-                          onChange={handleInputChange}
-                          required
-                          className="pl-10"
-                          placeholder="Ej: Bariloche"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="distance">Distancia</Label>
-                      <div className="relative">
-                        <Car className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-                        <Input
-                          id="distance"
-                          name="distance"
-                          value={formData.distance}
-                          onChange={handleInputChange}
-                          className="pl-10"
-                          placeholder="Ej: 15 km del lodge"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="duration">Duración</Label>
-                      <div className="relative">
-                        <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-                        <Input
-                          id="duration"
-                          name="duration"
-                          value={formData.duration}
-                          onChange={handleInputChange}
-                          className="pl-10"
-                          placeholder="Ej: 4 horas"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="price">Precio por persona</Label>
-                      <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-                        <Input
-                          id="price"
-                          name="price"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={formData.price}
-                          onChange={handleInputChange}
-                          className="pl-10"
-                          placeholder="0"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="maxParticipants">Máximo Participantes</Label>
-                      <div className="relative">
-                        <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-                        <Input
-                          id="maxParticipants"
-                          name="maxParticipants"
-                          type="number"
-                          min="0"
-                          value={formData.maxParticipants}
-                          onChange={handleInputChange}
-                          className="pl-10"
-                          placeholder="0"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="content" className="space-y-6 pt-6">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="descriptionEs">Descripción (Español)</Label>
-                      <Textarea
-                        id="descriptionEs"
-                        name="descriptionEs"
-                        value={formData.descriptionEs}
-                        onChange={handleInputChange}
-                        required
-                        className="min-h-[100px]"
-                        placeholder="Describe la actividad en español..."
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="descriptionEn">Descripción (Inglés)</Label>
-                      <Textarea
-                        id="descriptionEn"
-                        name="descriptionEn"
-                        value={formData.descriptionEn}
-                        onChange={handleInputChange}
-                        required
-                        className="min-h-[100px]"
-                        placeholder="Describe the activity in English..."
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="descriptionPt">Descripción (Portugués)</Label>
-                      <Textarea
-                        id="descriptionPt"
-                        name="descriptionPt"
-                        value={formData.descriptionPt}
-                        onChange={handleInputChange}
-                        required
-                        className="min-h-[100px]"
-                        placeholder="Descreva a atividade em português..."
-                      />
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="details" className="space-y-6 pt-6">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="included">Qué incluye</Label>
-                      <Textarea
-                        id="included"
-                        name="included"
-                        value={formData.included}
-                        onChange={handleInputChange}
-                        className="min-h-[80px]"
-                        placeholder="Ej: Guía especializado, equipo de seguridad, refrigerio..."
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="requirements">Requisitos</Label>
-                      <Textarea
-                        id="requirements"
-                        name="requirements"
-                        value={formData.requirements}
-                        onChange={handleInputChange}
-                        className="min-h-[80px]"
-                        placeholder="Ej: Buen estado físico, ropa cómoda, calzado deportivo..."
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="infoLink">Enlace de información adicional</Label>
-                      <div className="relative">
-                        <ExternalLink className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-                        <Input
-                          id="infoLink"
-                          name="infoLink"
-                          type="url"
-                          value={formData.infoLink}
-                          onChange={handleInputChange}
-                          className="pl-10"
-                          placeholder="https://ejemplo.com/mas-info"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="media" className="space-y-6 pt-6">
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-base font-medium">Imagen de la Actividad</Label>
-                      <p className="text-sm text-slate-600">Sube una imagen representativa (máximo 5MB)</p>
-                    </div>
-
-                    <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-emerald-400 transition-colors">
-                      <Input type="file" id="image" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                      <Label htmlFor="image" className="cursor-pointer">
-                        <Upload className="h-8 w-8 text-slate-400 mx-auto mb-2" />
-                        <p className="text-sm font-medium text-slate-700">Haz clic para subir una imagen</p>
-                        <p className="text-xs text-slate-500">PNG, JPG hasta 5MB</p>
-                      </Label>
-                    </div>
-
-                    {formData.image && (
-                      <div className="relative">
-                        <div className="relative h-64 bg-slate-100 rounded-lg overflow-hidden">
-                          <Image
-                            src={formData.image || "/placeholder.svg"}
-                            alt="Preview"
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setFormData((prev) => ({ ...prev, image: "" }))}
-                          className="absolute top-2 right-2"
-                        >
-                          <X className="h-4 w-4 mr-1" />
-                          Quitar
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </form>
-          </ScrollArea>
-
-          <DialogFooter className="border-t pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => !isLoading && setIsDialogOpen(false)}
-              disabled={isLoading}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              onClick={handleSubmit}
-              className="bg-emerald-600 hover:bg-emerald-700"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Guardando...
-                </>
-              ) : isEditing ? (
-                "Actualizar Actividad"
-              ) : (
-                "Crear Actividad"
-              )}
-            </Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isLoading}>
+                Cancelar
+              </Button>
+              <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700" disabled={isLoading}>
+                {isLoading ? "Guardando..." : isEditing ? "Actualizar" : "Agregar"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Confirmación de Eliminación */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => !isLoading && setIsDeleteDialogOpen(open)}>
+      {/* Dialog de confirmación de eliminación */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Eliminación</AlertDialogTitle>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Estás seguro de que quieres eliminar la actividad{" "}
-              <span className="font-semibold">
-                {currentActivity?.title?.[language] || currentActivity?.title?.en || "esta actividad"}
-              </span>
-              ?
-              <br />
-              <span className="text-red-600 font-medium">Esta acción no se puede deshacer.</span>
+              Esta acción no se puede deshacer. La actividad será eliminada permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isLoading}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} disabled={isLoading} className="bg-red-600 hover:bg-red-700">
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Eliminando...
-                </>
-              ) : (
-                "Eliminar"
-              )}
+              {isLoading ? "Eliminando..." : "Eliminar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

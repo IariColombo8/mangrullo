@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import {
   DropdownMenu,
@@ -31,40 +31,21 @@ import {
   TrendingDown,
   DollarSign,
   BarChart3,
-  Users,
-  Eye,
-  Star,
   User,
   LogOut,
+  Eye,
 } from "lucide-react"
+import { collection, getDocs } from "firebase/firestore"
+import { db } from "@/lib/firebase"
+import { format } from "date-fns"
+import { es } from "date-fns/locale"
 
 // Importar los componentes
 import CabinsManager from "./cabins-manager"
 import TestimonialsManager from "./testimonials-manager"
-import BookingsManager from "./booking-manager"
+import ReservasManager from "./reservas-manager"
 import ActivitiesManager from "./activities-manager"
 
-// Simulando el hook de idioma
-const useLanguage = () => ({
-  t: (key: string) => {
-    const translations: { [key: string]: string } = {
-      "admin.dashboard.welcome": "¡Bienvenido de vuelta!",
-      "admin.dashboard.description": "Aquí tienes un resumen de lo que está pasando en tu lodge hoy.",
-      "admin.dashboard.cabins": "Cabañas",
-      "admin.dashboard.bookings": "Reservas",
-      "admin.dashboard.testimonials": "Testimonios",
-      "admin.dashboard.activities": "Actividades",
-      "admin.tabs.cabins": "Cabañas",
-      "admin.tabs.bookings": "Reservas",
-      "admin.tabs.testimonials": "Testimonios",
-      "admin.tabs.activities": "Actividades",
-      "admin.tabs.settings": "Configuración",
-    }
-    return translations[key] || key
-  },
-})
-
-// Componentes simulados para las otras secciones
 const SettingsManager = () => (
   <div className="p-6 text-center text-muted-foreground">
     <Settings className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
@@ -77,83 +58,135 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("overview")
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const { t } = useLanguage()
+
+  const [reservas, setReservas] = useState<any[]>([])
+  const [cabins, setCabins] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    try {
+      // Cargar reservas
+      const reservasSnapshot = await getDocs(collection(db, "reservas"))
+      const reservasData = reservasSnapshot.docs.map((doc) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          ...data,
+          fechaInicio: data.fechaInicio?.toDate?.() || new Date(data.fechaInicio),
+          fechaFin: data.fechaFin?.toDate?.() || new Date(data.fechaFin),
+        }
+      })
+
+      // Cargar cabañas
+      const cabinsSnapshot = await getDocs(collection(db, "cabins"))
+      const cabinsData = cabinsSnapshot.docs.map((doc) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          name: data.name?.es || data.nameEs || `Cabaña ${doc.id}`,
+        }
+      })
+
+      setReservas(reservasData)
+      setCabins(cabinsData)
+    } catch (error) {
+      console.error("Error cargando datos:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const volverPaginaPrincipal = () => {
-    // Aquí puedes usar tu router preferido
     window.location.href = "/"
   }
+
+  const now = new Date()
+  const thisMonth = now.getMonth()
+  const thisYear = now.getFullYear()
+
+  const reservasActivas = reservas.filter((r) => {
+    const inicio = new Date(r.fechaInicio)
+    const fin = new Date(r.fechaFin)
+    return inicio <= now && fin >= now
+  })
+
+  const reservasDelMes = reservas.filter((r) => {
+    const fecha = new Date(r.fechaInicio)
+    return fecha.getMonth() === thisMonth && fecha.getFullYear() === thisYear
+  })
+
+  const ingresosDelMes = reservasDelMes.reduce((sum, r) => sum + (r.precioTotal || 0), 0)
+
+  // Calcular ocupación real
+  const totalDias = cabins.length * 30
+  const diasOcupados = reservasDelMes.reduce((sum, r) => {
+    const nights = Math.ceil(
+      ((r.fechaFin as Date).getTime() - (r.fechaInicio as Date).getTime()) / (1000 * 60 * 60 * 24),
+    )
+    return sum + nights
+  }, 0)
+  const ocupacion = totalDias > 0 ? Math.round((diasOcupados / totalDias) * 100) : 0
 
   const statCards = [
     {
       icon: Home,
-      count: 12,
+      count: cabins.length,
       label: "Cabañas Activas",
       color: "text-emerald-600",
-      change: "+2",
-      changeType: "positive",
+      change: "",
+      changeType: "neutral",
     },
     {
       icon: Calendar,
-      count: 34,
+      count: reservasActivas.length,
       label: "Reservas Activas",
       color: "text-blue-600",
-      change: "+12%",
+      change: `${reservasDelMes.length} este mes`,
       changeType: "positive",
     },
     {
       icon: DollarSign,
-      count: "$12,450",
+      count: `$${ingresosDelMes.toLocaleString()}`,
       label: "Ingresos del Mes",
       color: "text-green-600",
-      change: "+8%",
+      change: format(now, "MMMM", { locale: es }),
       changeType: "positive",
     },
     {
       icon: BarChart3,
-      count: "87%",
+      count: `${ocupacion}%`,
       label: "Ocupación",
       color: "text-purple-600",
-      change: "-3%",
-      changeType: "negative",
+      change: "del mes actual",
+      changeType: ocupacion > 50 ? "positive" : "negative",
     },
   ]
 
   const tabItems = [
     { value: "overview", icon: BarChart3, label: "Resumen" },
-    { value: "cabins", icon: Home, label: t("admin.tabs.cabins"), badge: "12" },
-    { value: "bookings", icon: Calendar, label: t("admin.tabs.bookings"), badge: "34" },
-    { value: "testimonials", icon: MessageSquare, label: t("admin.tabs.testimonials"), badge: "8" },
-    { value: "activities", icon: MapPin, label: t("admin.tabs.activities") },
-    { value: "settings", icon: Settings, label: t("admin.tabs.settings") },
+    { value: "cabins", icon: Home, label: "Cabañas", badge: cabins.length.toString() },
+    { value: "reservas", icon: Calendar, label: "Reservas", badge: reservasActivas.length.toString() },
+    { value: "testimonials", icon: MessageSquare, label: "Testimonios", badge: "8" },
+    { value: "activities", icon: MapPin, label: "Actividades" },
+    { value: "settings", icon: Settings, label: "Configuración" },
   ]
 
-  const recentBookings = [
-    {
-      id: "1",
-      guest: "Juan Pérez",
-      cabin: "Cabaña Vista Montaña",
-      checkIn: "2024-01-15",
-      status: "confirmada",
-      amount: "$450",
-    },
-    {
-      id: "2",
-      guest: "María García",
-      cabin: "Casa del Lago",
-      checkIn: "2024-01-18",
-      status: "pendiente",
-      amount: "$320",
-    },
-    {
-      id: "3",
-      guest: "Carlos López",
-      cabin: "Refugio del Bosque",
-      checkIn: "2024-01-20",
-      status: "confirmada",
-      amount: "$280",
-    },
-  ]
+  const recentBookings = reservas
+  .sort((a, b) => (b.fechaInicio as Date).getTime() - (a.fechaInicio as Date).getTime())
+  .slice(0, 5)
+  .filter((r) => r.fechaInicio && r.fechaFin && r.nombre && r.departamento && r.precioTotal) // Agregar esta línea
+  .map((r) => ({
+    id: r.id,
+    guest: r.nombre,
+    cabin: r.departamento,
+    checkIn: format(r.fechaInicio as Date, "dd/MM/yyyy"),
+    status: (r.fechaInicio as Date) > now ? "confirmada" : "en curso",
+    amount: `$${r.precioTotal.toLocaleString()}`,
+  }))
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -162,7 +195,12 @@ export default function Dashboard() {
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           {/* Logo y Botón Volver */}
           <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" onClick={volverPaginaPrincipal} className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={volverPaginaPrincipal}
+              className="flex items-center gap-2 bg-transparent"
+            >
               <ArrowLeft className="h-4 w-4" />
               <span className="hidden sm:inline">Volver al Sitio</span>
             </Button>
@@ -174,7 +212,6 @@ export default function Dashboard() {
                 <Home className="size-4" />
               </div>
               <div className="hidden md:block">
-                
                 <p className="text-xs text-muted-foreground">Administración</p>
               </div>
             </div>
@@ -221,7 +258,11 @@ export default function Dashboard() {
             </Button>
 
             {/* Nueva Reserva */}
-            <Button size="sm" className="hidden sm:flex">
+            <Button
+              size="sm"
+              className="hidden sm:flex bg-emerald-600 hover:bg-emerald-700"
+              onClick={() => setActiveTab("reservas")}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Nueva Reserva
             </Button>
@@ -229,7 +270,7 @@ export default function Dashboard() {
             {/* Menú Móvil */}
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="outline" size="icon" className="lg:hidden">
+                <Button variant="outline" size="icon" className="lg:hidden bg-transparent">
                   <Menu className="h-4 w-4" />
                 </Button>
               </SheetTrigger>
@@ -266,7 +307,6 @@ export default function Dashboard() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg?height=32&width=32" alt="Admin" />
                     <AvatarFallback>AD</AvatarFallback>
                   </Avatar>
                 </Button>
@@ -275,7 +315,7 @@ export default function Dashboard() {
                 <DropdownMenuLabel>
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium">Administrador</p>
-                    <p className="text-xs text-muted-foreground">admin@lodge.com</p>
+                    <p className="text-xs text-muted-foreground">admin@mangrullo.com</p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -303,29 +343,46 @@ export default function Dashboard() {
         {activeTab === "overview" && (
           <>
             {/* Welcome Card */}
-            <Card className="mb-8 border-none shadow-md">
+            <Card className="mb-8 border-none shadow-lg">
               <CardHeader className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-t-lg">
-                <CardTitle className="text-2xl md:text-3xl font-bold">{t("admin.dashboard.welcome")}</CardTitle>
-                <CardDescription className="text-emerald-50">{t("admin.dashboard.description")}</CardDescription>
+                <CardTitle className="text-2xl md:text-3xl font-bold">¡Bienvenido de vuelta!</CardTitle>
+                <CardDescription className="text-emerald-50">
+                  Aquí tienes un resumen de lo que está pasando en El Mangrullo hoy
+                </CardDescription>
               </CardHeader>
               <CardContent className="pt-6 pb-4 px-4 md:px-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {statCards.map((card, index) => (
-                    <Card key={index} className="border-none shadow-sm hover:shadow-md transition-shadow duration-300">
-                      <CardContent className="flex flex-col items-center justify-center p-4">
-                        <card.icon className={`h-8 w-8 ${card.color} mb-3`} />
-                        <p className="text-2xl font-bold">{card.count}</p>
-                        <p className="text-sm text-slate-500">{card.label}</p>
-                        <div className="flex items-center mt-2 text-xs">
-                          {card.changeType === "positive" ? (
-                            <TrendingUp className="h-3 w-3 text-emerald-500 mr-1" />
-                          ) : (
-                            <TrendingDown className="h-3 w-3 text-red-500 mr-1" />
-                          )}
-                          <span className={card.changeType === "positive" ? "text-emerald-600" : "text-red-600"}>
-                            {card.change}
-                          </span>
+                    <Card
+                      key={index}
+                      className="border-none shadow-md hover:shadow-xl transition-all duration-300 hover:scale-105"
+                    >
+                      <CardContent className="flex flex-col items-center justify-center p-6">
+                        <div className="p-3 bg-gradient-to-br from-white to-gray-50 rounded-full mb-3 shadow-sm">
+                          <card.icon className={`h-8 w-8 ${card.color}`} />
                         </div>
+                        <p className="text-3xl font-bold mb-1">{card.count}</p>
+                        <p className="text-sm text-slate-600 font-medium text-center">{card.label}</p>
+                        {card.change && (
+                          <div className="flex items-center mt-2 text-xs">
+                            {card.changeType === "positive" ? (
+                              <TrendingUp className="h-3 w-3 text-emerald-500 mr-1" />
+                            ) : card.changeType === "negative" ? (
+                              <TrendingDown className="h-3 w-3 text-red-500 mr-1" />
+                            ) : null}
+                            <span
+                              className={
+                                card.changeType === "positive"
+                                  ? "text-emerald-600"
+                                  : card.changeType === "negative"
+                                    ? "text-red-600"
+                                    : "text-slate-600"
+                              }
+                            >
+                              {card.change}
+                            </span>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
@@ -336,77 +393,100 @@ export default function Dashboard() {
             {/* Grid de Contenido Principal */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7 mb-6">
               {/* Reservas Recientes */}
-              <Card className="col-span-4">
+              <Card className="col-span-4 shadow-md">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle>Reservas Recientes</CardTitle>
                       <CardDescription>Últimas reservaciones y su estado</CardDescription>
                     </div>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => setActiveTab("reservas")}>
                       <Eye className="h-4 w-4 mr-2" />
                       Ver Todas
                     </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {recentBookings.map((booking) => (
-                      <div
-                        key={booking.id}
-                        className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <Avatar className="h-9 w-9">
-                            <AvatarFallback>
-                              {booking.guest
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="text-sm font-medium">{booking.guest}</p>
-                            <p className="text-xs text-muted-foreground">{booking.cabin}</p>
+                  {loading ? (
+                    <div className="text-center py-8 text-muted-foreground">Cargando reservas...</div>
+                  ) : recentBookings.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">No hay reservas recientes</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {recentBookings.map((booking) => (
+                        <div
+                          key={booking.id}
+                          className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors hover:shadow-sm"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <Avatar className="h-10 w-10">
+                              <AvatarFallback className="bg-emerald-100 text-emerald-700">
+                                {booking.guest
+                                  .split(" ")
+                                  .map((n) => n[0])
+                                  .join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="text-sm font-semibold">{booking.guest}</p>
+                              <p className="text-xs text-muted-foreground">{booking.cabin}</p>
+                              <p className="text-xs text-muted-foreground">Check-in: {booking.checkIn}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-bold text-green-600">{booking.amount}</p>
+                            <Badge
+                              variant={booking.status === "confirmada" ? "default" : "secondary"}
+                              className="text-xs mt-1"
+                            >
+                              {booking.status}
+                            </Badge>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium">{booking.amount}</p>
-                          <Badge
-                            variant={booking.status === "confirmada" ? "default" : "secondary"}
-                            className="text-xs"
-                          >
-                            {booking.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
               {/* Acciones Rápidas */}
-              <Card className="col-span-3">
+              <Card className="col-span-3 shadow-md">
                 <CardHeader>
                   <CardTitle>Acciones Rápidas</CardTitle>
                   <CardDescription>Tareas comunes y atajos</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Button className="w-full justify-start" variant="outline" onClick={() => setActiveTab("cabins")}>
+                  <Button
+                    className="w-full justify-start bg-transparent hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"
+                    variant="outline"
+                    onClick={() => setActiveTab("cabins")}
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     Agregar Nueva Cabaña
                   </Button>
-                  <Button className="w-full justify-start" variant="outline" onClick={() => setActiveTab("bookings")}>
+                  <Button
+                    className="w-full justify-start bg-transparent hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200"
+                    variant="outline"
+                    onClick={() => setActiveTab("reservas")}
+                  >
                     <Calendar className="h-4 w-4 mr-2" />
                     Crear Reserva
                   </Button>
-                  <Button className="w-full justify-start" variant="outline">
-                    <Users className="h-4 w-4 mr-2" />
-                    Gestionar Huéspedes
-                  </Button>
-                  <Button className="w-full justify-start" variant="outline">
+                  <Button
+                    className="w-full justify-start bg-transparent hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200"
+                    variant="outline"
+                    onClick={() => setActiveTab("reservas")}
+                  >
                     <BarChart3 className="h-4 w-4 mr-2" />
-                    Ver Reportes
+                    Ver Reportes de Reservas
+                  </Button>
+                  <Button
+                    className="w-full justify-start bg-transparent hover:bg-orange-50 hover:text-orange-700 hover:border-orange-200"
+                    variant="outline"
+                    onClick={() => setActiveTab("activities")}
+                  >
+                    <MapPin className="h-4 w-4 mr-2" />
+                    Gestionar Actividades
                   </Button>
                 </CardContent>
               </Card>
@@ -414,48 +494,46 @@ export default function Dashboard() {
 
             {/* Estadísticas Adicionales */}
             <div className="grid gap-4 md:grid-cols-3">
-              <Card>
+              <Card className="shadow-md hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Ocupación de Cabañas</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">87%</div>
-                  <div className="h-2 bg-muted rounded-full mt-2">
-                    <div className="h-2 bg-emerald-500 rounded-full w-[87%]"></div>
+                  <div className="text-3xl font-bold text-purple-600">{ocupacion}%</div>
+                  <div className="h-3 bg-muted rounded-full mt-3">
+                    <div
+                      className="h-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full transition-all duration-500"
+                      style={{ width: `${ocupacion}%` }}
+                    ></div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">10 de 12 cabañas ocupadas</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {reservasActivas.length} de {cabins.length} cabañas ocupadas
+                  </p>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="shadow-md hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Calificación Promedio</CardTitle>
+                  <CardTitle className="text-base">Reservas este Mes</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">4.8</div>
-                  <div className="flex items-center mt-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`h-3 w-3 mr-1 ${i < 4 ? "fill-yellow-400 text-yellow-400" : "text-muted"}`}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">Basado en 127 reseñas</p>
+                  <div className="text-3xl font-bold text-blue-600">{reservasDelMes.length}</div>
+                  <p className="text-sm text-muted-foreground mt-2">{format(now, "MMMM yyyy", { locale: es })}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Total de reservas programadas</p>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="shadow-md hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Crecimiento Mensual</CardTitle>
+                  <CardTitle className="text-base">Ingresos Totales</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-emerald-600">+12%</div>
+                  <div className="text-2xl font-bold text-green-600">${ingresosDelMes.toLocaleString()}</div>
                   <div className="flex items-center mt-1">
-                    <TrendingUp className="h-4 w-4 text-emerald-500 mr-1" />
-                    <span className="text-xs text-muted-foreground">vs mes anterior</span>
+                    <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
+                    <span className="text-xs text-muted-foreground">del mes actual</span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">Aumento de ingresos</p>
+                  <p className="text-xs text-muted-foreground mt-2">Basado en {reservasDelMes.length} reservas</p>
                 </CardContent>
               </Card>
             </div>
@@ -464,7 +542,7 @@ export default function Dashboard() {
 
         {/* Contenido de otras tabs */}
         {activeTab === "cabins" && <CabinsManager />}
-        {activeTab === "bookings" && <BookingsManager />}
+        {activeTab === "reservas" && <ReservasManager />}
         {activeTab === "testimonials" && <TestimonialsManager />}
         {activeTab === "activities" && <ActivitiesManager />}
         {activeTab === "settings" && <SettingsManager />}
