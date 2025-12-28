@@ -129,6 +129,47 @@ export default function Contact() {
             </div>
           </div>
         </div>
+
+        {/* Contact Form */}
+        <div className="max-w-6xl mx-auto mt-12">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-6">
+            <Input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder={t("contact.form.namePlaceholder")}
+              className="bg-white p-4 rounded-lg shadow-sm"
+            />
+            <Input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder={t("contact.form.emailPlaceholder")}
+              className="bg-white p-4 rounded-lg shadow-sm"
+            />
+            <Input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              placeholder={t("contact.form.phonePlaceholder")}
+              className="bg-white p-4 rounded-lg shadow-sm"
+            />
+            <Textarea
+              name="message"
+              value={formData.message}
+              onChange={handleChange}
+              placeholder={t("contact.form.messagePlaceholder")}
+              className="bg-white p-4 rounded-lg shadow-sm"
+            />
+            <Button type="submit" disabled={isSubmitting} className="bg-green text-white rounded-lg py-3 px-6">
+              {isSubmitting ? t("contact.form.submitting") : t("contact.form.submit")}
+              <Send className="h-6 w-6 ml-2" />
+            </Button>
+          </form>
+        </div>
       </div>
     </section>
   )

@@ -48,7 +48,7 @@ export interface ReservaFormData extends Omit<Reserva, "id" | "fechaInicio" | "f
   fechaFin: Date
 }
 
-export const DEPARTAMENTOS: Departamento[] = []
+export const DEPARTAMENTOS: Departamento[] = ["Los Horneros", "Las Calandrias", "Los Tordos", "Los Zorzales"]
 
 export const ORIGENES: { value: OrigenReserva; label: string; color: string }[] = [
   { value: "booking", label: "Booking.com", color: "bg-blue-500" },

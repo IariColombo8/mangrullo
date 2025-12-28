@@ -56,41 +56,37 @@ export default function Header() {
       {/* El resto del código permanece igual */}
       <div className="container mx-auto px-4 flex justify-between items-center">
         <Link href="/" className="flex items-center">
-          <img 
-            src="logo1.png"
-            alt="El Mangrullo" 
-            className="h-30000 w-auto max-w-[150px]"
-          />
+          <img src="logo1.png" alt="El Mangrullo" className="h-30000 w-auto max-w-[150px]" />
         </Link>
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-6">
           <Link href="/#gallery" className="text-white hover:text-gray-200 transition-colors">
-            {t("Galeria")}
+            Galería
           </Link>
           <Link href="/#cabins" className="text-white hover:text-gray-200 transition-colors">
-            {t("Cabañas")}
+            Cabañas
           </Link>
           <Link href="/#activities" className="text-white hover:text-gray-200 transition-colors">
-            {t("Actividades")}
+            Actividades
           </Link>
           <Link href="/#contact" className="text-white hover:text-gray-200 transition-colors">
-            {t("Contacto")}
+            Contacto
           </Link>
 
           {user ? (
             <div className="flex items-center gap-4">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     className="relative h-8 w-8 rounded-full p-0 hover:bg-brown-light"
                     aria-label="User menu"
                   >
                     <Avatar className="h-8 w-8">
-                      <AvatarImage 
-                        src={user?.photoURL || "/placeholder-user.jpg"} 
-                        alt={user?.displayName || "User"} 
+                      <AvatarImage
+                        src={user?.photoURL || "/placeholder-user.jpg"}
+                        alt={user?.displayName || "User"}
                         className="object-cover"
                       />
                       <AvatarFallback className="bg-brown-light text-white">
@@ -102,12 +98,8 @@ export default function Header() {
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none truncate">
-                        {user?.displayName || "Usuario"}
-                      </p>
-                      <p className="text-xs leading-none text-muted-foreground truncate">
-                        {user?.email}
-                      </p>
+                      <p className="text-sm font-medium leading-none truncate">{user?.displayName || "Usuario"}</p>
+                      <p className="text-xs leading-none text-muted-foreground truncate">{user?.email}</p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
@@ -122,10 +114,7 @@ export default function Header() {
                       <DropdownMenuSeparator />
                     </>
                   )}
-                  <DropdownMenuItem 
-                    onSelect={handleLogout}
-                    className="cursor-pointer focus:bg-gray-100"
-                  >
+                  <DropdownMenuItem onSelect={handleLogout} className="cursor-pointer focus:bg-gray-100">
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>{isLoggingOut ? "Cerrar sesión" : "Cerrar sesión"}</span>
                   </DropdownMenuItem>
@@ -133,7 +122,7 @@ export default function Header() {
               </DropdownMenu>
             </div>
           ) : (
-            <Button asChild variant="outline" className="text-white border- :bg-white/20">
+            <Button asChild variant="outline" className="text-white border- :bg-white/20 bg-transparent">
               <Link href="/login">{t("nav.login")}</Link>
             </Button>
           )}
@@ -153,33 +142,33 @@ export default function Header() {
       {isMobileMenuOpen && (
         <div className="md:hidden bg-brown py-4">
           <nav className="container mx-auto px-4 flex flex-col space-y-4">
-           <Link
+            <Link
               href="/#gallery"
               className="text-white hover:text-gray-200 transition-colors"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              {t("nav.gallery")}
+              Galería
             </Link>
             <Link
               href="/#cabins"
               className="text-white hover:text-gray-200 transition-colors"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              {t("nav.cabins")}
+              Cabañas
             </Link>
             <Link
               href="/#activities"
               className="text-white hover:text-gray-200 transition-colors"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              {t("nav.activities")}
+              Actividades
             </Link>
             <Link
               href="/#contact"
               className="text-white hover:text-gray-200 transition-colors"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              {t("nav.contact")}
+              Contacto
             </Link>
 
             <div className="flex items-center justify-between pt-2">
@@ -187,14 +176,11 @@ export default function Header() {
                 <div className="flex items-center gap-2">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        className="relative h-8 w-8 rounded-full p-0 hover:bg-brown-light"
-                      >
+                      <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0 hover:bg-brown-light">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage 
-                            src={user?.photoURL || "/placeholder-user.jpg"} 
-                            alt={user?.displayName || "User"} 
+                          <AvatarImage
+                            src={user?.photoURL || "/placeholder-user.jpg"}
+                            alt={user?.displayName || "User"}
                           />
                           <AvatarFallback className="bg-brown-light text-white">
                             {user?.displayName?.charAt(0).toUpperCase() || "U"}
@@ -205,20 +191,16 @@ export default function Header() {
                     <DropdownMenuContent className="w-56" align="end" forceMount>
                       <DropdownMenuLabel className="font-normal">
                         <div className="flex flex-col space-y-1">
-                          <p className="text-sm font-medium leading-none truncate">
-                            {user?.displayName || "Usuario"}
-                          </p>
-                          <p className="text-xs leading-none text-muted-foreground truncate">
-                            {user?.email}
-                          </p>
+                          <p className="text-sm font-medium leading-none truncate">{user?.displayName || "Usuario"}</p>
+                          <p className="text-xs leading-none text-muted-foreground truncate">{user?.email}</p>
                         </div>
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       {user?.isAdmin && (
                         <>
                           <DropdownMenuItem asChild>
-                            <Link 
-                              href="/admin" 
+                            <Link
+                              href="/admin"
                               className="w-full flex items-center"
                               onClick={() => setIsMobileMenuOpen(false)}
                             >
@@ -229,7 +211,7 @@ export default function Header() {
                           <DropdownMenuSeparator />
                         </>
                       )}
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         onSelect={() => {
                           handleLogout()
                           setIsMobileMenuOpen(false)
@@ -243,10 +225,10 @@ export default function Header() {
                   </DropdownMenu>
                 </div>
               ) : (
-                <Button 
-                  asChild 
-                  variant="outline" 
-                  className="text-white border- :bg-white/20"
+                <Button
+                  asChild
+                  variant="outline"
+                  className="text-white border- :bg-white/20 bg-transparent"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <Link href="/login">{t("nav.login")}</Link>

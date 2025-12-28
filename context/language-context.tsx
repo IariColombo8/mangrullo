@@ -1,156 +1,120 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
-
-type Language = "es" | "en"
+import { createContext, useContext } from "react"
 
 interface LanguageContextType {
-  language: Language
-  setLanguage: (lang: Language) => void
   t: (key: string) => string
 }
 
-const translations = {
-  es: {
-    // Navigation
-    "nav.home": "Inicio",
-    "nav.cabins": "Departamentos",
-    "nav.activities": "Actividades",
-    "nav.testimonials": "Testimonios",
-    "nav.contact": "Contacto",
-    "nav.admin": "Admin",
+const translations: Record<string, string> = {
+  // Navigation
+  "nav.home": "Inicio",
+  "nav.cabins": "Departamentos",
+  "nav.activities": "Actividades",
+  "nav.testimonials": "Testimonios",
+  "nav.contact": "Contacto",
+  "nav.admin": "Admin",
+  "nav.login": "Iniciar Sesión",
+  "nav.gallery": "Galería",
 
-    // Hero
-    "hero.bookNow": "Reservar Ahora",
+  // Hero
+  "hero.bookNow": "Reservar Ahora",
 
-    // Cabins
-    "cabins.title": "Nuestros Departamentos",
-    "cabins.subtitle": "Espacios cómodos y bien equipados para tu estadía",
-    "cabins.bookOnBooking": "Reservar en Booking.com",
-    "cabins.viewDetails": "Ver Detalles",
-    "cabins.features": "Características",
-    "cabins.capacity": "Capacidad",
-    "cabins.bedrooms": "Habitaciones",
-    "cabins.bathrooms": "Baños",
+  // Cabins
+  "cabins.title": "Nuestros Departamentos",
+  "cabins.subtitle": "Espacios cómodos y bien equipados para tu estadía",
+  "cabins.bookOnBooking": "Reservar en Booking.com",
+  "cabins.viewDetails": "Ver Detalles",
+  "cabins.details": "Detalles",
+  "cabins.perNight": "por noche",
+  "cabins.features": "Características",
+  "cabins.capacity": "Capacidad",
+  "cabins.bedrooms": "Habitaciones",
+  "cabins.bathrooms": "Baños",
+  "cabins.bookNow": "Reservar Ahora",
+  "cabins.modal.details": "Detalles",
+  "cabins.modal.amenities": "Amenidades",
+  "cabins.modal.availability": "Disponibilidad",
+  "cabins.modal.description": "Descripción",
+  "cabins.modal.checkAvailability": "Consultar Disponibilidad",
+  "cabins.modal.booked": "Reservado",
+  "cabins.modal.available": "Disponible",
+  "cabins.amenities.wifi": "WiFi",
+  "cabins.amenities.ac": "Aire Acondicionado",
+  "cabins.amenities.pets": "Se Admiten Mascotas",
+  "cabins.amenities.kitchen": "Cocina",
 
-    // Activities
-    "activities.title": "Actividades y Atracciones",
-    "activities.subtitle": "Descubre todo lo que puedes hacer en la zona",
+  // Activities
+  "activities.title": "Actividades y Atracciones",
+  "activities.subtitle": "Descubre todo lo que puedes hacer en la zona",
+  "activities.distance": "Distancia",
+  "activities.close": "Cerrar",
 
-    // Contact
-    "contact.title": "Contacto",
-    "contact.subtitle": "Estamos aquí para ayudarte",
-    "contact.name": "Nombre",
-    "contact.email": "Email",
-    "contact.message": "Mensaje",
-    "contact.send": "Enviar Mensaje",
+  // Contact
+  "contact.title": "Contacto",
+  "contact.subtitle": "Estamos aquí para ayudarte",
+  "contact.infoTitle": "Información de Contacto",
+  "contact.info.address": "Dirección",
+  "contact.info.phone": "Teléfono",
+  "contact.info.email": "Email",
+  "contact.name": "Nombre",
+  "contact.email": "Email",
+  "contact.message": "Mensaje",
+  "contact.send": "Enviar Mensaje",
+  "contact.successTitle": "Mensaje Enviado",
+  "contact.successMessage": "Gracias por contactarnos. Te responderemos pronto.",
+  "contact.errorTitle": "Error",
+  "contact.errorMessage": "Hubo un error al enviar tu mensaje. Por favor intenta nuevamente.",
 
-    // Testimonials
-    "testimonials.title": "Lo que dicen nuestros huéspedes",
-    "testimonials.subtitle": "Experiencias reales de quienes nos visitaron",
+  // Testimonials
+  "testimonials.title": "Lo que dicen nuestros huéspedes",
+  "testimonials.subtitle": "Experiencias reales de quienes nos visitaron",
 
-    // Footer
-    "footer.rights": "Todos los derechos reservados",
-    "footer.followUs": "Síguenos",
+  // Gallery
+  "gallery.title": "Galería",
+  "gallery.subtitle": "Explora nuestras instalaciones y alrededores",
+  "gallery.filters.all": "Todos",
+  "gallery.filters.cabins": "Cabañas",
+  "gallery.filters.pool": "Piscina",
+  "gallery.filters.surroundings": "Alrededores",
 
-    // Admin
-    "admin.dashboard.welcome": "¡Bienvenido de vuelta!",
-    "admin.dashboard.description": "Aquí tienes un resumen de lo que está pasando hoy.",
-    "admin.dashboard.cabins": "Departamentos",
-    "admin.dashboard.bookings": "Reservas",
-    "admin.dashboard.testimonials": "Testimonios",
-    "admin.dashboard.activities": "Actividades",
-    "admin.tabs.cabins": "Departamentos",
-    "admin.tabs.bookings": "Reservas",
-    "admin.tabs.testimonials": "Testimonios",
-    "admin.tabs.activities": "Actividades",
-    "admin.tabs.settings": "Configuración",
-  },
-  en: {
-    // Navigation
-    "nav.home": "Home",
-    "nav.cabins": "Apartments",
-    "nav.activities": "Activities",
-    "nav.testimonials": "Testimonials",
-    "nav.contact": "Contact",
-    "nav.admin": "Admin",
+  // Footer
+  "footer.rights": "Todos los derechos reservados",
+  "footer.followUs": "Síguenos",
+  "footer.about":
+    "Descubre la tranquilidad y el confort en El Mangrullo, tu hogar lejos de casa en Federación, Entre Ríos.",
+  "footer.quickLinks": "Enlaces Rápidos",
+  "footer.contactUs": "Contáctanos",
 
-    // Hero
-    "hero.bookNow": "Book Now",
+  // Admin
+  "admin.dashboard.welcome": "¡Bienvenido de vuelta!",
+  "admin.dashboard.description": "Aquí tienes un resumen de lo que está pasando hoy.",
+  "admin.dashboard.cabins": "Departamentos",
+  "admin.dashboard.bookings": "Reservas",
+  "admin.dashboard.testimonials": "Testimonios",
+  "admin.dashboard.activities": "Actividades",
+  "admin.tabs.cabins": "Departamentos",
+  "admin.tabs.bookings": "Reservas",
+  "admin.tabs.testimonials": "Testimonios",
+  "admin.tabs.activities": "Actividades",
+  "admin.tabs.settings": "Configuración",
 
-    // Cabins
-    "cabins.title": "Our Apartments",
-    "cabins.subtitle": "Comfortable and well-equipped spaces for your stay",
-    "cabins.bookOnBooking": "Book on Booking.com",
-    "cabins.viewDetails": "View Details",
-    "cabins.features": "Features",
-    "cabins.capacity": "Capacity",
-    "cabins.bedrooms": "Bedrooms",
-    "cabins.bathrooms": "Bathrooms",
-
-    // Activities
-    "activities.title": "Activities and Attractions",
-    "activities.subtitle": "Discover everything you can do in the area",
-
-    // Contact
-    "contact.title": "Contact",
-    "contact.subtitle": "We're here to help",
-    "contact.name": "Name",
-    "contact.email": "Email",
-    "contact.message": "Message",
-    "contact.send": "Send Message",
-
-    // Testimonials
-    "testimonials.title": "What our guests say",
-    "testimonials.subtitle": "Real experiences from those who visited us",
-
-    // Footer
-    "footer.rights": "All rights reserved",
-    "footer.followUs": "Follow us",
-
-    // Admin
-    "admin.dashboard.welcome": "Welcome back!",
-    "admin.dashboard.description": "Here's a summary of what's happening today.",
-    "admin.dashboard.cabins": "Apartments",
-    "admin.dashboard.bookings": "Bookings",
-    "admin.dashboard.testimonials": "Testimonials",
-    "admin.dashboard.activities": "Activities",
-    "admin.tabs.cabins": "Apartments",
-    "admin.tabs.bookings": "Bookings",
-    "admin.tabs.testimonials": "Testimonials",
-    "admin.tabs.activities": "Activities",
-    "admin.tabs.settings": "Settings",
-  },
+  // Common
+  Galeria: "Galería",
+  Cabañas: "Cabañas",
+  Actividades: "Actividades",
+  Contacto: "Contacto",
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined)
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = useState<Language>("es")
-
-  useEffect(() => {
-    // Load language from localStorage if available
-    const savedLanguage = localStorage.getItem("language") as Language
-    if (savedLanguage && (savedLanguage === "es" || savedLanguage === "en")) {
-      setLanguage(savedLanguage)
-    }
-  }, [])
-
-  const handleSetLanguage = (lang: Language) => {
-    setLanguage(lang)
-    localStorage.setItem("language", lang)
-  }
-
   const t = (key: string): string => {
-    return translations[language][key as keyof typeof translations.es] || key
+    return translations[key] || key
   }
 
-  return (
-    <LanguageContext.Provider value={{ language, setLanguage: handleSetLanguage, t }}>
-      {children}
-    </LanguageContext.Provider>
-  )
+  return <LanguageContext.Provider value={{ t }}>{children}</LanguageContext.Provider>
 }
 
 export function useLanguage() {

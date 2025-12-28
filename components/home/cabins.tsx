@@ -18,13 +18,14 @@ export default function Cabins() {
   const [selectedCabin, setSelectedCabin] = useState(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [date, setDate] = useState(undefined)
-  const { language, t } = useLanguage()
+  const { t } = useLanguage()
 
   const [bookedDates, setBookedDates] = useState([])
 
   const getLocalizedText = (field) => {
     if (!field) return ""
-    if (typeof field === "object") return field[language] || Object.values(field)[0] || ""
+    // Now only searches for text in Spanish
+    if (typeof field === "object") return field.es || field.en || field.pt || Object.values(field)[0] || ""
     return field
   }
 
@@ -40,9 +41,9 @@ export default function Cabins() {
           return
         }
 
-        const cabinsList = cabinsSnapshot.docs.map(doc => ({
+        const cabinsList = cabinsSnapshot.docs.map((doc) => ({
           id: doc.id,
-          ...doc.data()
+          ...doc.data(),
         }))
 
         setCabins(cabinsList)
@@ -106,8 +107,10 @@ export default function Cabins() {
   }
 
   const handleWhatsAppClick = (cabinName) => {
-    const message = encodeURIComponent(`Hola, estoy interesado en reservar la cabaña "${cabinName}". ¿Podrían proporcionarme más información?`)
-    window.open(`https://wa.me/+123456789?text=${message}`, '_blank')
+    const message = encodeURIComponent(
+      `Hola, estoy interesado en reservar la cabaña "${cabinName}". ¿Podrían proporcionarme más información?`,
+    )
+    window.open(`https://wa.me/+123456789?text=${message}`, "_blank")
   }
 
   if (loading) {
@@ -149,7 +152,10 @@ export default function Cabins() {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
             {cabins.map((cabin) => (
-              <div key={cabin.id} className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+              <div
+                key={cabin.id}
+                className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow"
+              >
                 <div className="relative h-36 sm:h-40 md:h-48">
                   <Image
                     src={cabin.image || "/placeholder.svg"}
@@ -164,28 +170,28 @@ export default function Cabins() {
                   <h3 className="text-sm font-bold text-brown mb-1 md:mb-2">
                     {getLocalizedText(cabin.name) || `Cabaña ${cabin.id}`}
                   </h3>
-                  
+
                   {/* Solo mostrar en dispositivos medianos y grandes */}
                   <div className="hidden sm:flex items-center text-gray-600 mb-2 md:mb-4 text-xs sm:text-sm">
                     <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                     <span>{t("cabins.capacity", { count: cabin.capacity || "?" })}</span>
                   </div>
-                  
+
                   {/* Solo mostrar en dispositivos medianos y grandes */}
                   <p className="hidden sm:block text-gray-600 mb-2 md:mb-4 line-clamp-2 text-xs sm:text-sm">
                     {getLocalizedText(cabin.description) || "Sin descripción disponible."}
                   </p>
-                  
+
                   <div className="flex justify-between items-center">
                     {/* Solo mostrar en dispositivos medianos y grandes */}
                     <span className="hidden sm:inline text-green font-bold text-sm sm:text-base md:text-lg">
                       ${cabin.price || "?"} USD <span className="text-xs font-normal">{t("cabins.perNight")}</span>
                     </span>
-                    
+
                     {/* En móvil, el botón ocupa todo el ancho */}
                     <Button
                       variant="outline"
-                      className="border-green text-green hover:bg-green hover:text-white text-xs sm:text-sm py-1 px-2 sm:py-2 sm:px-3 w-full sm:w-auto"
+                      className="border-green text-green hover:bg-green hover:text-white text-xs sm:text-sm py-1 px-2 sm:py-2 sm:px-3 w-full sm:w-auto bg-transparent"
                       onClick={() => handleCabinClick(cabin)}
                     >
                       {t("cabins.details")}
@@ -234,15 +240,11 @@ export default function Cabins() {
                   </div>
                   <div className="flex justify-between items-center">
                     <div>
-                      <span className="text-green font-bold text-xl sm:text-2xl">${selectedCabin.price || "?"} USD</span>
+                      <span className="text-green font-bold text-xl sm:text-2xl">
+                        ${selectedCabin.price || "?"} USD
+                      </span>
                       <span className="text-xs sm:text-sm text-gray-600 ml-1">{t("cabins.perNight")}</span>
                     </div>
-                    <Button
-                      className="bg-green hover:bg-green/90 text-sm sm:text-base"
-                      onClick={() => window.open("https://www.booking.com", "_blank")}
-                    >
-                      {t("cabins.bookNow")}
-                    </Button>
                   </div>
                 </TabsContent>
 
@@ -250,7 +252,10 @@ export default function Cabins() {
                   {selectedCabin.amenities && selectedCabin.amenities.length > 0 ? (
                     <div className="grid grid-cols-2 gap-3 sm:gap-4">
                       {selectedCabin.amenities.map((amenity) => (
-                        <div key={amenity} className="flex items-center p-2 sm:p-3 bg-gray-50 rounded-lg text-sm sm:text-base">
+                        <div
+                          key={amenity}
+                          className="flex items-center p-2 sm:p-3 bg-gray-50 rounded-lg text-sm sm:text-base"
+                        >
                           <div className="mr-2 sm:mr-3 text-green">{getAmenityIcon(amenity)}</div>
                           <span>{getAmenityLabel(amenity)}</span>
                         </div>
@@ -277,7 +282,7 @@ export default function Cabins() {
                           (bookedDate) =>
                             bookedDate.getDate() === date.getDate() &&
                             bookedDate.getMonth() === date.getMonth() &&
-                            bookedDate.getFullYear() === date.getFullYear()
+                            bookedDate.getFullYear() === date.getFullYear(),
                         )
                       }
                       className="rounded-md border"
@@ -292,23 +297,16 @@ export default function Cabins() {
                         <span>{t("cabins.modal.available")}</span>
                       </div>
                     </div>
-                    
+
                     {/* Botones de reserva */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full mt-6">
-                      <Button
-                        className="bg-green hover:bg-green/90 text-sm sm:text-base"
-                        onClick={() => window.open("https://www.booking.com", "_blank")}
-                      >
-                        {t("cabins.bookOnBooking")}
-                      </Button>
-                      
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full mt-6">
                       <Button
                         className="bg-blue-500 hover:bg-blue-600 text-sm sm:text-base"
                         onClick={() => window.open("https://airbnb.com/h/loslagartos", "_blank")}
                       >
                         Reservar por Airbnb
                       </Button>
-                      
+
                       <Button
                         className="bg-blue-500 hover:bg-blue-600 text-sm sm:text-base"
                         onClick={() => handleWhatsAppClick(getLocalizedText(selectedCabin.name))}

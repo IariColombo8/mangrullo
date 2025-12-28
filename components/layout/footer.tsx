@@ -33,29 +33,6 @@ export default function Footer() {
             >
               <Instagram size={22} />
             </a>
-            <a
-              href="https://www.booking.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-white hover:text-white transition-colors"
-              aria-label="Booking"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" />
-                <path d="M12 8v8" />
-                <path d="M8 12h8" />
-              </svg>
-            </a>
           </div>
         </div>
 
@@ -83,29 +60,6 @@ export default function Footer() {
               >
                 <Instagram />
               </a>
-              <a
-                href="https://www.booking.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-white hover:text-white transition-colors"
-                aria-label="Booking"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" />
-                  <path d="M12 8v8" />
-                  <path d="M8 12h8" />
-                </svg>
-              </a>
             </div>
           </div>
 
@@ -120,22 +74,22 @@ export default function Footer() {
             <ul className="space-y-3">
               <li>
                 <Link href="/#gallery" className="text-white hover:text-white transition-colors">
-                  {t("Galeria")}
+                  Galería
                 </Link>
               </li>
               <li>
                 <Link href="/#cabins" className="text-white hover:text-white transition-colors">
-                  {t("Cabañas")}
+                  Cabañas
                 </Link>
               </li>
               <li>
                 <Link href="/#activities" className="text-white hover:text-white transition-colors">
-                  {t("Actividades")}
+                  Actividades
                 </Link>
               </li>
               <li>
                 <Link href="/#contact" className="text-white hover:text-white transition-colors">
-                  {t("Contacto")}
+                  Contacto
                 </Link>
               </li>
               <li>
@@ -152,17 +106,25 @@ export default function Footer() {
             <ul className="space-y-3">
               <li className="flex items-start justify-center sm:justify-start">
                 <MapPin className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
-                <span className="text-white text-sm sm:text-base">Av. Coronel J. M. Salas, Federación, Entre Ríos, Argentina</span>
+                <span className="text-white text-sm sm:text-base">
+                  Av. Coronel J. M. Salas, Federación, Entre Ríos, Argentina
+                </span>
               </li>
               <li className="flex items-center justify-center sm:justify-start">
                 <Phone className="h-5 w-5 mr-2 flex-shrink-0" />
-                <a href="tel:+5493456551550" className="text-white hover:text-white transition-colors text-sm sm:text-base">
+                <a
+                  href="tel:+5493456551550"
+                  className="text-white hover:text-white transition-colors text-sm sm:text-base"
+                >
                   +54 9 3456 551550
                 </a>
               </li>
               <li className="flex items-center justify-center sm:justify-start">
                 <Mail className="h-5 w-5 mr-2 flex-shrink-0" />
-                <a href="mailto:elmangrullofederacion@gmail.com" className="text-white hover:text-white transition-colors text-sm sm:text-base truncate">
+                <a
+                  href="mailto:elmangrullofederacion@gmail.com"
+                  className="text-white hover:text-white transition-colors text-sm sm:text-base truncate"
+                >
                   elmangrullofederacion@gmail.com
                 </a>
               </li>

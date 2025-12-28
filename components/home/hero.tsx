@@ -2,47 +2,32 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { useLanguage } from "@/context/language-context"
 import PublicAvailabilitySearch from "@/components/booking/public-availability-search"
 
 const slides = [
   {
     id: 1,
     image: "foto 7.jpg",
-    title: {
-      es: "Bienvenido",
-    },
-    subtitle: {
-      es: "Relajate, conectate con la naturaleza y sentite como en casa.",
-    },
+    title: "Bienvenido",
+    subtitle: "Relajate, conectate con la naturaleza y sentite como en casa.",
   },
   {
     id: 2,
     image: "foto 3.jpg",
-    title: {
-      es: "Tu descanso, nuestra prioridad",
-    },
-    subtitle: {
-      es: "Elegí con quién venir, nosotros nos encargamos del resto.",
-    },
+    title: "Tu descanso, nuestra prioridad",
+    subtitle: "Elegí con quién venir, nosotros nos encargamos del resto.",
   },
   {
     id: 3,
     image: "foto 4.jpg",
-    title: {
-      es: "Un rincón para desconectar y disfrutar.",
-    },
-    subtitle: {
-      es: "Departamentos totalmente equipados, pensados para tu confort.",
-    },
+    title: "Un rincón para desconectar y disfrutar.",
+    subtitle: "Departamentos totalmente equipados, pensados para tu confort.",
   },
 ]
 
 export default function Hero() {
   const [currentSlide, setCurrentSlide] = useState(0)
-  const { language, t } = useLanguage()
 
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1))
@@ -73,29 +58,17 @@ export default function Hero() {
           >
             <Image
               src={slide.image || "/placeholder.svg"}
-              alt={slide.title[language as keyof typeof slide.title]}
+              alt={slide.title}
               fill
               priority={index === 0}
               className="object-cover"
             />
             <div className="absolute inset-0 bg-black bg-opacity-40" />
             <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center px-4">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 max-w-4xl">
-                {slide.title[language as keyof typeof slide.title]}
-              </h1>
-              <p className="text-xl md:text-2xl mb-8 max-w-2xl">
-                {slide.subtitle[language as keyof typeof slide.subtitle]}
-              </p>
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 max-w-4xl">{slide.title}</h1>
+              <p className="text-xl md:text-2xl mb-8 max-w-2xl">{slide.subtitle}</p>
               <div className="flex gap-4">
                 <PublicAvailabilitySearch />
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="bg-white/10 hover:bg-white/20 text-white border-white"
-                  onClick={() => window.open("https://www.booking.com", "_blank")}
-                >
-                  Ver en Booking.com
-                </Button>
               </div>
             </div>
           </div>

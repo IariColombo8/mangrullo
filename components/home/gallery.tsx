@@ -71,24 +71,24 @@ export default function Gallery() {
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 640)
     }
-    
+
     checkIfMobile()
-    window.addEventListener('resize', checkIfMobile)
-    
+    window.addEventListener("resize", checkIfMobile)
+
     return () => {
-      window.removeEventListener('resize', checkIfMobile)
+      window.removeEventListener("resize", checkIfMobile)
     }
   }, [])
 
   // Filtrar y limitar imágenes según el dispositivo
   const getFilteredImages = () => {
     let filtered = filter === "all" ? images : images.filter((image) => image.category === filter)
-    
+
     // En móvil, limitamos a 6 imágenes para no sobrecargar
     if (isMobile) {
       filtered = filtered.slice(0, 6)
     }
-    
+
     return filtered
   }
 
@@ -191,7 +191,12 @@ export default function Gallery() {
         {/* Show More Button on Mobile */}
         {isMobile && images.length > 6 && filter === "all" && (
           <div className="mt-6 text-center">
-           
+            <Button
+              variant="outline"
+              className="border-green text-green hover:bg-green hover:text-white bg-transparent"
+            >
+              {t("gallery.showMore")}
+            </Button>
           </div>
         )}
       </div>
