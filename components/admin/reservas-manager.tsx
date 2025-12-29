@@ -13,7 +13,7 @@ import type {
   ContactoParticular,
   PrecioNoche,
 } from "@/types/reserva"
-import { DEPARTAMENTOS, ORIGENES, CONTACTOS_PARTICULARES } from "@/types/reserva"
+import { ORIGENES, CONTACTOS_PARTICULARES } from "@/types/reserva"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -61,6 +61,7 @@ import {
   X,
   CheckCircle,
   Clock,
+  Printer,
 } from "lucide-react"
 import {
   format,
@@ -148,10 +149,11 @@ const TimelineView = ({
     return reservas.filter((r) => {
       const inicio = r.fechaInicio as Date
       const fin = r.fechaFin as Date
+      // Check if the reservation overlaps with the current month at all
       return (
-        (inicio >= startOfMonthDate && inicio <= endOfMonthDate) ||
-        (fin >= startOfMonthDate && fin <= endOfMonthDate) ||
-        (inicio <= startOfMonthDate && fin >= endOfMonthDate)
+        (inicio >= startOfMonthDate && inicio < endOfMonthDate) || // Starts within the month
+        (fin > startOfMonthDate && fin <= endOfMonthDate) || // Ends within the month
+        (inicio <= startOfMonthDate && fin >= endOfMonthDate) // Spans the entire month
       )
     })
   }
@@ -174,12 +176,14 @@ const TimelineView = ({
 
   const getReservationForDayAndDept = (day: Date, departamento: string): Reserva | null => {
     const dayStart = startOfDay(day)
-    return monthReservations.find((r) => {
-      if (r.departamento !== departamento) return false
-      const inicio = startOfDay(r.fechaInicio as Date)
-      const fin = startOfDay(r.fechaFin as Date)
-      return dayStart >= inicio && dayStart < fin
-    }) || null
+    return (
+      monthReservations.find((r) => {
+        if (r.departamento !== departamento) return false
+        const inicio = startOfDay(r.fechaInicio as Date)
+        const fin = startOfDay(r.fechaFin as Date)
+        return dayStart >= inicio && dayStart < fin
+      }) || null
+    )
   }
 
   return (
@@ -196,7 +200,7 @@ const TimelineView = ({
                 {daysInMonth.map((day) => {
                   const isToday = isSameDay(day, new Date())
                   const isWeekend = day.getDay() === 0 || day.getDay() === 6
-                  
+
                   return (
                     <div
                       key={day.toISOString()}
@@ -204,7 +208,7 @@ const TimelineView = ({
                         "border-l border-emerald-200 p-1 text-center",
                         isToday && "bg-emerald-300 ring-1 ring-emerald-500",
                         !isToday && isWeekend && "bg-emerald-100",
-                        !isToday && !isWeekend && "bg-emerald-50"
+                        !isToday && !isWeekend && "bg-emerald-50",
                       )}
                     >
                       <div className={cn("font-bold text-[10px]", isToday && "text-emerald-900")}>
@@ -221,119 +225,127 @@ const TimelineView = ({
 
             {/* Filas de departamentos - MÁS COMPACTAS */}
             {cabins.map((cabin) => (
-              <div key={cabin.id} className="grid grid-cols-[120px_1fr] gap-0 border-b border-gray-300 hover:bg-gray-50/50 transition-colors">
+              <div
+                key={cabin.id}
+                className="grid grid-cols-[120px_1fr] gap-0 border-b border-gray-300 hover:bg-gray-50/50 transition-colors"
+              >
                 <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-2 font-semibold text-xs flex items-center border-r-2 border-gray-300">
                   <Home className="h-3 w-3 mr-1 text-emerald-600 flex-shrink-0" />
                   <span className="truncate">{cabin.name}</span>
                 </div>
-                
-                <div className="grid relative min-h-[45px]" style={{ gridTemplateColumns: `repeat(${daysInMonth.length}, minmax(28px, 1fr))` }}>
-                  {daysInMonth.map((day) => {
+
+                <div
+                  className="grid relative min-h-[45px]"
+                  style={{ gridTemplateColumns: `repeat(${daysInMonth.length}, minmax(28px, 1fr))` }}
+                >
+                  {/* Celdas de días con color de fondo */}
+                  {daysInMonth.map((day, dayIndex) => {
+                    const isToday = isSameDay(day, new Date())
                     const reserva = getReservationForDayAndDept(day, cabin.name)
                     const hasAlert = reserva ? needsPaymentAlert(reserva) : false
-                    const isToday = isSameDay(day, new Date())
-                    const isCheckIn = reserva && isSameDay(reserva.fechaInicio as Date, day)
-                    const isCheckOut = reserva && isSameDay(reserva.fechaFin as Date, day)
 
                     return (
                       <div
-                        key={day.toISOString()}
+                        key={dayIndex}
                         className={cn(
-                          "border-l border-gray-200 relative transition-all duration-200",
-                          isToday && "ring-1 ring-inset ring-emerald-400",
-                          reserva && !hasAlert && getOrigenColor(reserva.origen),
-                          reserva && hasAlert && "bg-red-600",
-                          !reserva && "bg-white hover:bg-gray-100",
-                          reserva && "cursor-pointer hover:brightness-110",
-                          isCheckIn && "border-l-2 border-l-white",
-                          isCheckOut && "border-r-2 border-r-white"
+                          "border-l border-gray-200 min-h-[45px]",
+                          isToday && "border-l-2 border-emerald-500",
+                          hasAlert && "bg-red-100",
+                          !hasAlert && reserva && getOrigenColor(reserva.origen).replace("bg-", "bg-opacity-20 bg-"),
+                          !reserva && "bg-white",
                         )}
-                        onClick={() => reserva && setViewingReserva(reserva)}
-                        title={
-                          reserva
-                            ? `${reserva.nombre}\n${format(reserva.fechaInicio as Date, "dd/MM")} - ${format(reserva.fechaFin as Date, "dd/MM")}\n${calculateNights(reserva.fechaInicio as Date, reserva.fechaFin as Date)} noches${hasAlert ? "\n⚠️ SIN PAGO" : ""}`
-                            : ""
-                        }
-                      >
-                        {/* Indicadores de Check-in/out - MÁS PEQUEÑOS */}
-                        {isCheckIn && (
-                          <div className="absolute top-0 left-0 w-full flex justify-center">
-                            <CheckCircle className="h-2.5 w-2.5 text-white drop-shadow-md" />
-                          </div>
-                        )}
-                        {isCheckOut && (
-                          <div className="absolute bottom-0 right-0 w-full flex justify-center">
-                            <Home className="h-2.5 w-2.5 text-white drop-shadow-md" />
-                          </div>
-                        )}
-                        
-                        {/* Alerta de pago - MÁS PEQUEÑA */}
-                        {reserva && hasAlert && (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <AlertTriangle className="h-2.5 w-2.5 text-white animate-pulse drop-shadow-md" />
-                          </div>
-                        )}
-                      </div>
+                      />
                     )
                   })}
+
+                  {monthReservations
+                    .filter((r) => r.departamento === cabin.name)
+                    .map((reserva, idx) => {
+                      const reservaStartDate = startOfDay(reserva.fechaInicio as Date)
+                      const reservaEndDate = startOfDay(reserva.fechaFin as Date)
+
+                      // Calcular inicio y fin efectivos dentro del mes visible
+                      const effectiveStart = reservaStartDate < startOfMonthDate ? startOfMonthDate : reservaStartDate
+                      const effectiveEnd = reservaEndDate > endOfMonthDate ? endOfMonthDate : reservaEndDate
+
+                      // Calcular posición y ancho dentro del mes
+                      const startDayIndex = daysInMonth.findIndex((day) => isSameDay(day, effectiveStart))
+                      const endDayIndex = daysInMonth.findIndex((day) => isSameDay(day, effectiveEnd))
+
+                      // Si la reserva no está visible en este mes, no renderizar
+                      if (startDayIndex === -1 && endDayIndex === -1) return null
+
+                      // Calcular el día de inicio y la cantidad de días visibles
+                      const visibleStartDay = startDayIndex >= 0 ? startDayIndex : 0
+                      const visibleEndDay = endDayIndex >= 0 ? endDayIndex : daysInMonth.length - 1
+                      const visibleDays = visibleEndDay - visibleStartDay + 1
+
+                      // Calcular noches totales (para mostrar en tooltip)
+                      const totalNights = calculateNights(reservaStartDate, reservaEndDate)
+
+                      const hasAlert = needsPaymentAlert(reserva)
+                      const origenColorClass = getOrigenColor(reserva.origen)
+
+                      // Indicadores de continuación
+                      const continuesFromPrevMonth = reservaStartDate < startOfMonthDate
+                      const continuesToNextMonth = reservaEndDate > endOfMonthDate
+
+                      return (
+                        <div
+                          key={`${reserva.id}-${idx}`}
+                          className={cn(
+                            "absolute h-[38px] top-[3px] rounded cursor-pointer transition-all hover:z-30 hover:shadow-xl border-2 flex items-center px-1 text-[9px] font-medium text-white overflow-hidden",
+                            origenColorClass,
+                            hasAlert && "border-red-600 ring-2 ring-red-300",
+                            !hasAlert && "border-gray-400 shadow-md",
+                          )}
+                          style={{
+                            left: `${(visibleStartDay / daysInMonth.length) * 100}%`,
+                            width: `${(visibleDays / daysInMonth.length) * 100}%`,
+                            zIndex: 10 + idx,
+                          }}
+                          onClick={() => setViewingReserva(reserva)}
+                          title={`${reserva.nombre} - ${reserva.origen} - ${totalNights} noches`}
+                        >
+                          {/* Indicador de continuación desde mes anterior */}
+                          {continuesFromPrevMonth && <div className="absolute left-0 top-0 bottom-0 w-1 bg-white/50" />}
+
+                          <div className="flex items-center justify-between w-full">
+                            <span className="truncate flex-1">{reserva.nombre.split(" ")[0]}</span>
+                            {hasAlert && <AlertTriangle className="h-3 w-3 ml-1 flex-shrink-0" />}
+                          </div>
+
+                          {/* Indicador de continuación hacia mes siguiente */}
+                          {continuesToNextMonth && <div className="absolute right-0 top-0 bottom-0 w-1 bg-white/50" />}
+                        </div>
+                      )
+                    })}
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Leyenda más compacta */}
-        <div className="mt-4 p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-300">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {/* Orígenes */}
-            <div className="space-y-1">
-              <p className="text-[10px] font-semibold text-gray-600 mb-1">Orígenes:</p>
-              {ORIGENES.slice(0, 4).map((origen) => (
-                <div key={origen.value} className="flex items-center gap-1.5">
-                  <div className={cn("w-3 h-3 rounded border border-white shadow-sm", origen.color)}></div>
-                  <span className="text-[10px] text-gray-700">{origen.label}</span>
-                </div>
-              ))}
+        {/* Leyenda de colores */}
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="flex flex-wrap gap-3 justify-center text-xs">
+            <div className="flex items-center gap-1">
+              <div className="w-4 h-4 rounded border border-gray-300 bg-emerald-300"></div>
+              <span>Hoy</span>
             </div>
-            
-            <div className="space-y-1">
-              <p className="text-[10px] font-semibold text-gray-600 mb-1">&nbsp;</p>
-              {ORIGENES.slice(4).map((origen) => (
-                <div key={origen.value} className="flex items-center gap-1.5">
-                  <div className={cn("w-3 h-3 rounded border border-white shadow-sm", origen.color)}></div>
-                  <span className="text-[10px] text-gray-700">{origen.label}</span>
-                </div>
-              ))}
+            {ORIGENES.map((origen) => (
+              <div key={origen.value} className="flex items-center gap-1">
+                <div className={cn("w-4 h-4 rounded border border-gray-300", origen.color)}></div>
+                <span>{origen.label}</span>
+              </div>
+            ))}
+            <div className="flex items-center gap-1">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <span>Sin pago vencido</span>
             </div>
-            
-            {/* Estados */}
-            <div className="space-y-1">
-              <p className="text-[10px] font-semibold text-gray-600 mb-1">Estados:</p>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded bg-red-600 border border-white shadow-sm"></div>
-                <span className="text-[10px] text-gray-700">Sin Pago</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded bg-emerald-300 ring-1 ring-emerald-500"></div>
-                <span className="text-[10px] text-gray-700">Hoy</span>
-              </div>
-            </div>
-            
-            {/* Indicadores */}
-            <div className="space-y-1">
-              <p className="text-[10px] font-semibold text-gray-600 mb-1">Indicadores:</p>
-              <div className="flex items-center gap-1.5">
-                <CheckCircle className="h-3 w-3 text-white bg-green-600 rounded-full p-0.5" />
-                <span className="text-[10px] text-gray-700">Check-in</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Home className="h-3 w-3 text-white bg-orange-600 rounded-full p-0.5" />
-                <span className="text-[10px] text-gray-700">Check-out</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <AlertTriangle className="h-3 w-3 text-white bg-red-600 rounded-full p-0.5" />
-                <span className="text-[10px] text-gray-700">Alerta</span>
-              </div>
+            <div className="flex items-center gap-1">
+              <div className="w-4 h-4 rounded bg-white/50 border-l-2 border-gray-600"></div>
+              <span>Continúa de/hacia otro mes</span>
             </div>
           </div>
         </div>
@@ -399,12 +411,12 @@ const GridView = ({
   const getCalendarWeeks = () => {
     const weeks: Date[][] = []
     let currentWeek: Date[] = []
-    
+
     const firstDayOfWeek = daysInMonth[0].getDay()
     for (let i = 0; i < firstDayOfWeek; i++) {
       currentWeek.push(new Date(0))
     }
-    
+
     daysInMonth.forEach((day) => {
       currentWeek.push(day)
       if (currentWeek.length === 7) {
@@ -412,26 +424,26 @@ const GridView = ({
         currentWeek = []
       }
     })
-    
+
     if (currentWeek.length > 0) {
       while (currentWeek.length < 7) {
         currentWeek.push(new Date(0))
       }
       weeks.push(currentWeek)
     }
-    
+
     return weeks
   }
 
   const calendarWeeks = getCalendarWeeks()
   const weekDays = [
-    { key: 'dom', label: 'D' },
-    { key: 'lun', label: 'L' },
-    { key: 'mar', label: 'M' },
-    { key: 'mie', label: 'X' },
-    { key: 'jue', label: 'J' },
-    { key: 'vie', label: 'V' },
-    { key: 'sab', label: 'S' },
+    { key: "dom", label: "D" },
+    { key: "lun", label: "L" },
+    { key: "mar", label: "M" },
+    { key: "mie", label: "X" },
+    { key: "jue", label: "J" },
+    { key: "vie", label: "V" },
+    { key: "sab", label: "S" },
   ]
 
   return (
@@ -448,7 +460,7 @@ const GridView = ({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {cabins.map((cabin) => {
             const deptReservations = monthReservations.filter((r) => r.departamento === cabin.name)
-            
+
             return (
               <Card key={cabin.id} className="bg-gradient-to-br from-white to-gray-50 shadow-md border border-gray-200">
                 {/* Header compacto */}
@@ -468,11 +480,11 @@ const GridView = ({
                   {/* Días de la semana - MÁS COMPACTOS */}
                   <div className="grid grid-cols-7 gap-0.5 mb-1">
                     {weekDays.map((day, idx) => (
-                      <div 
+                      <div
                         key={day.key}
                         className={cn(
                           "text-center text-[9px] font-bold py-1 rounded-t",
-                          idx === 0 || idx === 6 ? "bg-gray-200 text-gray-700" : "bg-gray-100 text-gray-600"
+                          idx === 0 || idx === 6 ? "bg-gray-200 text-gray-700" : "bg-gray-100 text-gray-600",
                         )}
                       >
                         {day.label}
@@ -512,7 +524,7 @@ const GridView = ({
                                 primaryReservation && "hover:brightness-110 shadow",
                                 !primaryReservation && "hover:bg-gray-50",
                                 isCheckIn && "border-l-2 border-l-green-600",
-                                isCheckOut && "border-r-2 border-r-orange-600"
+                                isCheckOut && "border-r-2 border-r-orange-600",
                               )}
                               onClick={() => primaryReservation && setViewingReserva(primaryReservation)}
                               title={
@@ -522,10 +534,16 @@ const GridView = ({
                               }
                             >
                               {/* Número del día - MÁS PEQUEÑO */}
-                              <div className={cn(
-                                "absolute top-0.5 left-0.5 text-[9px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center",
-                                primaryReservation ? "bg-black/20 text-white" : isToday ? "bg-emerald-500 text-white" : "text-gray-700"
-                              )}>
+                              <div
+                                className={cn(
+                                  "absolute top-0.5 left-0.5 text-[9px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center",
+                                  primaryReservation
+                                    ? "bg-black/20 text-white"
+                                    : isToday
+                                      ? "bg-emerald-500 text-white"
+                                      : "text-gray-700",
+                                )}
+                              >
                                 {format(day, "d")}
                               </div>
 
@@ -580,7 +598,7 @@ const GridView = ({
                 </div>
               ))}
             </div>
-            
+
             <div className="space-y-1">
               <p className="text-[10px] font-semibold text-gray-600 mb-1">&nbsp;</p>
               {ORIGENES.slice(4).map((origen) => (
@@ -590,7 +608,7 @@ const GridView = ({
                 </div>
               ))}
             </div>
-            
+
             <div className="space-y-1">
               <p className="text-[10px] font-semibold text-gray-600 mb-1">Estados:</p>
               <div className="flex items-center gap-1.5">
@@ -602,7 +620,7 @@ const GridView = ({
                 <span className="text-[10px] text-gray-700">Hoy</span>
               </div>
             </div>
-            
+
             <div className="space-y-1">
               <p className="text-[10px] font-semibold text-gray-600 mb-1">Indicadores:</p>
               <div className="flex items-center gap-1.5">
@@ -622,6 +640,304 @@ const GridView = ({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+const ComprobanteProfesional = ({
+  reserva,
+  onClose,
+  onEdit,
+}: {
+  reserva: Reserva
+  onClose: () => void
+  onEdit: () => void
+}) => {
+  const calculateNights = (inicio: Date, fin: Date) => {
+    return Math.ceil((fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24))
+  }
+
+  const noches = calculateNights(reserva.fechaInicio as Date, reserva.fechaFin as Date)
+  const paisData = PAISES.find((p) => p.code === reserva.pais)
+
+  const monedaMostrar = reserva.moneda || "ARS"
+  const simboloMoneda = monedaMostrar === "ARS" ? "ARS: $" : monedaMostrar === "UYU" ? "UYU: $" : "USD: $"
+
+  const handlePrint = () => {
+    window.print()
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto bg-white">
+      {/* Border exterior decorativo */}
+      <div className="border-4 border-double border-gray-400 rounded-lg p-8">
+        {/* Header con logo y título */}
+        <div className="text-center mb-8 pb-6 border-b-2 border-gray-300">
+          <div className="flex justify-center items-center mb-4">
+            <img src="/mangrullo.png" alt="El Mangrullo" className="h-20 w-auto object-contain" />
+          </div>
+          <h1 className="text-4xl font-bold text-gray-800 mb-2 tracking-wide">EL MANGRULLO</h1>
+          <p className="text-lg text-gray-600 border-b border-gray-300 inline-block pb-1">Complejo Turístico</p>
+        </div>
+
+        {/* Información de contacto y número de comprobante */}
+        <div className="grid grid-cols-2 gap-8 mb-8 text-sm">
+          <div className="space-y-1">
+            <p className="text-gray-700">
+              <span className="font-semibold">Federación - Entre Ríos</span>
+            </p>
+            <p className="text-gray-600">WhatsApp: +54 9 3456 551-306</p>
+            <p className="text-gray-600">Instagram: @el_mangrullo_federacion</p>
+          </div>
+          <div className="text-right space-y-1">
+            <p className="text-gray-700">
+              N° de comprobante: <span className="font-semibold">{reserva.id?.substring(0, 8).toUpperCase()}</span>
+            </p>
+            <p className="text-gray-700">
+              Fecha de emisión: <span className="font-semibold">{format(new Date(), "dd/MM/yyyy")}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Título de sección */}
+        <div className="bg-gray-200 py-3 px-4 mb-6">
+          <h2 className="text-center text-xl font-bold text-gray-800 tracking-wider">COMPROBANTE DE RESERVA / PAGO</h2>
+        </div>
+
+        {/* Datos del huésped */}
+        <div className="space-y-6 mb-6">
+          <div>
+            <label className="text-gray-700 font-semibold text-sm">Nombre del huésped:</label>
+            <div className="border-b-2 border-gray-400 py-2 mt-1">
+              <p className="text-gray-900 font-medium">{reserva.nombre}</p>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-gray-700 font-semibold text-sm">País:</label>
+            <div className="border-b-2 border-gray-400 py-2 mt-1">
+              <p className="text-gray-900 font-medium">{paisData?.name || reserva.pais}</p>
+            </div>
+          </div>
+
+          {/* Canal de alquiler */}
+          <div>
+            <label className="text-gray-700 font-semibold text-sm mb-2 block">Canal de alquiler:</label>
+            <div className="flex gap-6 py-2">
+              <div className="flex items-center gap-2">
+                <div
+                  className={cn(
+                    "w-5 h-5 border-2 border-gray-600 flex items-center justify-center",
+                    reserva.origen === "particular" && "bg-gray-800",
+                  )}
+                >
+                  {reserva.origen === "particular" && <span className="text-white text-xs">✓</span>}
+                </div>
+                <span className="text-gray-700">Particular</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div
+                  className={cn(
+                    "w-5 h-5 border-2 border-gray-600 flex items-center justify-center",
+                    reserva.origen === "booking" && "bg-gray-800",
+                  )}
+                >
+                  {reserva.origen === "booking" && <span className="text-white text-xs">✓</span>}
+                </div>
+                <span className="text-gray-700">Booking</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div
+                  className={cn(
+                    "w-5 h-5 border-2 border-gray-600 flex items-center justify-center",
+                    reserva.origen === "airbnb" && "bg-gray-800",
+                  )}
+                >
+                  {reserva.origen === "airbnb" && <span className="text-white text-xs">✓</span>}
+                </div>
+                <span className="text-gray-700">Airbnb</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div
+                  className={cn(
+                    "w-5 h-5 border-2 border-gray-600 flex items-center justify-center",
+                    reserva.origen === "upcn" && "bg-gray-800",
+                  )}
+                >
+                  {reserva.origen === "upcn" && <span className="text-white text-xs">✓</span>}
+                </div>
+                <span className="text-gray-700">UPCN</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Grid de 2 columnas - Detalles y Precios */}
+        <div className="grid grid-cols-2 gap-8 mb-6">
+          {/* Columna izquierda - Departamentos y fechas */}
+          <div className="bg-gray-100 p-4 space-y-4">
+            <div>
+              <label className="text-gray-700 font-semibold text-sm">Departamento/s:</label>
+              <div className="flex flex-col gap-2 mt-2">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      "w-5 h-5 border-2 border-gray-600 flex items-center justify-center",
+                      reserva.departamento === "Los Horneros" && "bg-gray-800",
+                    )}
+                  >
+                    {reserva.departamento === "Los Horneros" && <span className="text-white text-xs">✓</span>}
+                  </div>
+                  <span className="text-gray-700">Los Horneros</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      "w-5 h-5 border-2 border-gray-600 flex items-center justify-center",
+                      reserva.departamento === "Los Zorzales" && "bg-gray-800",
+                    )}
+                  >
+                    {reserva.departamento === "Los Zorzales" && <span className="text-white text-xs">✓</span>}
+                  </div>
+                  <span className="text-gray-700">Los Zorzales</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      "w-5 h-5 border-2 border-gray-600 flex items-center justify-center",
+                      reserva.departamento === "Los Tordos" && "bg-gray-800",
+                    )}
+                  >
+                    {reserva.departamento === "Los Tordos" && <span className="text-white text-xs">✓</span>}
+                  </div>
+                  <span className="text-gray-700">Los Tordos</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      "w-5 h-5 border-2 border-gray-600 flex items-center justify-center",
+                      reserva.departamento === "Las Calandrias" && "bg-gray-800",
+                    )}
+                  >
+                    {reserva.departamento === "Las Calandrias" && <span className="text-white text-xs">✓</span>}
+                  </div>
+                  <span className="text-gray-700">Las Calandrias</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-gray-700 font-semibold text-sm">Fecha de entrada:</label>
+              <div className="border-b border-gray-400 py-1 mt-1">
+                <p className="text-gray-900">{format(reserva.fechaInicio as Date, "dd / MM / yyyy")}</p>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-gray-700 font-semibold text-sm">Fecha de salida:</label>
+              <div className="border-b border-gray-400 py-1 mt-1">
+                <p className="text-gray-900">{format(reserva.fechaFin as Date, "dd / MM / yyyy")}</p>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-gray-700 font-semibold text-sm">Cantidad de noches:</label>
+              <div className="border-b border-gray-400 py-1 mt-1">
+                <p className="text-gray-900 font-bold">{noches}</p>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-gray-700 font-semibold text-sm">Cantidad de personas:</label>
+              <div className="border-b border-gray-400 py-1 mt-1">
+                <p className="text-gray-900">_____________</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Columna derecha - Precios */}
+          <div className="bg-gray-100 p-4 space-y-4">
+            <div>
+              <label className="text-gray-700 font-semibold text-sm">Precio por noche:</label>
+              <div className="border-b border-gray-400 py-1 mt-1">
+                <p className="text-gray-900">
+                  {simboloMoneda} {formatCurrency(getPrecioNocheValue(reserva))}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-gray-700 font-semibold text-sm">Cantidad de noches:</label>
+              <div className="border-b border-gray-400 py-1 mt-1">
+                <p className="text-gray-900 font-bold">{noches}</p>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t-2 border-gray-400">
+              <label className="text-gray-700 font-semibold text-sm">SUBTOTAL:</label>
+              <div className="mt-2 space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-700 font-semibold">{simboloMoneda}</span>
+                  <span className="text-gray-900 font-bold text-lg">{formatCurrency(reserva.precioTotal)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4">
+              <label className="text-gray-700 font-semibold text-sm">TOTAL A PAGAR:</label>
+              <div className="mt-2 space-y-1 bg-gray-200 p-3 rounded">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-700 font-semibold">{simboloMoneda}</span>
+                  <span className="text-gray-900 font-bold text-xl">{formatCurrency(reserva.precioTotal)}</span>
+                </div>
+              </div>
+            </div>
+
+            {reserva.hizoDeposito && (
+              <div className="pt-2">
+                <label className="text-gray-700 font-semibold text-sm">SEÑA / DEPÓSITO:</label>
+                <div className="mt-2 bg-green-100 p-2 rounded">
+                  <div className="flex justify-between items-center">
+                    <span className="text-green-700 font-semibold">{simboloMoneda}</span>
+                    <span className="text-green-700 font-bold text-lg">{formatCurrency(reserva.montoDeposito)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Observaciones */}
+        <div className="mb-6">
+          <label className="text-gray-700 font-semibold text-sm mb-2 block">OBSERVACIONES:</label>
+          <div className="border-2 border-gray-300 rounded p-3 min-h-[80px] bg-gray-50">
+            <p className="text-gray-700 text-sm">{reserva.notas || "Sin observaciones"}</p>
+          </div>
+        </div>
+
+        {/* Footer con logo */}
+        <div className="flex justify-end items-center pt-6 border-t-2 border-gray-300">
+          <div className="flex items-center gap-3">
+            <img src="/mangrullo.png" alt="El Mangrullo" className="h-20 w-auto object-contain" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 tracking-wide">EL MANGRULLO</h2>
+          </div>
+      </div>
+
+      {/* Botones de acción - se ocultan al imprimir */}
+      <div className="flex gap-3 mt-6 print:hidden">
+        <Button onClick={onClose} variant="outline" className="flex-1 bg-transparent">
+          Cerrar
+        </Button>
+        <Button onClick={handlePrint} className="flex-1 bg-blue-600 hover:bg-blue-700">
+          <Printer className="h-4 w-4 mr-2" />
+          Imprimir
+        </Button>
+        <Button onClick={onEdit} className="flex-1 bg-emerald-600 hover:bg-emerald-700">
+          <Edit className="h-4 w-4 mr-2" />
+          Editar
+        </Button>
+      </div>
+    </div>
   )
 }
 
@@ -727,6 +1043,7 @@ export default function ReservasManager() {
       const newStart = fechaInicio.getTime()
       const newEnd = fechaFin.getTime()
 
+      // Check for overlap: new range starts before existing range ends AND new range ends after existing range starts
       return newStart < rEnd && newEnd > rStart
     })
   }
@@ -2007,102 +2324,16 @@ export default function ReservasManager() {
         {/* Dialog for viewing reservation details */}
         {viewingReserva && (
           <Dialog open={!!viewingReserva} onOpenChange={() => setViewingReserva(null)}>
-            <DialogContent className="max-w-2xl bg-gradient-to-br from-white to-blue-50/30">
-              <DialogHeader>
-                <DialogTitle className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-                  Detalles de la Reserva
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-                  <div className="bg-white rounded-lg p-3 border border-blue-100 shadow-sm">
-                    <p className="text-xs md:text-sm text-gray-500 font-medium">Departamento</p>
-                    <p className="font-bold text-base md:text-lg text-blue-900">{viewingReserva.departamento}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-3 border border-blue-100 shadow-sm">
-                    <p className="text-xs md:text-sm text-gray-500 font-medium">Cliente</p>
-                    <p className="font-bold text-base md:text-lg text-blue-900">{viewingReserva.nombre}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-3 border border-emerald-100 shadow-sm">
-                    <p className="text-xs md:text-sm text-gray-500 font-medium">Check-in</p>
-                    <p className="font-bold text-base md:text-lg text-emerald-900">
-                      {format(viewingReserva.fechaInicio as Date, "dd/MM/yyyy")}
-                    </p>
-                  </div>
-                  <div className="bg-white rounded-lg p-3 border border-emerald-100 shadow-sm">
-                    <p className="text-xs md:text-sm text-gray-500 font-medium">Check-out</p>
-                    <p className="font-bold text-base md:text-lg text-emerald-900">
-                      {format(viewingReserva.fechaFin as Date, "dd/MM/yyyy")}
-                    </p>
-                  </div>
-                  <div className="bg-white rounded-lg p-3 border border-purple-100 shadow-sm">
-                    <p className="text-xs md:text-sm text-gray-500 font-medium">País</p>
-                    <p className="font-bold text-base md:text-lg text-purple-900">
-                      {PAISES.find((p) => p.code === viewingReserva.pais)?.name || viewingReserva.pais}
-                    </p>
-                  </div>
-                  <div className="bg-white rounded-lg p-3 border border-purple-100 shadow-sm">
-                    <p className="text-xs md:text-sm text-gray-500 font-medium">Teléfono</p>
-                    <p className="font-bold text-base md:text-lg text-purple-900">{viewingReserva.numero}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-3 border border-purple-100 shadow-sm">
-                    <p className="text-xs md:text-sm text-gray-500 font-medium">Origen</p>
-                    <Badge className={cn("text-white mt-2", getOrigenColor(viewingReserva.origen))}>
-                      {ORIGENES.find((o) => o.value === viewingReserva.origen)?.label}
-                    </Badge>
-                  </div>
-                  <div className="bg-white rounded-lg p-3 border border-green-100 shadow-sm">
-                    <p className="text-xs md:text-sm text-gray-500 font-medium">Precio Total</p>
-                    <p className="font-bold text-xl md:text-2xl text-green-600">
-                      ${formatCurrency(viewingReserva.precioTotal)}
-                    </p>
-                  </div>
-                  <div className="bg-white rounded-lg p-3 border border-green-100 shadow-sm">
-                    <p className="text-xs md:text-sm text-gray-500 font-medium">Depósito</p>
-                    {viewingReserva.hizoDeposito ? (
-                      <div>
-                        <Badge className="bg-green-500 text-white mt-1">Pagado</Badge>
-                        <p className="text-sm text-green-600 mt-1">${formatCurrency(viewingReserva.montoDeposito)}</p>
-                      </div>
-                    ) : (
-                      <Badge variant="secondary" className="bg-gray-200 text-gray-600 mt-1">
-                        Sin pago
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="bg-white rounded-lg p-3 border border-blue-100 shadow-sm">
-                    <p className="text-xs md:text-sm text-gray-500 font-medium">Noches</p>
-                    <p className="font-bold text-xl md:text-2xl text-blue-600">
-                      {calculateNights(viewingReserva.fechaInicio as Date, viewingReserva.fechaFin as Date)}
-                    </p>
-                  </div>
-                </div>
-                {viewingReserva.notas && (
-                  <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                    <p className="text-xs md:text-sm text-gray-500 font-medium mb-2">Notas</p>
-                    <p className="text-sm text-gray-700">{viewingReserva.notas}</p>
-                  </div>
-                )}
-              </div>
-              <DialogFooter className="gap-2 flex-col sm:flex-row">
-                <Button
-                  variant="outline"
-                  onClick={() => setViewingReserva(null)}
-                  className="border-gray-300 w-full sm:w-auto"
-                >
-                  Cerrar
-                </Button>
-                <Button
-                  onClick={() => {
-                    setViewingReserva(null)
-                    openEditDialog(viewingReserva)
-                  }}
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg w-full sm:w-auto"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Editar
-                </Button>
-              </DialogFooter>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <ComprobanteProfesional
+                reserva={viewingReserva}
+                onClose={() => setViewingReserva(null)}
+                onEdit={() => {
+                  const reservaToEdit = viewingReserva
+                  setViewingReserva(null)
+                  openEditDialog(reservaToEdit)
+                }}
+              />
             </DialogContent>
           </Dialog>
         )}
