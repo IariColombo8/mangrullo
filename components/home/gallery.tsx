@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, X } from "lucide-react"
 import { useLanguage } from "@/context/language-context"
@@ -204,6 +204,8 @@ export default function Gallery() {
       {/* Lightbox Dialog */}
       <Dialog open={!!selectedImage} onOpenChange={(open) => !open && setSelectedImage(null)}>
         <DialogContent className="max-w-5xl p-0 bg-transparent border-none shadow-none">
+          <DialogTitle className="sr-only">Galería de imágenes - {selectedImage?.alt || "Imagen"}</DialogTitle>
+
           {selectedImage && (
             <div className="relative">
               <div className="relative h-[80vh] bg-black rounded-lg overflow-hidden">

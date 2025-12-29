@@ -40,7 +40,6 @@ import { db } from "@/lib/firebase"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
-// Importar los componentes
 import CabinsManager from "./cabins-manager"
 import TestimonialsManager from "./testimonials-manager"
 import ReservasManager from "./reservas-manager"
@@ -176,17 +175,17 @@ export default function Dashboard() {
   ]
 
   const recentBookings = reservas
-  .sort((a, b) => (b.fechaInicio as Date).getTime() - (a.fechaInicio as Date).getTime())
-  .slice(0, 5)
-  .filter((r) => r.fechaInicio && r.fechaFin && r.nombre && r.departamento && r.precioTotal) // Agregar esta línea
-  .map((r) => ({
-    id: r.id,
-    guest: r.nombre,
-    cabin: r.departamento,
-    checkIn: format(r.fechaInicio as Date, "dd/MM/yyyy"),
-    status: (r.fechaInicio as Date) > now ? "confirmada" : "en curso",
-    amount: `$${r.precioTotal.toLocaleString()}`,
-  }))
+    .sort((a, b) => (b.fechaInicio as Date).getTime() - (a.fechaInicio as Date).getTime())
+    .slice(0, 5)
+    .filter((r) => r.fechaInicio && r.fechaFin && r.nombre && r.departamento && r.precioTotal)
+    .map((r) => ({
+      id: r.id,
+      guest: r.nombre,
+      cabin: r.departamento,
+      checkIn: format(r.fechaInicio as Date, "dd/MM/yyyy"),
+      status: (r.fechaInicio as Date) > now ? "confirmada" : "en curso",
+      amount: `$${r.precioTotal.toLocaleString()}`,
+    }))
 
   return (
     <div className="min-h-screen bg-slate-50">

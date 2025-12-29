@@ -60,7 +60,7 @@ export default function CabinsManager() {
   const [viewMode, setViewMode] = useState("grid")
   const { language, t } = useLanguage()
   const { toast } = useToast()
-  const MAX_IMAGES = 5
+  const MAX_IMAGES = 10 // Aumentado de 5 a 10 imágenes
 
   const [formData, setFormData] = useState({
     nameEs: "",
@@ -237,14 +237,37 @@ export default function CabinsManager() {
     }
 
     files.forEach((file) => {
+      // Crear URL temporal para mostrar preview
+      const imageUrl = URL.createObjectURL(file)
+
+      // Por ahora usar URLs temporales - en producción deberías subir a Firebase Storage
+      // y guardar solo las URLs en Firestore
       const reader = new FileReader()
       reader.onloadend = () => {
-        const base64String = reader.result
-        setImages((prev) => [...prev, base64String])
-        setFormData((prev) => ({
-          ...prev,
-          images: [...prev.images, base64String],
-        }))
+        // Comprimir la imagen antes de guardar
+        const img = document.createElement("img")
+        img.onload = () => {
+          const canvas = document.createElement("canvas")
+          const ctx = canvas.getContext("2d")
+
+          // Redimensionar imagen a máximo 800px de ancho
+          const maxWidth = 800
+          const scale = maxWidth / img.width
+          canvas.width = maxWidth
+          canvas.height = img.height * scale
+
+          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+          // Convertir a base64 con calidad reducida para no exceder 1MB
+          const compressedBase64 = canvas.toDataURL("image/jpeg", 0.7)
+
+          setImages((prev) => [...prev, compressedBase64])
+          setFormData((prev) => ({
+            ...prev,
+            images: [...prev.images, compressedBase64],
+          }))
+        }
+        img.src = reader.result as string
       }
       reader.readAsDataURL(file)
     })
@@ -659,7 +682,7 @@ export default function CabinsManager() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label className="text-base font-medium">Imágenes de la Cabaña</Label>
+                        <Label className="text-base font-medium">Imágenes del Departamento</Label>
                         <p className="text-sm text-slate-600">
                           Sube hasta {MAX_IMAGES} imágenes. La primera será la imagen principal.
                         </p>

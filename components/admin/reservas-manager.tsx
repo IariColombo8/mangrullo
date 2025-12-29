@@ -3,6 +3,17 @@
 import type React from "react"
 
 import { useState, useEffect, useMemo } from "react"
+import { collection, addDoc, updateDoc, deleteDoc, doc, Timestamp, getDocs } from "firebase/firestore"
+import { db } from "@/lib/firebase"
+import type {
+  Reserva,
+  ReservaFormData,
+  Departamento,
+  OrigenReserva,
+  ContactoParticular,
+  PrecioNoche,
+} from "@/types/reserva"
+import { DEPARTAMENTOS, ORIGENES, CONTACTOS_PARTICULARES } from "@/types/reserva"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -46,21 +57,25 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  AlertTriangle,
+  X,
+  CheckCircle,
+  Clock,
 } from "lucide-react"
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, differenceInDays } from "date-fns"
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  startOfDay,
+  addMonths,
+  subMonths,
+  isSameDay,
+  isBefore,
+  endOfDay, // Import endOfDay
+} from "date-fns"
 import { es } from "date-fns/locale"
 import { cn } from "@/lib/utils"
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp } from "firebase/firestore"
-import { db } from "@/lib/firebase"
-import type {
-  Reserva,
-  ReservaFormData,
-  Departamento,
-  OrigenReserva,
-  ContactoParticular,
-  PrecioNoche,
-} from "@/types/reserva"
-import { ORIGENES, CONTACTOS_PARTICULARES } from "@/types/reserva"
 
 const PAISES = [
   { code: "AR", name: "Argentina", currency: "pesos" },
@@ -73,6 +88,543 @@ const PAISES = [
   { code: "OTHER", name: "Otro", currency: "dolares" },
 ]
 
+const toValidDate = (dateValue: any): Date => {
+  if (!dateValue) return new Date()
+
+  // Si ya es una fecha válida
+  if (dateValue instanceof Date) {
+    return isNaN(dateValue.getTime()) ? new Date() : dateValue
+  }
+
+  // Si es un Timestamp de Firestore
+  if (dateValue.toDate && typeof dateValue.toDate === "function") {
+    try {
+      const converted = dateValue.toDate()
+      return isNaN(converted.getTime()) ? new Date() : converted
+    } catch (e) {
+      console.error("[v0] Error converting Firestore timestamp:", e)
+      return new Date()
+    }
+  }
+
+  // Si es un string o número
+  try {
+    const converted = new Date(dateValue)
+    return isNaN(converted.getTime()) ? new Date() : converted
+  } catch (e) {
+    console.error("[v0] Error parsing date:", e)
+    return new Date()
+  }
+}
+
+const formatCurrency = (value: number | undefined | null): string => {
+  if (value === undefined || value === null || isNaN(value)) return "0"
+  return value.toLocaleString()
+}
+
+const getPrecioNocheValue = (reserva: Reserva): number => {
+  if (!reserva.precioNoche || typeof reserva.precioNoche !== "object") return 0
+  const currency = reserva.moneda || "ARS" // Default to ARS if moneda is not specified
+  return reserva.precioNoche[currency] || 0
+}
+
+// Helper function for timeline view
+const TimelineView = ({
+  reservas,
+  mes,
+  cabins,
+  setViewingReserva,
+}: {
+  reservas: Reserva[]
+  mes: Date
+  cabins: { id: string; name: string }[]
+  setViewingReserva: (reserva: Reserva) => void
+}) => {
+  const startOfMonthDate = startOfMonth(mes)
+  const endOfMonthDate = endOfMonth(mes)
+  const daysInMonth = eachDayOfInterval({ start: startOfMonthDate, end: endOfMonthDate })
+
+  const getMonthReservations = () => {
+    return reservas.filter((r) => {
+      const inicio = r.fechaInicio as Date
+      const fin = r.fechaFin as Date
+      return (
+        (inicio >= startOfMonthDate && inicio <= endOfMonthDate) ||
+        (fin >= startOfMonthDate && fin <= endOfMonthDate) ||
+        (inicio <= startOfMonthDate && fin >= endOfMonthDate)
+      )
+    })
+  }
+
+  const monthReservations = getMonthReservations()
+
+  const needsPaymentAlert = (reserva: Reserva): boolean => {
+    const today = startOfDay(new Date())
+    const fechaSalida = reserva.fechaFin as Date
+    return !reserva.hizoDeposito && isBefore(fechaSalida, today)
+  }
+
+  const getOrigenColor = (origen: OrigenReserva) => {
+    return ORIGENES.find((o) => o.value === origen)?.color || "bg-gray-500"
+  }
+
+  const calculateNights = (inicio: Date, fin: Date) => {
+    return Math.ceil((fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24))
+  }
+
+  const getReservationForDayAndDept = (day: Date, departamento: string): Reserva | null => {
+    const dayStart = startOfDay(day)
+    return monthReservations.find((r) => {
+      if (r.departamento !== departamento) return false
+      const inicio = startOfDay(r.fechaInicio as Date)
+      const fin = startOfDay(r.fechaFin as Date)
+      return dayStart >= inicio && dayStart < fin
+    }) || null
+  }
+
+  return (
+    <Card className="border-emerald-100 shadow-lg bg-white/80 backdrop-blur-sm">
+      <CardContent className="pt-4">
+        <div className="overflow-x-auto">
+          <div className="min-w-[900px]">
+            {/* Header con días - MÁS COMPACTO */}
+            <div className="grid grid-cols-[120px_1fr] gap-0 border-b-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-teal-50 sticky top-0 z-20">
+              <div className="p-2 font-bold text-emerald-900 text-xs flex items-center border-r-2 border-emerald-300">
+                Departamento
+              </div>
+              <div className="grid" style={{ gridTemplateColumns: `repeat(${daysInMonth.length}, minmax(28px, 1fr))` }}>
+                {daysInMonth.map((day) => {
+                  const isToday = isSameDay(day, new Date())
+                  const isWeekend = day.getDay() === 0 || day.getDay() === 6
+                  
+                  return (
+                    <div
+                      key={day.toISOString()}
+                      className={cn(
+                        "border-l border-emerald-200 p-1 text-center",
+                        isToday && "bg-emerald-300 ring-1 ring-emerald-500",
+                        !isToday && isWeekend && "bg-emerald-100",
+                        !isToday && !isWeekend && "bg-emerald-50"
+                      )}
+                    >
+                      <div className={cn("font-bold text-[10px]", isToday && "text-emerald-900")}>
+                        {format(day, "d")}
+                      </div>
+                      <div className={cn("text-[8px]", isToday ? "text-emerald-900 font-bold" : "text-gray-600")}>
+                        {format(day, "EEE", { locale: es })[0]}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Filas de departamentos - MÁS COMPACTAS */}
+            {cabins.map((cabin) => (
+              <div key={cabin.id} className="grid grid-cols-[120px_1fr] gap-0 border-b border-gray-300 hover:bg-gray-50/50 transition-colors">
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-2 font-semibold text-xs flex items-center border-r-2 border-gray-300">
+                  <Home className="h-3 w-3 mr-1 text-emerald-600 flex-shrink-0" />
+                  <span className="truncate">{cabin.name}</span>
+                </div>
+                
+                <div className="grid relative min-h-[45px]" style={{ gridTemplateColumns: `repeat(${daysInMonth.length}, minmax(28px, 1fr))` }}>
+                  {daysInMonth.map((day) => {
+                    const reserva = getReservationForDayAndDept(day, cabin.name)
+                    const hasAlert = reserva ? needsPaymentAlert(reserva) : false
+                    const isToday = isSameDay(day, new Date())
+                    const isCheckIn = reserva && isSameDay(reserva.fechaInicio as Date, day)
+                    const isCheckOut = reserva && isSameDay(reserva.fechaFin as Date, day)
+
+                    return (
+                      <div
+                        key={day.toISOString()}
+                        className={cn(
+                          "border-l border-gray-200 relative transition-all duration-200",
+                          isToday && "ring-1 ring-inset ring-emerald-400",
+                          reserva && !hasAlert && getOrigenColor(reserva.origen),
+                          reserva && hasAlert && "bg-red-600",
+                          !reserva && "bg-white hover:bg-gray-100",
+                          reserva && "cursor-pointer hover:brightness-110",
+                          isCheckIn && "border-l-2 border-l-white",
+                          isCheckOut && "border-r-2 border-r-white"
+                        )}
+                        onClick={() => reserva && setViewingReserva(reserva)}
+                        title={
+                          reserva
+                            ? `${reserva.nombre}\n${format(reserva.fechaInicio as Date, "dd/MM")} - ${format(reserva.fechaFin as Date, "dd/MM")}\n${calculateNights(reserva.fechaInicio as Date, reserva.fechaFin as Date)} noches${hasAlert ? "\n⚠️ SIN PAGO" : ""}`
+                            : ""
+                        }
+                      >
+                        {/* Indicadores de Check-in/out - MÁS PEQUEÑOS */}
+                        {isCheckIn && (
+                          <div className="absolute top-0 left-0 w-full flex justify-center">
+                            <CheckCircle className="h-2.5 w-2.5 text-white drop-shadow-md" />
+                          </div>
+                        )}
+                        {isCheckOut && (
+                          <div className="absolute bottom-0 right-0 w-full flex justify-center">
+                            <Home className="h-2.5 w-2.5 text-white drop-shadow-md" />
+                          </div>
+                        )}
+                        
+                        {/* Alerta de pago - MÁS PEQUEÑA */}
+                        {reserva && hasAlert && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <AlertTriangle className="h-2.5 w-2.5 text-white animate-pulse drop-shadow-md" />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Leyenda más compacta */}
+        <div className="mt-4 p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-300">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {/* Orígenes */}
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold text-gray-600 mb-1">Orígenes:</p>
+              {ORIGENES.slice(0, 4).map((origen) => (
+                <div key={origen.value} className="flex items-center gap-1.5">
+                  <div className={cn("w-3 h-3 rounded border border-white shadow-sm", origen.color)}></div>
+                  <span className="text-[10px] text-gray-700">{origen.label}</span>
+                </div>
+              ))}
+            </div>
+            
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold text-gray-600 mb-1">&nbsp;</p>
+              {ORIGENES.slice(4).map((origen) => (
+                <div key={origen.value} className="flex items-center gap-1.5">
+                  <div className={cn("w-3 h-3 rounded border border-white shadow-sm", origen.color)}></div>
+                  <span className="text-[10px] text-gray-700">{origen.label}</span>
+                </div>
+              ))}
+            </div>
+            
+            {/* Estados */}
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold text-gray-600 mb-1">Estados:</p>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-red-600 border border-white shadow-sm"></div>
+                <span className="text-[10px] text-gray-700">Sin Pago</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-emerald-300 ring-1 ring-emerald-500"></div>
+                <span className="text-[10px] text-gray-700">Hoy</span>
+              </div>
+            </div>
+            
+            {/* Indicadores */}
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold text-gray-600 mb-1">Indicadores:</p>
+              <div className="flex items-center gap-1.5">
+                <CheckCircle className="h-3 w-3 text-white bg-green-600 rounded-full p-0.5" />
+                <span className="text-[10px] text-gray-700">Check-in</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Home className="h-3 w-3 text-white bg-orange-600 rounded-full p-0.5" />
+                <span className="text-[10px] text-gray-700">Check-out</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <AlertTriangle className="h-3 w-3 text-white bg-red-600 rounded-full p-0.5" />
+                <span className="text-[10px] text-gray-700">Alerta</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// Helper function for grid view
+const GridView = ({
+  reservas,
+  mes,
+  cabins,
+  setViewingReserva,
+}: {
+  reservas: Reserva[]
+  mes: Date
+  cabins: { id: string; name: string }[]
+  setViewingReserva: (reserva: Reserva) => void
+}) => {
+  const startOfMonthDate = startOfMonth(mes)
+  const endOfMonthDate = endOfMonth(mes)
+  const daysInMonth = eachDayOfInterval({ start: startOfMonthDate, end: endOfMonthDate })
+
+  const getMonthReservations = () => {
+    return reservas.filter((r) => {
+      const inicio = r.fechaInicio as Date
+      const fin = r.fechaFin as Date
+      return (
+        (inicio >= startOfMonthDate && inicio <= endOfMonthDate) ||
+        (fin >= startOfMonthDate && fin <= endOfMonthDate) ||
+        (inicio <= startOfMonthDate && fin >= endOfMonthDate)
+      )
+    })
+  }
+
+  const monthReservations = getMonthReservations()
+
+  const needsPaymentAlert = (reserva: Reserva): boolean => {
+    const today = startOfDay(new Date())
+    const fechaSalida = reserva.fechaFin as Date
+    return !reserva.hizoDeposito && isBefore(fechaSalida, today)
+  }
+
+  const getOrigenColor = (origen: OrigenReserva) => {
+    return ORIGENES.find((o) => o.value === origen)?.color || "bg-gray-500"
+  }
+
+  const calculateNights = (inicio: Date, fin: Date) => {
+    return Math.ceil((fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24))
+  }
+
+  const getReservationsForDay = (day: Date, departamento: string) => {
+    const dayStart = startOfDay(day)
+    return monthReservations.filter((r) => {
+      if (r.departamento !== departamento) return false
+      const inicio = startOfDay(r.fechaInicio as Date)
+      const fin = startOfDay(r.fechaFin as Date)
+      return dayStart >= inicio && dayStart < fin
+    })
+  }
+
+  const getCalendarWeeks = () => {
+    const weeks: Date[][] = []
+    let currentWeek: Date[] = []
+    
+    const firstDayOfWeek = daysInMonth[0].getDay()
+    for (let i = 0; i < firstDayOfWeek; i++) {
+      currentWeek.push(new Date(0))
+    }
+    
+    daysInMonth.forEach((day) => {
+      currentWeek.push(day)
+      if (currentWeek.length === 7) {
+        weeks.push(currentWeek)
+        currentWeek = []
+      }
+    })
+    
+    if (currentWeek.length > 0) {
+      while (currentWeek.length < 7) {
+        currentWeek.push(new Date(0))
+      }
+      weeks.push(currentWeek)
+    }
+    
+    return weeks
+  }
+
+  const calendarWeeks = getCalendarWeeks()
+  const weekDays = [
+    { key: 'dom', label: 'D' },
+    { key: 'lun', label: 'L' },
+    { key: 'mar', label: 'M' },
+    { key: 'mie', label: 'X' },
+    { key: 'jue', label: 'J' },
+    { key: 'vie', label: 'V' },
+    { key: 'sab', label: 'S' },
+  ]
+
+  return (
+    <Card className="border-emerald-100 shadow-lg bg-white/80 backdrop-blur-sm">
+      <CardContent className="pt-4">
+        {/* Header del mes */}
+        <div className="mb-4 text-center">
+          <h3 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+            {format(mes, "MMMM yyyy", { locale: es }).toUpperCase()}
+          </h3>
+        </div>
+
+        {/* Grid 2x2 de calendarios */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {cabins.map((cabin) => {
+            const deptReservations = monthReservations.filter((r) => r.departamento === cabin.name)
+            
+            return (
+              <Card key={cabin.id} className="bg-gradient-to-br from-white to-gray-50 shadow-md border border-gray-200">
+                {/* Header compacto */}
+                <CardHeader className="bg-gradient-to-r from-gray-700 to-gray-900 text-white py-2 px-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Home className="h-4 w-4" />
+                      <CardTitle className="text-sm font-bold">{cabin.name}</CardTitle>
+                    </div>
+                    <Badge className="bg-white/20 text-white border-white/30 text-[10px] px-2 py-0">
+                      {deptReservations.length}
+                    </Badge>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="p-2">
+                  {/* Días de la semana - MÁS COMPACTOS */}
+                  <div className="grid grid-cols-7 gap-0.5 mb-1">
+                    {weekDays.map((day, idx) => (
+                      <div 
+                        key={day.key}
+                        className={cn(
+                          "text-center text-[9px] font-bold py-1 rounded-t",
+                          idx === 0 || idx === 6 ? "bg-gray-200 text-gray-700" : "bg-gray-100 text-gray-600"
+                        )}
+                      >
+                        {day.label}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Semanas del mes - MÁS COMPACTAS */}
+                  <div className="space-y-0.5">
+                    {calendarWeeks.map((week, weekIdx) => (
+                      <div key={weekIdx} className="grid grid-cols-7 gap-0.5">
+                        {week.map((day, dayIdx) => {
+                          const isPlaceholder = day.getTime() === 0
+                          if (isPlaceholder) {
+                            return <div key={dayIdx} className="h-8 bg-gray-50 rounded" />
+                          }
+
+                          const dayReservations = getReservationsForDay(day, cabin.name)
+                          const primaryReservation = dayReservations[0]
+                          const hasMultiple = dayReservations.length > 1
+                          const isToday = isSameDay(day, new Date())
+                          const isWeekend = day.getDay() === 0 || day.getDay() === 6
+                          const hasAlert = primaryReservation ? needsPaymentAlert(primaryReservation) : false
+                          const isCheckIn = primaryReservation && isSameDay(primaryReservation.fechaInicio as Date, day)
+                          const isCheckOut = primaryReservation && isSameDay(primaryReservation.fechaFin as Date, day)
+
+                          return (
+                            <div
+                              key={day.toISOString()}
+                              className={cn(
+                                "h-8 rounded border transition-all duration-200 relative overflow-hidden cursor-pointer",
+                                isToday && "ring-2 ring-emerald-400 ring-offset-1",
+                                primaryReservation && !hasAlert && getOrigenColor(primaryReservation.origen),
+                                primaryReservation && hasAlert && "bg-red-600",
+                                !primaryReservation && isWeekend && "bg-gray-100 border-gray-200",
+                                !primaryReservation && !isWeekend && "bg-white border-gray-200",
+                                primaryReservation && "hover:brightness-110 shadow",
+                                !primaryReservation && "hover:bg-gray-50",
+                                isCheckIn && "border-l-2 border-l-green-600",
+                                isCheckOut && "border-r-2 border-r-orange-600"
+                              )}
+                              onClick={() => primaryReservation && setViewingReserva(primaryReservation)}
+                              title={
+                                primaryReservation
+                                  ? `${primaryReservation.nombre}\n${format(primaryReservation.fechaInicio as Date, "dd/MM")} - ${format(primaryReservation.fechaFin as Date, "dd/MM")}\n${calculateNights(primaryReservation.fechaInicio as Date, primaryReservation.fechaFin as Date)} noches${hasAlert ? "\n⚠️ SIN PAGO" : ""}`
+                                  : `${format(day, "dd/MM/yyyy")}\nDisponible`
+                              }
+                            >
+                              {/* Número del día - MÁS PEQUEÑO */}
+                              <div className={cn(
+                                "absolute top-0.5 left-0.5 text-[9px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center",
+                                primaryReservation ? "bg-black/20 text-white" : isToday ? "bg-emerald-500 text-white" : "text-gray-700"
+                              )}>
+                                {format(day, "d")}
+                              </div>
+
+                              {/* Badge de múltiples - MÁS PEQUEÑO */}
+                              {hasMultiple && (
+                                <div className="absolute top-0.5 right-0.5">
+                                  <div className="bg-white/90 text-gray-900 text-[8px] px-1 rounded font-bold">
+                                    +{dayReservations.length}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Indicadores - MÁS PEQUEÑOS */}
+                              {isCheckIn && (
+                                <div className="absolute bottom-0.5 left-0.5">
+                                  <CheckCircle className="h-2.5 w-2.5 text-white drop-shadow bg-green-600 rounded-full p-[1px]" />
+                                </div>
+                              )}
+                              {isCheckOut && (
+                                <div className="absolute bottom-0.5 right-0.5">
+                                  <Home className="h-2.5 w-2.5 text-white drop-shadow bg-orange-600 rounded-full p-[1px]" />
+                                </div>
+                              )}
+
+                              {/* Alerta - MÁS PEQUEÑA */}
+                              {hasAlert && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <AlertTriangle className="h-3 w-3 text-white animate-pulse drop-shadow" />
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+
+        {/* Leyenda compacta */}
+        <div className="mt-4 p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-300">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold text-gray-600 mb-1">Orígenes:</p>
+              {ORIGENES.slice(0, 4).map((origen) => (
+                <div key={origen.value} className="flex items-center gap-1.5">
+                  <div className={cn("w-3 h-3 rounded border border-white shadow-sm", origen.color)}></div>
+                  <span className="text-[10px] text-gray-700">{origen.label}</span>
+                </div>
+              ))}
+            </div>
+            
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold text-gray-600 mb-1">&nbsp;</p>
+              {ORIGENES.slice(4).map((origen) => (
+                <div key={origen.value} className="flex items-center gap-1.5">
+                  <div className={cn("w-3 h-3 rounded border border-white shadow-sm", origen.color)}></div>
+                  <span className="text-[10px] text-gray-700">{origen.label}</span>
+                </div>
+              ))}
+            </div>
+            
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold text-gray-600 mb-1">Estados:</p>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-red-600 border border-white shadow-sm"></div>
+                <span className="text-[10px] text-gray-700">Sin Pago</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-white border border-emerald-500 ring-1 ring-emerald-400"></div>
+                <span className="text-[10px] text-gray-700">Hoy</span>
+              </div>
+            </div>
+            
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold text-gray-600 mb-1">Indicadores:</p>
+              <div className="flex items-center gap-1.5">
+                <CheckCircle className="h-3 w-3 text-white bg-green-600 rounded-full p-0.5" />
+                <span className="text-[10px] text-gray-700">Check-in</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Home className="h-3 w-3 text-white bg-orange-600 rounded-full p-0.5" />
+                <span className="text-[10px] text-gray-700">Check-out</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <AlertTriangle className="h-3 w-3 text-white bg-red-600 rounded-full p-0.5" />
+                <span className="text-[10px] text-gray-700">Alerta</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function ReservasManager() {
   const [reservas, setReservas] = useState<Reserva[]>([])
   const [cabins, setCabins] = useState<{ id: string; name: string }[]>([])
@@ -82,20 +634,21 @@ export default function ReservasManager() {
   const [viewingReserva, setViewingReserva] = useState<Reserva | null>(null)
   const [deleteReserva, setDeleteReserva] = useState<Reserva | null>(null)
 
-  // Filters
   const [searchTerm, setSearchTerm] = useState("")
   const [filterDepartamento, setFilterDepartamento] = useState<string>("todos")
   const [filterOrigen, setFilterOrigen] = useState<string>("todos")
+  const [filterPais, setFilterPais] = useState<string>("todos")
+  const [filterDeposito, setFilterDeposito] = useState<string>("todos")
+  const [filterCheckinDesde, setFilterCheckinDesde] = useState<Date | undefined>(undefined)
+  const [filterCheckinHasta, setFilterCheckinHasta] = useState<Date | undefined>(undefined)
+  const [filterCheckoutDesde, setFilterCheckoutDesde] = useState<Date | undefined>(undefined)
+  const [filterCheckoutHasta, setFilterCheckoutHasta] = useState<Date | undefined>(undefined)
   const [filterMes, setFilterMes] = useState<Date>(new Date())
 
-  // View mode
   const [viewMode, setViewMode] = useState<"tabla" | "timeline" | "grid">("tabla")
-
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 15
 
-  // Form state
   const [formData, setFormData] = useState<ReservaFormData>({
     departamento: "",
     fechaInicio: new Date(),
@@ -109,6 +662,7 @@ export default function ReservasManager() {
     precioImpuestos: 0,
     precioGanancia: 0,
     precioTotal: 0,
+    moneda: "AR", // Default currency
   })
 
   useEffect(() => {
@@ -139,30 +693,24 @@ export default function ReservasManager() {
   const loadReservas = async () => {
     setLoading(true)
     try {
-      console.log("[v0] Cargando reservas...")
       const reservasRef = collection(db, "reservas")
       const snapshot = await getDocs(reservasRef)
 
-      console.log("[v0] Documentos encontrados:", snapshot.size)
-
       const reservasData = snapshot.docs.map((doc) => {
         const data = doc.data()
-        console.log("[v0] Documento:", doc.id, data)
         return {
           id: doc.id,
           ...data,
-          fechaInicio: data.fechaInicio?.toDate ? data.fechaInicio.toDate() : new Date(data.fechaInicio),
-          fechaFin: data.fechaFin?.toDate ? data.fechaFin.toDate() : new Date(data.fechaFin),
-          fechaCreacion: data.fechaCreacion?.toDate ? data.fechaCreacion.toDate() : new Date(),
+          fechaInicio: data.fechaInicio?.toDate ? data.fechaInicio.toDate() : toValidDate(data.fechaInicio),
+          fechaFin: data.fechaFin?.toDate ? data.fechaFin.toDate() : toValidDate(data.fechaFin),
+          fechaCreacion: data.fechaCreacion?.toDate ? data.fechaCreacion.toDate() : toValidDate(data.fechaCreacion),
         } as Reserva
       })
 
       reservasData.sort((a, b) => (b.fechaInicio as Date).getTime() - (a.fechaInicio as Date).getTime())
-
-      console.log("[v0] Reservas procesadas:", reservasData.length)
       setReservas(reservasData)
     } catch (error) {
-      console.error("[v0] Error loading reservas:", error)
+      console.error("Error loading reservas:", error)
       alert("Error al cargar las reservas: " + (error as Error).message)
     } finally {
       setLoading(false)
@@ -183,11 +731,10 @@ export default function ReservasManager() {
     })
   }
 
-  // FUNCIÓN CORREGIDA: Limpia valores undefined antes de guardar en Firestore
   const cleanDataForFirestore = (data: any) => {
     const cleaned: any = {}
     Object.keys(data).forEach((key) => {
-      if (data[key] !== undefined) {
+      if (data[key] !== undefined && data[key] !== null) {
         cleaned[key] = data[key]
       }
     })
@@ -215,7 +762,7 @@ export default function ReservasManager() {
     }
 
     try {
-      const reservaData = {
+      const reservaData: any = {
         departamento: formData.departamento,
         fechaInicio: Timestamp.fromDate(formData.fechaInicio),
         fechaFin: Timestamp.fromDate(formData.fechaFin),
@@ -228,20 +775,20 @@ export default function ReservasManager() {
         precioImpuestos: formData.precioImpuestos,
         precioGanancia: formData.precioGanancia,
         precioTotal: formData.precioTotal,
+        moneda: formData.moneda,
         fechaCreacion: editingReserva?.fechaCreacion
           ? Timestamp.fromDate(editingReserva.fechaCreacion as Date)
           : Timestamp.now(),
       }
 
-      // Solo agregar campos opcionales si tienen valor
       if (formData.contactoParticular) {
-        (reservaData as any).contactoParticular = formData.contactoParticular
+        reservaData.contactoParticular = formData.contactoParticular
       }
       if (formData.montoDeposito !== undefined && formData.montoDeposito !== null) {
-        (reservaData as any).montoDeposito = formData.montoDeposito
+        reservaData.montoDeposito = formData.montoDeposito
       }
       if (formData.notas) {
-        (reservaData as any).notas = formData.notas
+        reservaData.notas = formData.notas
       }
 
       if (editingReserva) {
@@ -287,6 +834,7 @@ export default function ReservasManager() {
       precioImpuestos: 0,
       precioGanancia: 0,
       precioTotal: 0,
+      moneda: "AR", // Reset to default currency
     })
   }
 
@@ -303,11 +851,12 @@ export default function ReservasManager() {
       contactoParticular: reserva.contactoParticular,
       hizoDeposito: reserva.hizoDeposito,
       montoDeposito: reserva.montoDeposito,
-      precioNoche: reserva.precioNoche,
+      precioNoche: reserva.precioNoche || { pesos: 0 }, // Ensure it's an object
       precioImpuestos: reserva.precioImpuestos,
       precioGanancia: reserva.precioGanancia,
       precioTotal: reserva.precioTotal,
       notas: reserva.notas,
+      moneda: reserva.moneda || "AR", // Ensure moneda is set
     })
     setIsDialogOpen(true)
   }
@@ -328,6 +877,21 @@ export default function ReservasManager() {
     return paisData?.currency || "dolares"
   }
 
+  const needsPaymentAlert = (reserva: Reserva): boolean => {
+    const today = startOfDay(new Date())
+    const fechaSalida = reserva.fechaFin as Date
+    return !reserva.hizoDeposito && isBefore(fechaSalida, today)
+  }
+
+  const getTodayReservations = () => {
+    const today = startOfDay(new Date())
+    const checkIns = reservas.filter((r) => isSameDay(r.fechaInicio as Date, today))
+    const checkOuts = reservas.filter((r) => isSameDay(r.fechaFin as Date, today))
+    return { checkIns, checkOuts }
+  }
+
+  const { checkIns, checkOuts } = getTodayReservations()
+
   const filteredReservas = useMemo(() => {
     return reservas.filter((reserva) => {
       const matchesSearch =
@@ -337,6 +901,34 @@ export default function ReservasManager() {
 
       const matchesDepartamento = filterDepartamento === "todos" || reserva.departamento === filterDepartamento
       const matchesOrigen = filterOrigen === "todos" || reserva.origen === filterOrigen
+      const matchesPais = filterPais === "todos" || reserva.pais === filterPais
+
+      let matchesDeposito = true
+      if (filterDeposito === "si") {
+        matchesDeposito = reserva.hizoDeposito
+      } else if (filterDeposito === "no") {
+        matchesDeposito = !reserva.hizoDeposito
+      }
+
+      let matchesCheckinDesde = true
+      if (filterCheckinDesde) {
+        matchesCheckinDesde = (reserva.fechaInicio as Date) >= filterCheckinDesde
+      }
+
+      let matchesCheckinHasta = true
+      if (filterCheckinHasta) {
+        matchesCheckinHasta = (reserva.fechaInicio as Date) <= filterCheckinHasta
+      }
+
+      let matchesCheckoutDesde = true
+      if (filterCheckoutDesde) {
+        matchesCheckoutDesde = (reserva.fechaFin as Date) >= filterCheckoutDesde
+      }
+
+      let matchesCheckoutHasta = true
+      if (filterCheckoutHasta) {
+        matchesCheckoutHasta = (reserva.fechaFin as Date) <= filterCheckoutHasta
+      }
 
       const reservaMonth = (reserva.fechaInicio as Date).getMonth()
       const reservaYear = (reserva.fechaInicio as Date).getFullYear()
@@ -344,9 +936,32 @@ export default function ReservasManager() {
       const filterYear = filterMes.getFullYear()
       const matchesMes = reservaMonth === filterMonth && reservaYear === filterYear
 
-      return matchesSearch && matchesDepartamento && matchesOrigen && matchesMes
+      return (
+        matchesSearch &&
+        matchesDepartamento &&
+        matchesOrigen &&
+        matchesPais &&
+        matchesDeposito &&
+        matchesCheckinDesde &&
+        matchesCheckinHasta &&
+        matchesCheckoutDesde &&
+        matchesCheckoutHasta &&
+        matchesMes
+      )
     })
-  }, [reservas, searchTerm, filterDepartamento, filterOrigen, filterMes])
+  }, [
+    reservas,
+    searchTerm,
+    filterDepartamento,
+    filterOrigen,
+    filterPais,
+    filterDeposito,
+    filterCheckinDesde,
+    filterCheckinHasta,
+    filterCheckoutDesde,
+    filterCheckoutHasta,
+    filterMes,
+  ])
 
   const paginatedReservas = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage
@@ -359,22 +974,61 @@ export default function ReservasManager() {
     return ORIGENES.find((o) => o.value === origen)?.color || "bg-gray-500"
   }
 
+  const clearAllFilters = () => {
+    setSearchTerm("")
+    setFilterDepartamento("todos")
+    setFilterOrigen("todos")
+    setFilterPais("todos")
+    setFilterDeposito("todos")
+    setFilterCheckinDesde(undefined)
+    setFilterCheckinHasta(undefined)
+    setFilterCheckoutDesde(undefined)
+    setFilterCheckoutHasta(undefined)
+    setFilterMes(new Date())
+  }
+
+  const hasActiveFilters =
+    searchTerm ||
+    filterDepartamento !== "todos" ||
+    filterOrigen !== "todos" ||
+    filterPais !== "todos" ||
+    filterDeposito !== "todos" ||
+    filterCheckinDesde ||
+    filterCheckinHasta ||
+    filterCheckoutDesde ||
+    filterCheckoutHasta
+
   const stats = useMemo(() => {
     const totalReservas = filteredReservas.length
-    const totalIngresos = filteredReservas.reduce((sum, r) => sum + r.precioTotal, 0)
+    const totalIngresos = filteredReservas.reduce((sum, r) => sum + (r.precioTotal || 0), 0)
     const reservasPorDepartamento = cabins.map((cabin) => ({
       dept: cabin.name,
       count: filteredReservas.filter((r) => r.departamento === cabin.name).length,
     }))
-    const totalDias = cabins.length * 30
-    const diasOcupados = filteredReservas.reduce(
-      (sum, r) => sum + calculateNights(r.fechaInicio as Date, r.fechaFin as Date),
-      0,
-    )
-    const ocupacionTotal = totalDias > 0 ? ((diasOcupados / totalDias) * 100).toFixed(1) : "0.0"
+    const startOfSelectedMonth = startOfMonth(filterMes)
+    const endOfSelectedMonth = endOfMonth(filterMes)
+    const daysInSelectedMonth =
+      Math.ceil((endOfSelectedMonth.getTime() - startOfSelectedMonth.getTime()) / (1000 * 60 * 60 * 24)) + 1
+
+    const totalDiasPotenciales = cabins.length * daysInSelectedMonth
+    const diasOcupados = filteredReservas.reduce((sum, r) => {
+      const reservaStart = startOfDay(r.fechaInicio as Date)
+      const reservaEnd = endOfDay(r.fechaFin as Date) // Corrected this line
+
+      // Clip reservation days to the selected month
+      const effectiveStart = reservaStart < startOfSelectedMonth ? startOfSelectedMonth : reservaStart
+      const effectiveEnd = reservaEnd > endOfSelectedMonth ? endOfSelectedMonth : reservaEnd
+
+      if (effectiveStart >= effectiveEnd) return sum
+
+      const nights = Math.ceil((effectiveEnd.getTime() - effectiveStart.getTime()) / (1000 * 60 * 60 * 24))
+      return sum + nights
+    }, 0)
+
+    const ocupacionTotal = totalDiasPotenciales > 0 ? ((diasOcupados / totalDiasPotenciales) * 100).toFixed(1) : "0.0"
 
     return { totalReservas, totalIngresos, reservasPorDepartamento, ocupacionTotal }
-  }, [filteredReservas, cabins])
+  }, [filteredReservas, cabins, filterMes])
 
   if (loading) {
     return (
@@ -393,7 +1047,7 @@ export default function ReservasManager() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header mejorado */}
+        {/* Header */}
         <div className="flex items-center justify-between bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-emerald-100">
           <div className="space-y-1">
             <h2 className="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
@@ -410,93 +1064,270 @@ export default function ReservasManager() {
           </Button>
         </div>
 
-        {/* Filters mejorados */}
+        {(checkIns.length > 0 || checkOuts.length > 0) && (
+          <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200 shadow-lg">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Clock className="h-5 w-5 text-blue-600" />
+                <h3 className="text-lg font-bold text-blue-900">
+                  Hoy - {format(new Date(), "EEEE d 'de' MMMM", { locale: es })}
+                </h3>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="bg-white rounded-lg p-4 border border-green-200 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <h4 className="font-semibold text-green-900">Check-ins ({checkIns.length})</h4>
+                  </div>
+                  <div className="space-y-2">
+                    {checkIns.length === 0 ? (
+                      <p className="text-sm text-gray-500">No hay check-ins hoy</p>
+                    ) : (
+                      checkIns.map((reserva) => (
+                        <div
+                          key={reserva.id}
+                          className="flex items-center justify-between p-2 bg-green-50 rounded-lg border border-green-200"
+                        >
+                          <div>
+                            <p className="font-semibold text-sm text-gray-900">{reserva.nombre}</p>
+                            <p className="text-xs text-gray-600">{reserva.departamento}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {!reserva.hizoDeposito && (
+                              <AlertTriangle className="h-4 w-4 text-red-500" title="Sin depósito" />
+                            )}
+                            <Badge className={cn("text-white text-xs", getOrigenColor(reserva.origen))}>
+                              {ORIGENES.find((o) => o.value === reserva.origen)?.label}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg p-4 border border-orange-200 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Home className="h-4 w-4 text-orange-600" />
+                    <h4 className="font-semibold text-orange-900">Check-outs ({checkOuts.length})</h4>
+                  </div>
+                  <div className="space-y-2">
+                    {checkOuts.length === 0 ? (
+                      <p className="text-sm text-gray-500">No hay check-outs hoy</p>
+                    ) : (
+                      checkOuts.map((reserva) => (
+                        <div
+                          key={reserva.id}
+                          className="flex items-center justify-between p-2 bg-orange-50 rounded-lg border border-orange-200"
+                        >
+                          <div>
+                            <p className="font-semibold text-sm text-gray-900">{reserva.nombre}</p>
+                            <p className="text-xs text-gray-600">{reserva.departamento}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {!reserva.hizoDeposito && (
+                              <AlertTriangle className="h-4 w-4 text-red-500" title="Sin depósito" />
+                            )}
+                            <Badge className={cn("text-white text-xs", getOrigenColor(reserva.origen))}>
+                              {ORIGENES.find((o) => o.value === reserva.origen)?.label}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="border-emerald-100 shadow-lg bg-white/80 backdrop-blur-sm">
           <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <Label className="text-emerald-900 font-semibold">Mes</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start bg-white hover:bg-emerald-50 border-emerald-200">
-                      <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
-                      {format(filterMes, "MMMM yyyy", { locale: es })}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <div className="p-3 space-y-2 bg-white">
-                      <div className="flex items-center justify-between">
-                        <Button variant="outline" size="icon" onClick={() => setFilterMes(subMonths(filterMes, 1))}>
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <span className="font-semibold text-emerald-900">{format(filterMes, "MMMM yyyy", { locale: es })}</span>
-                        <Button variant="outline" size="icon" onClick={() => setFilterMes(addMonths(filterMes, 1))}>
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-emerald-900">Filtros</h3>
+                {hasActiveFilters && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearAllFilters}
+                    className="text-red-600 hover:text-red-700 bg-transparent"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Limpiar filtros
+                  </Button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-emerald-900 font-semibold">Mes</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
                       <Button
                         variant="outline"
-                        className="w-full bg-emerald-50 hover:bg-emerald-100 border-emerald-200"
-                        onClick={() => setFilterMes(new Date())}
+                        className="w-full justify-start bg-white hover:bg-emerald-50 border-emerald-200"
                       >
-                        Mes actual
+                        <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
+                        {format(filterMes, "MMMM yyyy", { locale: es })}
                       </Button>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <div className="p-3 space-y-2 bg-white">
+                        <div className="flex items-center justify-between">
+                          <Button variant="outline" size="icon" onClick={() => setFilterMes(subMonths(filterMes, 1))}>
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <span className="font-semibold text-emerald-900">
+                            {format(filterMes, "MMMM yyyy", { locale: es })}
+                          </span>
+                          <Button variant="outline" size="icon" onClick={() => setFilterMes(addMonths(filterMes, 1))}>
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <Button
+                          variant="outline"
+                          className="w-full bg-emerald-50 hover:bg-emerald-100 border-emerald-200"
+                          onClick={() => setFilterMes(new Date())}
+                        >
+                          Mes actual
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-              <div className="space-y-2">
-                <Label className="text-emerald-900 font-semibold">Departamento</Label>
-                <Select value={filterDepartamento} onValueChange={setFilterDepartamento}>
-                  <SelectTrigger className="bg-white border-emerald-200 hover:bg-emerald-50">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos</SelectItem>
-                    {cabins.map((cabin) => (
-                      <SelectItem key={cabin.id} value={cabin.name}>
-                        {cabin.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                <div className="space-y-2">
+                  <Label className="text-emerald-900 font-semibold">Departamento</Label>
+                  <Select value={filterDepartamento} onValueChange={setFilterDepartamento}>
+                    <SelectTrigger className="bg-white border-emerald-200 hover:bg-emerald-50">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      {cabins.map((cabin) => (
+                        <SelectItem key={cabin.id} value={cabin.name}>
+                          {cabin.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="space-y-2">
-                <Label className="text-emerald-900 font-semibold">Origen</Label>
-                <Select value={filterOrigen} onValueChange={setFilterOrigen}>
-                  <SelectTrigger className="bg-white border-emerald-200 hover:bg-emerald-50">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos</SelectItem>
-                    {ORIGENES.map((origen) => (
-                      <SelectItem key={origen.value} value={origen.value}>
-                        {origen.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                <div className="space-y-2">
+                  <Label className="text-emerald-900 font-semibold">Origen</Label>
+                  <Select value={filterOrigen} onValueChange={setFilterOrigen}>
+                    <SelectTrigger className="bg-white border-emerald-200 hover:bg-emerald-50">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      {ORIGENES.map((origen) => (
+                        <SelectItem key={origen.value} value={origen.value}>
+                          {origen.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="space-y-2">
-                <Label className="text-emerald-900 font-semibold">Buscar</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-emerald-600" />
-                  <Input
-                    placeholder="Nombre o teléfono..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 bg-white border-emerald-200 focus:border-emerald-400"
-                  />
+                <div className="space-y-2">
+                  <Label className="text-emerald-900 font-semibold">País</Label>
+                  <Select value={filterPais} onValueChange={setFilterPais}>
+                    <SelectTrigger className="bg-white border-emerald-200 hover:bg-emerald-50">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      {PAISES.map((pais) => (
+                        <SelectItem key={pais.code} value={pais.code}>
+                          {pais.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-emerald-900 font-semibold">Depósito</Label>
+                  <Select value={filterDeposito} onValueChange={setFilterDeposito}>
+                    <SelectTrigger className="bg-white border-emerald-200 hover:bg-emerald-50">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      <SelectItem value="si">Sí</SelectItem>
+                      <SelectItem value="no">No</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-emerald-900 font-semibold">Check-in desde</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start bg-white hover:bg-emerald-50 border-emerald-200"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
+                        {filterCheckinDesde ? format(filterCheckinDesde, "dd/MM/yyyy") : "Seleccionar..."}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={filterCheckinDesde}
+                        onSelect={setFilterCheckinDesde}
+                        locale={es}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-emerald-900 font-semibold">Check-in hasta</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start bg-white hover:bg-emerald-50 border-emerald-200"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
+                        {filterCheckinHasta ? format(filterCheckinHasta, "dd/MM/yyyy") : "Seleccionar..."}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={filterCheckinHasta}
+                        onSelect={setFilterCheckinHasta}
+                        locale={es}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-emerald-900 font-semibold">Buscar</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-emerald-600" />
+                    <Input
+                      placeholder="Nombre o teléfono..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 bg-white border-emerald-200 focus:border-emerald-400"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Stats mejorados */}
+        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="bg-gradient-to-br from-blue-500 to-blue-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
             <CardContent className="pt-6">
@@ -513,12 +1344,12 @@ export default function ReservasManager() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-blue-900 to-blue-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+          <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div className="text-white">
                   <p className="text-sm font-medium text-green-100">Ingresos</p>
-                  <p className="text-3xl font-bold mt-2">${stats.totalIngresos.toLocaleString()}</p>
+                  <p className="text-3xl font-bold mt-2">${formatCurrency(stats.totalIngresos)}</p>
                   <p className="text-xs text-green-100 mt-1">{format(filterMes, "MMMM yyyy", { locale: es })}</p>
                 </div>
                 <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
@@ -559,12 +1390,27 @@ export default function ReservasManager() {
           </Card>
         </div>
 
-        {/* View Tabs mejorados */}
+        {/* View Tabs */}
         <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as typeof viewMode)}>
           <TabsList className="grid w-full max-w-md grid-cols-3 bg-white/80 backdrop-blur-sm border border-emerald-200">
-            <TabsTrigger value="tabla" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">Tabla</TabsTrigger>
-            <TabsTrigger value="timeline" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">Timeline</TabsTrigger>
-            <TabsTrigger value="grid" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">Grid</TabsTrigger>
+            <TabsTrigger
+              value="tabla"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white"
+            >
+              Tabla
+            </TabsTrigger>
+            <TabsTrigger
+              value="timeline"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white"
+            >
+              Timeline
+            </TabsTrigger>
+            <TabsTrigger
+              value="grid"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white"
+            >
+              Grid
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="tabla" className="space-y-4">
@@ -603,14 +1449,35 @@ export default function ReservasManager() {
                         paginatedReservas.map((reserva) => {
                           const nights = calculateNights(reserva.fechaInicio as Date, reserva.fechaFin as Date)
                           const currency = getCurrency(reserva.pais, reserva.origen)
-                          const precioNoche = reserva.precioNoche[currency as keyof PrecioNoche] || 0
+                          const precioNoche =
+                            reserva.precioNoche && typeof reserva.precioNoche === "object"
+                              ? reserva.precioNoche[currency as keyof PrecioNoche] || 0
+                              : 0
+                          const hasAlert = needsPaymentAlert(reserva)
 
                           return (
-                            <TableRow key={reserva.id} className="hover:bg-emerald-50/50 transition-colors duration-150 border-b border-emerald-100">
+                            <TableRow
+                              key={reserva.id}
+                              className={cn(
+                                "hover:bg-emerald-50/50 transition-colors duration-150 border-b border-emerald-100",
+                                hasAlert && "bg-red-50/50 hover:bg-red-50",
+                              )}
+                            >
                               <TableCell>
-                                <Badge variant="outline" className="font-medium border-emerald-300 text-emerald-700 bg-emerald-50">
-                                  {reserva.departamento}
-                                </Badge>
+                                <div className="flex items-center gap-2">
+                                  {hasAlert && (
+                                    <AlertTriangle
+                                      className="h-4 w-4 text-red-500 flex-shrink-0"
+                                      title="Reserva vencida sin pago"
+                                    />
+                                  )}
+                                  <Badge
+                                    variant="outline"
+                                    className="font-medium border-emerald-300 text-emerald-700 bg-emerald-50"
+                                  >
+                                    {reserva.departamento}
+                                  </Badge>
+                                </div>
                               </TableCell>
                               <TableCell className="font-medium text-gray-700">
                                 {format(reserva.fechaInicio as Date, "dd/MM/yy")}
@@ -619,13 +1486,19 @@ export default function ReservasManager() {
                                 {format(reserva.fechaFin as Date, "dd/MM/yy")}
                               </TableCell>
                               <TableCell className="text-center">
-                                <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold">{nights}</Badge>
+                                <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold">
+                                  {nights}
+                                </Badge>
                               </TableCell>
                               <TableCell className="font-medium text-gray-900">{reserva.nombre}</TableCell>
-                              <TableCell className="text-gray-600">{PAISES.find((p) => p.code === reserva.pais)?.name || reserva.pais}</TableCell>
+                              <TableCell className="text-gray-600">
+                                {PAISES.find((p) => p.code === reserva.pais)?.name || reserva.pais}
+                              </TableCell>
                               <TableCell className="font-mono text-sm text-gray-700">{reserva.numero}</TableCell>
                               <TableCell>
-                                <Badge className={cn("text-white font-medium shadow-sm", getOrigenColor(reserva.origen))}>
+                                <Badge
+                                  className={cn("text-white font-medium shadow-sm", getOrigenColor(reserva.origen))}
+                                >
                                   {ORIGENES.find((o) => o.value === reserva.origen)?.label}
                                 </Badge>
                               </TableCell>
@@ -636,16 +1509,23 @@ export default function ReservasManager() {
                               </TableCell>
                               <TableCell className="text-center">
                                 {reserva.hizoDeposito ? (
-                                  <Badge variant="default" className="bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-sm">
+                                  <Badge
+                                    variant="default"
+                                    className="bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-sm"
+                                  >
                                     Sí
                                   </Badge>
                                 ) : (
-                                  <Badge variant="secondary" className="bg-gray-200 text-gray-600">No</Badge>
+                                  <Badge variant="secondary" className="bg-gray-200 text-gray-600">
+                                    No
+                                  </Badge>
                                 )}
                               </TableCell>
-                              <TableCell className="text-right font-semibold text-gray-700">${precioNoche}</TableCell>
+                              <TableCell className="text-right font-semibold text-gray-700">
+                                ${precioNoche.toLocaleString()}
+                              </TableCell>
                               <TableCell className="text-right font-bold text-emerald-600 text-lg">
-                                ${reserva.precioTotal.toLocaleString()}
+                                ${(reserva.precioTotal || 0).toLocaleString()}
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center justify-center gap-1">
@@ -686,7 +1566,6 @@ export default function ReservasManager() {
                   </Table>
                 </div>
 
-                {/* Pagination */}
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between p-4 border-t border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50">
                     <div className="text-sm text-gray-600 font-medium">
@@ -724,38 +1603,49 @@ export default function ReservasManager() {
           </TabsContent>
 
           <TabsContent value="timeline">
-            <TimelineView reservas={filteredReservas} mes={filterMes} cabins={cabins} />
+            <TimelineView
+              reservas={filteredReservas}
+              mes={filterMes}
+              cabins={cabins}
+              setViewingReserva={setViewingReserva}
+            />
           </TabsContent>
 
           <TabsContent value="grid">
-            <GridView reservas={filteredReservas} mes={filterMes} cabins={cabins} />
+            <GridView
+              reservas={filteredReservas}
+              mes={filterMes}
+              cabins={cabins}
+              setViewingReserva={setViewingReserva}
+            />
           </TabsContent>
         </Tabs>
 
-        {/* Dialog para crear/editar reserva - MEJORADO */}
+        {/* Dialog for creating/editing reservation */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-emerald-50/30">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+              <DialogTitle className="text-xl md:text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                 {editingReserva ? "Editar Reserva" : "Nueva Reserva"}
               </DialogTitle>
-              <DialogDescription className="text-gray-600">
+              <DialogDescription className="text-sm md:text-base text-gray-600">
                 {editingReserva
                   ? "Modifica los datos de la reserva existente"
                   : "Completa los datos para crear una nueva reserva"}
               </DialogDescription>
             </DialogHeader>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
               {/* Departamento y Fechas */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-5 border border-emerald-100 shadow-sm">
-                <h3 className="font-semibold text-lg text-emerald-900 mb-4 flex items-center gap-2">
-                  <CalendarIcon className="h-5 w-5" />
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-emerald-100 shadow-sm">
+                <h3 className="font-semibold text-base md:text-lg text-emerald-900 mb-4 flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4 md:h-5 md:w-5" />
                   Fechas y Ubicación
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="departamento" className="text-emerald-900 font-semibold">Departamento *</Label>
+                    <Label htmlFor="departamento" className="text-emerald-900 font-semibold text-sm">
+                      Departamento *
+                    </Label>
                     <Select
                       value={formData.departamento}
                       onValueChange={(value) => setFormData({ ...formData, departamento: value })}
@@ -774,10 +1664,13 @@ export default function ReservasManager() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-emerald-900 font-semibold">Fecha de Entrada *</Label>
+                    <Label className="text-emerald-900 font-semibold text-sm">Fecha de Entrada *</Label>
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-white">
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-white text-sm"
+                        >
                           <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
                           {format(formData.fechaInicio, "dd/MM/yyyy")}
                         </Button>
@@ -794,10 +1687,13 @@ export default function ReservasManager() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-emerald-900 font-semibold">Fecha de Salida *</Label>
+                    <Label className="text-emerald-900 font-semibold text-sm">Fecha de Salida *</Label>
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-white">
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-white text-sm"
+                        >
                           <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
                           {format(formData.fechaFin, "dd/MM/yyyy")}
                         </Button>
@@ -808,16 +1704,16 @@ export default function ReservasManager() {
                           selected={formData.fechaFin}
                           onSelect={(date) => date && setFormData({ ...formData, fechaFin: date })}
                           locale={es}
-                          disabled={(date) => date <= formData.fechaInicio}
+                          disabled={(date) => isBefore(date, formData.fechaInicio)}
                         />
                       </PopoverContent>
                     </Popover>
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-gray-600 font-semibold">Noches</Label>
+                    <Label className="text-gray-600 font-semibold text-sm">Noches</Label>
                     <div className="flex items-center h-10 px-4 border-2 border-emerald-300 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50">
-                      <span className="text-xl font-bold text-emerald-700">
+                      <span className="text-lg md:text-xl font-bold text-emerald-700">
                         {calculateNights(formData.fechaInicio, formData.fechaFin)}
                       </span>
                     </div>
@@ -826,11 +1722,13 @@ export default function ReservasManager() {
               </div>
 
               {/* Datos del Cliente */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-5 border border-blue-100 shadow-sm">
-                <h3 className="font-semibold text-lg text-blue-900 mb-4">Datos del Cliente</h3>
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-blue-100 shadow-sm">
+                <h3 className="font-semibold text-base md:text-lg text-blue-900 mb-4">Datos del Cliente</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="nombre" className="text-blue-900 font-semibold">Nombre Completo *</Label>
+                    <Label htmlFor="nombre" className="text-blue-900 font-semibold text-sm">
+                      Nombre Completo *
+                    </Label>
                     <Input
                       id="nombre"
                       value={formData.nombre}
@@ -842,7 +1740,9 @@ export default function ReservasManager() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="pais" className="text-blue-900 font-semibold">País *</Label>
+                    <Label htmlFor="pais" className="text-blue-900 font-semibold text-sm">
+                      País *
+                    </Label>
                     <Select value={formData.pais} onValueChange={(value) => setFormData({ ...formData, pais: value })}>
                       <SelectTrigger className="border-blue-200 focus:border-blue-400">
                         <SelectValue />
@@ -858,7 +1758,9 @@ export default function ReservasManager() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="numero" className="text-blue-900 font-semibold">Teléfono *</Label>
+                    <Label htmlFor="numero" className="text-blue-900 font-semibold text-sm">
+                      Teléfono *
+                    </Label>
                     <Input
                       id="numero"
                       value={formData.numero}
@@ -872,11 +1774,13 @@ export default function ReservasManager() {
               </div>
 
               {/* Origen de la Reserva */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-5 border border-purple-100 shadow-sm">
-                <h3 className="font-semibold text-lg text-purple-900 mb-4">Origen de la Reserva</h3>
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-purple-100 shadow-sm">
+                <h3 className="font-semibold text-base md:text-lg text-purple-900 mb-4">Origen de la Reserva</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="origen" className="text-purple-900 font-semibold">Origen *</Label>
+                    <Label htmlFor="origen" className="text-purple-900 font-semibold text-sm">
+                      Origen *
+                    </Label>
                     <Select
                       value={formData.origen}
                       onValueChange={(value: OrigenReserva) => setFormData({ ...formData, origen: value })}
@@ -896,7 +1800,9 @@ export default function ReservasManager() {
 
                   {formData.origen === "particular" && (
                     <div className="space-y-2">
-                      <Label htmlFor="contacto" className="text-purple-900 font-semibold">Contacto</Label>
+                      <Label htmlFor="contactoParticular" className="text-purple-900 font-semibold text-sm">
+                        Contacto
+                      </Label>
                       <Select
                         value={formData.contactoParticular || ""}
                         onValueChange={(value: ContactoParticular) =>
@@ -920,32 +1826,76 @@ export default function ReservasManager() {
               </div>
 
               {/* Precios */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-5 border border-green-100 shadow-sm">
-                <h3 className="font-semibold text-lg text-green-900 mb-4 flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-green-100 shadow-sm">
+                <h3 className="font-semibold text-base md:text-lg text-green-900 mb-4 flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 md:h-5 md:w-5" />
                   Precios y Pagos
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Currency Selector */}
                   <div className="space-y-2">
-                    <Label htmlFor="precioNoche" className="text-green-900 font-semibold">Precio por Noche</Label>
+                    <Label htmlFor="moneda" className="text-green-900 font-semibold text-sm">
+                      Moneda
+                    </Label>
+                    <Select
+                      value={formData.moneda}
+                      onValueChange={(value: string) => {
+                        const currentPrecioNoche = formData.precioNoche || { pesos: 0 }
+                        const existingValue = currentPrecioNoche[value as keyof PrecioNoche] || 0
+                        setFormData({
+                          ...formData,
+                          moneda: value,
+                          precioNoche: { ...currentPrecioNoche, [value]: existingValue }, // Keep existing value if available for the new currency, otherwise 0
+                        })
+                      }}
+                    >
+                      <SelectTrigger className="border-green-200 focus:border-green-400">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PAISES.map((pais) => (
+                          <SelectItem key={pais.code} value={pais.code}>
+                            {pais.name} ({pais.currency})
+                          </SelectItem>
+                        ))}
+                        {/* Add any other relevant currencies if needed */}
+                        <SelectItem value="USD">Dólar Estadounidense (USD)</SelectItem>
+                        <SelectItem value="EUR">Euro (EUR)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="precioNoche" className="text-green-900 font-semibold text-sm">
+                      Precio por Noche ({formData.moneda})
+                    </Label>
                     <Input
                       id="precioNoche"
                       type="number"
-                      value={formData.precioNoche[getCurrency(formData.pais, formData.origen) as keyof PrecioNoche] || 0}
+                      value={formData.precioNoche[formData.moneda as keyof PrecioNoche] || 0}
                       onChange={(e) => {
-                        const currency = getCurrency(formData.pais, formData.origen) as keyof PrecioNoche
+                        const currentCurrency = formData.moneda as keyof PrecioNoche
+                        const newPrecioNocheValue = Number(e.target.value)
                         setFormData({
                           ...formData,
-                          precioNoche: { ...formData.precioNoche, [currency]: Number(e.target.value) },
+                          precioNoche: { ...formData.precioNoche, [currentCurrency]: newPrecioNocheValue },
+                          // Optionally update precioTotal automatically if it's 0 or based on nights
+                          precioTotal:
+                            formData.precioTotal === 0
+                              ? newPrecioNocheValue * calculateNights(formData.fechaInicio, formData.fechaFin)
+                              : formData.precioTotal,
                         })
                       }}
                       placeholder="0"
                       className="border-green-200 focus:border-green-400"
+                      min={0}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="precioTotal" className="text-green-900 font-semibold">Precio Total *</Label>
+                    <Label htmlFor="precioTotal" className="text-green-900 font-semibold text-sm">
+                      Precio Total *
+                    </Label>
                     <Input
                       id="precioTotal"
                       type="number"
@@ -954,11 +1904,14 @@ export default function ReservasManager() {
                       placeholder="0"
                       required
                       className="border-green-200 focus:border-green-400"
+                      min={0}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="precioImpuestos" className="text-green-900 font-semibold">Impuestos</Label>
+                    <Label htmlFor="precioImpuestos" className="text-green-900 font-semibold text-sm">
+                      Impuestos
+                    </Label>
                     <Input
                       id="precioImpuestos"
                       type="number"
@@ -966,11 +1919,14 @@ export default function ReservasManager() {
                       onChange={(e) => setFormData({ ...formData, precioImpuestos: Number(e.target.value) })}
                       placeholder="0"
                       className="border-green-200 focus:border-green-400"
+                      min={0}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="precioGanancia" className="text-green-900 font-semibold">Ganancia</Label>
+                    <Label htmlFor="precioGanancia" className="text-green-900 font-semibold text-sm">
+                      Ganancia
+                    </Label>
                     <Input
                       id="precioGanancia"
                       type="number"
@@ -978,25 +1934,28 @@ export default function ReservasManager() {
                       onChange={(e) => setFormData({ ...formData, precioGanancia: Number(e.target.value) })}
                       placeholder="0"
                       className="border-green-200 focus:border-green-400"
+                      min={0}
                     />
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-2 pt-4 mt-4 border-t border-green-100">
                   <Checkbox
-                    id="deposito"
+                    id="hizoDeposito"
                     checked={formData.hizoDeposito}
                     onCheckedChange={(checked) => setFormData({ ...formData, hizoDeposito: checked as boolean })}
                     className="border-green-300"
                   />
-                  <Label htmlFor="deposito" className="font-semibold cursor-pointer text-green-900">
+                  <Label htmlFor="hizoDeposito" className="font-semibold cursor-pointer text-green-900 text-sm">
                     ¿Hizo depósito?
                   </Label>
                 </div>
 
                 {formData.hizoDeposito && (
                   <div className="space-y-2 mt-4">
-                    <Label htmlFor="montoDeposito" className="text-green-900 font-semibold">Monto del Depósito</Label>
+                    <Label htmlFor="montoDeposito" className="text-green-900 font-semibold text-sm">
+                      Monto del Depósito
+                    </Label>
                     <Input
                       id="montoDeposito"
                       type="number"
@@ -1004,14 +1963,17 @@ export default function ReservasManager() {
                       onChange={(e) => setFormData({ ...formData, montoDeposito: Number(e.target.value) })}
                       placeholder="0"
                       className="border-green-200 focus:border-green-400"
+                      min={0}
                     />
                   </div>
                 )}
               </div>
 
               {/* Notas */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-5 border border-gray-200 shadow-sm">
-                <Label htmlFor="notas" className="text-gray-900 font-semibold text-base">Notas</Label>
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-gray-200 shadow-sm">
+                <Label htmlFor="notas" className="text-gray-900 font-semibold text-sm md:text-base">
+                  Notas
+                </Label>
                 <Textarea
                   id="notas"
                   value={formData.notas || ""}
@@ -1023,10 +1985,18 @@ export default function ReservasManager() {
               </div>
 
               <DialogFooter className="gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="border-gray-300">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsDialogOpen(false)}
+                  className="border-gray-300"
+                >
                   Cancelar
                 </Button>
-                <Button type="submit" className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg">
+                <Button
+                  type="submit"
+                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg"
+                >
                   {editingReserva ? "Guardar Cambios" : "Crear Reserva"}
                 </Button>
               </DialogFooter>
@@ -1034,71 +2004,92 @@ export default function ReservasManager() {
           </DialogContent>
         </Dialog>
 
-        {/* Dialog para eliminar - MEJORADO */}
-        <AlertDialog open={!!deleteReserva} onOpenChange={() => setDeleteReserva(null)}>
-          <AlertDialogContent className="bg-gradient-to-br from-white to-red-50/30">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-2xl text-red-700">¿Estás seguro?</AlertDialogTitle>
-              <AlertDialogDescription className="text-gray-600">
-                Esta acción no se puede deshacer. Se eliminará permanentemente la reserva de <span className="font-semibold text-gray-900">{deleteReserva?.nombre}</span>.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="border-gray-300">Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white">
-                Eliminar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        {/* Dialog para ver detalles - MEJORADO */}
+        {/* Dialog for viewing reservation details */}
         {viewingReserva && (
           <Dialog open={!!viewingReserva} onOpenChange={() => setViewingReserva(null)}>
             <DialogContent className="max-w-2xl bg-gradient-to-br from-white to-blue-50/30">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+                <DialogTitle className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
                   Detalles de la Reserva
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white rounded-lg p-3 border border-blue-100">
-                    <p className="text-sm text-gray-500 font-medium">Departamento</p>
-                    <p className="font-bold text-lg text-blue-900">{viewingReserva.departamento}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                  <div className="bg-white rounded-lg p-3 border border-blue-100 shadow-sm">
+                    <p className="text-xs md:text-sm text-gray-500 font-medium">Departamento</p>
+                    <p className="font-bold text-base md:text-lg text-blue-900">{viewingReserva.departamento}</p>
                   </div>
-                  <div className="bg-white rounded-lg p-3 border border-blue-100">
-                    <p className="text-sm text-gray-500 font-medium">Cliente</p>
-                    <p className="font-bold text-lg text-blue-900">{viewingReserva.nombre}</p>
+                  <div className="bg-white rounded-lg p-3 border border-blue-100 shadow-sm">
+                    <p className="text-xs md:text-sm text-gray-500 font-medium">Cliente</p>
+                    <p className="font-bold text-base md:text-lg text-blue-900">{viewingReserva.nombre}</p>
                   </div>
-                  <div className="bg-white rounded-lg p-3 border border-emerald-100">
-                    <p className="text-sm text-gray-500 font-medium">Check-in</p>
-                    <p className="font-bold text-lg text-emerald-900">{format(viewingReserva.fechaInicio as Date, "dd/MM/yyyy")}</p>
+                  <div className="bg-white rounded-lg p-3 border border-emerald-100 shadow-sm">
+                    <p className="text-xs md:text-sm text-gray-500 font-medium">Check-in</p>
+                    <p className="font-bold text-base md:text-lg text-emerald-900">
+                      {format(viewingReserva.fechaInicio as Date, "dd/MM/yyyy")}
+                    </p>
                   </div>
-                  <div className="bg-white rounded-lg p-3 border border-emerald-100">
-                    <p className="text-sm text-gray-500 font-medium">Check-out</p>
-                    <p className="font-bold text-lg text-emerald-900">{format(viewingReserva.fechaFin as Date, "dd/MM/yyyy")}</p>
+                  <div className="bg-white rounded-lg p-3 border border-emerald-100 shadow-sm">
+                    <p className="text-xs md:text-sm text-gray-500 font-medium">Check-out</p>
+                    <p className="font-bold text-base md:text-lg text-emerald-900">
+                      {format(viewingReserva.fechaFin as Date, "dd/MM/yyyy")}
+                    </p>
                   </div>
-                  <div className="bg-white rounded-lg p-3 border border-purple-100">
-                    <p className="text-sm text-gray-500 font-medium">Origen</p>
+                  <div className="bg-white rounded-lg p-3 border border-purple-100 shadow-sm">
+                    <p className="text-xs md:text-sm text-gray-500 font-medium">País</p>
+                    <p className="font-bold text-base md:text-lg text-purple-900">
+                      {PAISES.find((p) => p.code === viewingReserva.pais)?.name || viewingReserva.pais}
+                    </p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-purple-100 shadow-sm">
+                    <p className="text-xs md:text-sm text-gray-500 font-medium">Teléfono</p>
+                    <p className="font-bold text-base md:text-lg text-purple-900">{viewingReserva.numero}</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-purple-100 shadow-sm">
+                    <p className="text-xs md:text-sm text-gray-500 font-medium">Origen</p>
                     <Badge className={cn("text-white mt-2", getOrigenColor(viewingReserva.origen))}>
                       {ORIGENES.find((o) => o.value === viewingReserva.origen)?.label}
                     </Badge>
                   </div>
-                  <div className="bg-white rounded-lg p-3 border border-green-100">
-                    <p className="text-sm text-gray-500 font-medium">Precio Total</p>
-                    <p className="font-bold text-2xl text-green-600">${viewingReserva.precioTotal.toLocaleString()}</p>
+                  <div className="bg-white rounded-lg p-3 border border-green-100 shadow-sm">
+                    <p className="text-xs md:text-sm text-gray-500 font-medium">Precio Total</p>
+                    <p className="font-bold text-xl md:text-2xl text-green-600">
+                      ${formatCurrency(viewingReserva.precioTotal)}
+                    </p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-green-100 shadow-sm">
+                    <p className="text-xs md:text-sm text-gray-500 font-medium">Depósito</p>
+                    {viewingReserva.hizoDeposito ? (
+                      <div>
+                        <Badge className="bg-green-500 text-white mt-1">Pagado</Badge>
+                        <p className="text-sm text-green-600 mt-1">${formatCurrency(viewingReserva.montoDeposito)}</p>
+                      </div>
+                    ) : (
+                      <Badge variant="secondary" className="bg-gray-200 text-gray-600 mt-1">
+                        Sin pago
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-blue-100 shadow-sm">
+                    <p className="text-xs md:text-sm text-gray-500 font-medium">Noches</p>
+                    <p className="font-bold text-xl md:text-2xl text-blue-600">
+                      {calculateNights(viewingReserva.fechaInicio as Date, viewingReserva.fechaFin as Date)}
+                    </p>
                   </div>
                 </div>
                 {viewingReserva.notas && (
-                  <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <p className="text-sm text-gray-500 font-medium mb-2">Notas</p>
+                  <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                    <p className="text-xs md:text-sm text-gray-500 font-medium mb-2">Notas</p>
                     <p className="text-sm text-gray-700">{viewingReserva.notas}</p>
                   </div>
                 )}
               </div>
-              <DialogFooter className="gap-2">
-                <Button variant="outline" onClick={() => setViewingReserva(null)} className="border-gray-300">
+              <DialogFooter className="gap-2 flex-col sm:flex-row">
+                <Button
+                  variant="outline"
+                  onClick={() => setViewingReserva(null)}
+                  className="border-gray-300 w-full sm:w-auto"
+                >
                   Cerrar
                 </Button>
                 <Button
@@ -1106,7 +2097,7 @@ export default function ReservasManager() {
                     setViewingReserva(null)
                     openEditDialog(viewingReserva)
                   }}
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white"
+                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg w-full sm:w-auto"
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   Editar
@@ -1115,140 +2106,29 @@ export default function ReservasManager() {
             </DialogContent>
           </Dialog>
         )}
+
+        {/* Dialog for deleting reservation */}
+        <AlertDialog open={!!deleteReserva} onOpenChange={() => setDeleteReserva(null)}>
+          <AlertDialogContent className="bg-gradient-to-br from-white to-red-50/30">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-xl md:text-2xl text-red-700">¿Estás seguro?</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm md:text-base text-gray-600">
+                Esta acción no se puede deshacer. Se eliminará permanentemente la reserva de{" "}
+                <span className="font-semibold text-gray-900">{deleteReserva?.nombre}</span>.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+              <AlertDialogCancel className="border-gray-300 w-full sm:w-auto">Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white w-full sm:w-auto"
+              >
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   )
-}
-
-// Timeline View Component - MEJORADO
-function TimelineView({
-  reservas,
-  mes,
-  cabins,
-}: { reservas: Reserva[]; mes: Date; cabins: { id: string; name: string }[] }) {
-  const start = startOfMonth(mes)
-  const end = endOfMonth(mes)
-  const days = eachDayOfInterval({ start, end })
-
-  return (
-    <Card className="border-emerald-100 shadow-lg bg-white/80 backdrop-blur-sm">
-      <CardContent className="p-6">
-        <div className="space-y-6">
-          {cabins.map((dept) => {
-            const deptReservas = reservas.filter((r) => r.departamento === dept.name)
-
-            return (
-              <div key={dept.id} className="space-y-3">
-                <div className="font-bold text-base text-emerald-900 flex items-center gap-2">
-                  <Home className="h-4 w-4" />
-                  {dept.name}
-                </div>
-                <div className="relative h-14 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg shadow-inner border border-gray-200">
-                  {deptReservas.map((reserva) => {
-                    const reservaStart = reserva.fechaInicio as Date
-                    const reservaEnd = reserva.fechaFin as Date
-
-                    const startOffset = Math.max(0, differenceInDays(reservaStart, start))
-                    const duration = differenceInDays(reservaEnd, reservaStart)
-                    const width = (duration / days.length) * 100
-                    const left = (startOffset / days.length) * 100
-
-                    return (
-                      <div
-                        key={reserva.id}
-                        className={cn(
-                          "absolute h-12 rounded-lg flex items-center justify-center text-white text-xs font-bold top-1 shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer",
-                          ORIGENES.find((o) => o.value === reserva.origen)?.color,
-                        )}
-                        style={{
-                          left: `${left}%`,
-                          width: `${width}%`,
-                        }}
-                        title={`${reserva.nombre} - ${format(reservaStart, "dd/MM")} al ${format(reservaEnd, "dd/MM")}`}
-                      >
-                        <span className="truncate px-2">{reserva.nombre}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        <div className="mt-8 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg border border-emerald-200">
-          <div className="flex items-center gap-6 flex-wrap">
-            <span className="text-sm font-bold text-emerald-900">Leyenda:</span>
-            {ORIGENES.map((origen) => (
-              <div key={origen.value} className="flex items-center gap-2">
-                <div className={cn("w-5 h-5 rounded shadow-sm", origen.color)} />
-                <span className="text-sm font-medium text-gray-700">{origen.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-// Grid View Component - MEJORADO
-function GridView({
-  reservas,
-  mes,
-  cabins,
-}: { reservas: Reserva[]; mes: Date; cabins: { id: string; name: string }[] }) {
-  const start = startOfMonth(mes)
-  const end = endOfMonth(mes)
-  const days = eachDayOfInterval({ start, end })
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {cabins.map((dept) => {
-        const deptReservas = reservas.filter((r) => r.departamento === dept.name)
-
-        return (
-          <Card key={dept.id}>
-            <CardHeader>
-              <CardTitle className="text-lg">{dept.name}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-7 gap-1">
-                {["D", "L", "M", "M", "J", "V", "S"].map((day, i) => (
-                  <div key={i} className="text-center text-xs font-semibold text-muted-foreground p-1">
-                    {day}
-                  </div>
-                ))}
-                {days.map((day) => {
-                  const reserva = deptReservas.find((r) => day >= (r.fechaInicio as Date) && day < (r.fechaFin as Date))
-
-                  return (
-                    <div
-                      key={day.toISOString()}
-                      className={cn(
-                        "aspect-square flex items-center justify-center text-xs rounded",
-                        reserva
-                          ? cn("text-white font-semibold", ORIGENES.find((o) => o.value === reserva.origen)?.color)
-                          : "bg-gray-50",
-                      )}
-                      title={reserva ? `${reserva.nombre} - ${reserva.origen}` : ""}
-                    >
-                      {format(day, "d")}
-                    </div>
-                  )
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )
-      })}
-    </div>
-  )
-}
-
-// Helper function to get currency based on country and origin
-function getCurrencyForCountry(pais: string, origen: OrigenReserva): string {
-  if (origen === "booking" || origen === "airbnb") return "dolares"
-  const paisData = PAISES.find((p) => p.code === pais)
-  return paisData?.currency || "dolares"
 }
