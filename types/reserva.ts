@@ -23,6 +23,8 @@ export interface Reserva {
   nombre: string
   pais: string
   numero: string
+  cantidadAdultos?: number
+  cantidadMenores?: number
 
   // Origen
   origen: OrigenReserva
@@ -31,6 +33,7 @@ export interface Reserva {
   // Pagos
   hizoDeposito: boolean
   montoDeposito?: number
+  fechaDeposito?: Date | Timestamp
 
   // Precios
   precioNoche: PrecioNoche
@@ -46,6 +49,7 @@ export interface Reserva {
 export interface ReservaFormData extends Omit<Reserva, "id" | "fechaInicio" | "fechaFin" | "fechaCreacion"> {
   fechaInicio: Date
   fechaFin: Date
+  fechaDeposito?: Date
 }
 
 export const DEPARTAMENTOS: Departamento[] = ["Los Horneros", "Las Calandrias", "Los Tordos", "Los Zorzales"]

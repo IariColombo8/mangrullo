@@ -121,14 +121,14 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({ reserva
         <div className="grid grid-cols-2 gap-4 mb-3">
           <div>
             <label className="text-gray-700 font-semibold text-xs uppercase tracking-wide">Nombre del huésped:</label>
-            <div className="border-b-2 border-gray-400 py-1 mt-1">
-              <p className="text-gray-900 font-medium text-sm">{reserva.nombre}</p>
+            <div className="border-b border-gray-400 py-1 mt-1">
+                <p className="text-gray-900">{reserva.nombre}</p>
             </div>
           </div>
           <div>
             <label className="text-gray-700 font-semibold text-xs uppercase tracking-wide">País:</label>
-            <div className="border-b-2 border-gray-400 py-1 mt-1">
-              <p className="text-gray-900 font-medium text-sm">{paisData?.name || reserva.pais}</p>
+            <div className="border-b border-gray-400 py-1 mt-1">
+                <p className="text-gray-900">{paisData?.name || reserva.pais}</p>
             </div>
           </div>
         </div>
@@ -180,8 +180,8 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({ reserva
 
             <div>
               <label className="text-gray-700 font-semibold text-xs uppercase tracking-wide">Fecha de entrada:</label>
-              <div className="border-b border-gray-400 py-0.5 mt-1">
-                <p className="text-gray-900 text-sm font-medium">
+              <div className="border-b border-gray-400 py-1 mt-1">
+                <p className="text-gray-900">
                   {format(reserva.fechaInicio as Date, "dd / MM / yyyy")}
                 </p>
               </div>
@@ -189,38 +189,38 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({ reserva
 
             <div>
               <label className="text-gray-700 font-semibold text-xs uppercase tracking-wide">Fecha de salida:</label>
-              <div className="border-b border-gray-400 py-0.5 mt-1">
-                <p className="text-gray-900 text-sm font-medium">{format(reserva.fechaFin as Date, "dd / MM / yyyy")}</p>
+              <div className="border-b border-gray-400 py-1 mt-1">
+                <p className="text-gray-900">{format(reserva.fechaFin as Date, "dd / MM / yyyy")}</p>
               </div>
             </div>
 
             <div>
               <label className="text-gray-700 font-semibold text-xs uppercase tracking-wide">Cantidad de noches:</label>
-              <div className="border-b border-gray-400 py-0.5 mt-1">
-                <p className="text-gray-900 font-bold text-sm">{noches}</p>
+              <div className="border-b border-gray-400 py-1 mt-1">
+                <p className="text-gray-900">{noches}</p>
               </div>
             </div>
 
             <div>
-              <label className="text-gray-700 font-semibold text-xs uppercase tracking-wide">
-                Cantidad de personas:
-              </label>
-              <div className="border-b-2 border-gray-400 pb-1">
-                <p className="text-gray-400 text-base">__________________</p>
+              <label className="text-gray-700 font-semibold text-sm">Cantidad de personas:</label>
+              <div className="border-b border-gray-400 py-1 mt-1">
+                <p className="text-gray-900">
+                  {reserva.cantidadAdultos || 0} Adultos, {reserva.cantidadMenores || 0} Menores
+                </p>
               </div>
             </div>
           </div>
 
           {/* Columna derecha */}
           <div className="bg-gray-50 p-3 rounded-lg border border-gray-300 space-y-2.5">
-            <div className="mb-1 pb-1.5 border-b border-gray-300">
-              <p className="text-xs text-gray-600 font-medium">Moneda: {nombreMoneda}</p>
+            <div className="border-b border-gray-400 py-1 mt-1">
+                <p className="text-gray-900">Moneda: {nombreMoneda}</p>
             </div>
 
             <div>
               <label className="text-gray-700 font-semibold text-xs uppercase tracking-wide">Precio por noche:</label>
-              <div className="border-b border-gray-400 py-0.5 mt-1">
-                <p className="text-gray-900 text-sm font-semibold">
+              <div className="border-b border-gray-400 py-1 mt-1">
+                <p className="text-gray-900">
                   {simboloMoneda} {formatCurrency(precioNocheMostrar)}
                 </p>
               </div>
@@ -228,8 +228,8 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({ reserva
 
             <div>
               <label className="text-gray-700 font-semibold text-xs uppercase tracking-wide">Cantidad de noches:</label>
-              <div className="border-b border-gray-400 py-0.5 mt-1">
-                <p className="text-gray-900 font-bold text-sm">{noches}</p>
+              <div className="border-b border-gray-400 py-1 mt-1">
+                <p className="text-gray-900">{noches}</p>
               </div>
             </div>
 
@@ -276,11 +276,11 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({ reserva
         {/* Observaciones */}
         {reserva.notas && reserva.notas.trim() !== "" && (
           <div className="mb-5">
-            <label className="text-gray-700 font-semibold text-xs uppercase tracking-wide mb-1.5 block">
+            <label className="text-gray-800 font-semibold text-xs uppercase tracking-wide mb-1.5 block">
               Observaciones:
             </label>
-            <div className="border-2 border-gray-300 rounded p-2.5 bg-gray-50">
-              <p className="text-gray-700 text-xs leading-relaxed">{reserva.notas}</p>
+            <div className="border-b border-gray-400 py-1 mt-1">
+                <p className="text-gray-900">{reserva.notas}</p>
             </div>
           </div>
         )}
@@ -288,16 +288,16 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({ reserva
         {/* Footer */}
         <div className="grid grid-cols-2 gap-6 mb-6 text-xs">
           <div className="space-y-0.5">
-            <p className="text-gray-700 font-semibold">Federación - Entre Ríos</p>
-            <p className="text-gray-600">WhatsApp: +54 9 3456 551-306</p>
-            <p className="text-gray-600">Instagram: @el_mangrullo_federacion</p>
+            <p className="text-gray-900 font-semibold">Federación - Entre Ríos</p>
+            <p className="text-gray-800">WhatsApp: +54 9 3456 551-306</p>
+            <p className="text-gray-800">Instagram: @el_mangrullo_federacion</p>
           </div>
           <div className="text-right space-y-0.5">
-            <p className="text-gray-700">
+            <p className="text-gray-800">
               N° de comprobante:{" "}
               <span className="font-bold text-gray-900">{reserva.id?.substring(0, 8).toUpperCase()}</span>
             </p>
-            <p className="text-gray-700">
+            <p className="text-gray-800">
               Fecha de emisión: <span className="font-semibold">{format(new Date(), "dd/MM/yyyy")}</span>
             </p>
           </div>

@@ -643,7 +643,10 @@ const GridView = ({
   )
 }
 
+
 import ComprobanteProfesional from "./ComprobanteProfesional"
+
+
 
 export default function ReservasManager() {
   const [reservas, setReservas] = useState<Reserva[]>([])
@@ -683,6 +686,8 @@ export default function ReservasManager() {
     precioGanancia: 0,
     precioTotal: 0,
     moneda: "AR", // Default currency
+    cantidadAdultos: 2,
+    cantidadMenores: 0,
   })
 
   useEffect(() => {
@@ -724,6 +729,7 @@ export default function ReservasManager() {
           fechaInicio: data.fechaInicio?.toDate ? data.fechaInicio.toDate() : toValidDate(data.fechaInicio),
           fechaFin: data.fechaFin?.toDate ? data.fechaFin.toDate() : toValidDate(data.fechaFin),
           fechaCreacion: data.fechaCreacion?.toDate ? data.fechaCreacion.toDate() : toValidDate(data.fechaCreacion),
+          fechaDeposito: data.fechaDeposito?.toDate ? data.fechaDeposito.toDate() : toValidDate(data.fechaDeposito), // Load fechaDeposito
         } as Reserva
       })
 
@@ -765,8 +771,9 @@ export default function ReservasManager() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.nombre || !formData.numero || !formData.departamento) {
-      alert("Por favor completa todos los campos obligatorios")
+    if (!formData.nombre || !formData.departamento) {
+      // numero no es obligatorio
+      alert("Por favor completa Nombre y Departamento")
       return
     }
 
@@ -800,6 +807,8 @@ export default function ReservasManager() {
         fechaCreacion: editingReserva?.fechaCreacion
           ? Timestamp.fromDate(editingReserva.fechaCreacion as Date)
           : Timestamp.now(),
+        cantidadAdultos: formData.cantidadAdultos,
+        cantidadMenores: formData.cantidadMenores,
       }
 
       if (formData.contactoParticular) {
@@ -810,6 +819,9 @@ export default function ReservasManager() {
       }
       if (formData.notas) {
         reservaData.notas = formData.notas
+      }
+      if (formData.fechaDeposito) {
+        reservaData.fechaDeposito = Timestamp.fromDate(formData.fechaDeposito)
       }
 
       if (editingReserva) {
@@ -856,6 +868,10 @@ export default function ReservasManager() {
       precioGanancia: 0,
       precioTotal: 0,
       moneda: "AR", // Reset to default currency
+      cantidadAdultos: 2,
+      cantidadMenores: 0,
+      montoDeposito: 0,
+      fechaDeposito: undefined,
     })
   }
 
@@ -878,6 +894,9 @@ export default function ReservasManager() {
       precioTotal: reserva.precioTotal,
       notas: reserva.notas,
       moneda: reserva.moneda || "AR", // Ensure moneda is set
+      cantidadAdultos: reserva.cantidadAdultos || 2,
+      cantidadMenores: reserva.cantidadMenores || 0,
+      fechaDeposito: reserva.fechaDeposito ? toValidDate(reserva.fechaDeposito) : undefined,
     })
     setIsDialogOpen(true)
   }
@@ -1780,15 +1799,44 @@ export default function ReservasManager() {
 
                   <div className="space-y-2">
                     <Label htmlFor="numero" className="text-blue-900 font-semibold text-sm">
-                      Teléfono *
+                      Teléfono
                     </Label>
                     <Input
                       id="numero"
                       value={formData.numero}
                       onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
                       placeholder="+54 11 1234-5678"
-                      required
                       className="border-blue-200 focus:border-blue-400"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="cantidadAdultos" className="text-blue-900 font-semibold text-sm">
+                      Cantidad de Adultos
+                    </Label>
+                    <Input
+                      id="cantidadAdultos"
+                      type="number"
+                      value={formData.cantidadAdultos || 0}
+                      onChange={(e) => setFormData({ ...formData, cantidadAdultos: Number(e.target.value) })}
+                      placeholder="0"
+                      className="border-blue-200 focus:border-blue-400"
+                      min={0}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="cantidadMenores" className="text-blue-900 font-semibold text-sm">
+                      Cantidad de Menores
+                    </Label>
+                    <Input
+                      id="cantidadMenores"
+                      type="number"
+                      value={formData.cantidadMenores || 0}
+                      onChange={(e) => setFormData({ ...formData, cantidadMenores: Number(e.target.value) })}
+                      placeholder="0"
+                      className="border-blue-200 focus:border-blue-400"
+                      min={0}
                     />
                   </div>
                 </div>
@@ -1973,19 +2021,46 @@ export default function ReservasManager() {
                 </div>
 
                 {formData.hizoDeposito && (
-                  <div className="space-y-2 mt-4">
-                    <Label htmlFor="montoDeposito" className="text-green-900 font-semibold text-sm">
-                      Monto del Depósito
-                    </Label>
-                    <Input
-                      id="montoDeposito"
-                      type="number"
-                      value={formData.montoDeposito || 0}
-                      onChange={(e) => setFormData({ ...formData, montoDeposito: Number(e.target.value) })}
-                      placeholder="0"
-                      className="border-green-200 focus:border-green-400"
-                      min={0}
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="montoDeposito" className="text-green-900 font-semibold text-sm">
+                        Monto del Depósito
+                      </Label>
+                      <Input
+                        id="montoDeposito"
+                        type="number"
+                        value={formData.montoDeposito || 0}
+                        onChange={(e) => setFormData({ ...formData, montoDeposito: Number(e.target.value) })}
+                        placeholder="0"
+                        className="border-green-200 focus:border-green-400"
+                        min={0}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-green-900 font-semibold text-sm">Fecha del Depósito</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start border-green-200 hover:bg-green-50 bg-white text-sm"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4 text-green-600" />
+                            {formData.fechaDeposito
+                              ? format(formData.fechaDeposito, "dd/MM/yyyy")
+                              : "Seleccionar fecha"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={formData.fechaDeposito}
+                            onSelect={(date) => date && setFormData({ ...formData, fechaDeposito: date })}
+                            locale={es}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </div>
                 )}
               </div>
