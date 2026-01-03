@@ -61,6 +61,8 @@ import {
   X,
   CheckCircle,
   Clock,
+  LogIn,
+  LogOut,
 } from "lucide-react"
 import {
   format,
@@ -129,7 +131,6 @@ const getPrecioNocheValue = (reserva: Reserva): number => {
   const currency = reserva.moneda || "ARS" // Default to ARS if moneda is not specified
   return reserva.precioNoche[currency] || 0
 }
-
 
 import ComprobanteProfesional from "./ComprobanteProfesional"
 
@@ -555,6 +556,44 @@ export default function ReservasManager() {
     return { totalReservas, totalIngresos, reservasPorDepartamento, ocupacionTotal }
   }, [filteredReservas, cabins, filterMes])
 
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000)
+
+  // Departamentos alquilados hoy (activos ahora)
+  const departamentosAlquiladosHoy = reservas.filter((r) => {
+    return r.fechaInicio <= now && r.fechaFin >= today
+  }).length
+
+  // Próximos check-ins (hoy)
+  const proximosCheckIns = reservas.filter((r) => {
+    return r.fechaInicio >= today && r.fechaInicio < tomorrow
+  }).length
+
+  // Próximos check-outs (hoy)
+  const proximosCheckOuts = reservas.filter((r) => {
+    return r.fechaFin >= today && r.fechaFin < tomorrow
+  }).length
+
+  // Reservas confirmadas futuras
+  const reservasPendientes = reservas.filter((r) => {
+    return r.fechaInicio > now
+  }).length
+
+  // Ingresos del mes actual
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+  const ingresosDelMes = reservas
+    .filter((r) => {
+      const fecha = r.fechaInicio
+      return fecha.getMonth() === currentMonth && fecha.getFullYear() === currentYear
+    })
+    .reduce((sum, r) => sum + (r.precioTotal || 0), 0)
+
+  // Ocupación actual (hoy)
+  const totalDepartamentos = cabins.length
+  const ocupacionHoy = totalDepartamentos > 0 ? Math.round((departamentosAlquiladosHoy / totalDepartamentos) * 100) : 0
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
@@ -587,6 +626,80 @@ export default function ReservasManager() {
             <Plus className="h-4 w-4 mr-2" />
             Nueva Reserva
           </Button>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
+          <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+            <CardContent className="pt-4 pb-4 px-4">
+              <div className="flex flex-col items-center text-center">
+                <div className="p-2 md:p-3 bg-white/20 rounded-xl backdrop-blur-sm mb-2">
+                  <Home className="h-5 w-5 md:h-6 md:w-6 text-white" />
+                </div>
+                <p className="text-2xl md:text-3xl font-bold text-white">{departamentosAlquiladosHoy}</p>
+                <p className="text-xs md:text-sm font-medium text-emerald-100 mt-1">Alquilados Hoy</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+            <CardContent className="pt-4 pb-4 px-4">
+              <div className="flex flex-col items-center text-center">
+                <div className="p-2 md:p-3 bg-white/20 rounded-xl backdrop-blur-sm mb-2">
+                  <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-white" />
+                </div>
+                <p className="text-2xl md:text-3xl font-bold text-white">{ocupacionHoy}%</p>
+                <p className="text-xs md:text-sm font-medium text-blue-100 mt-1">Ocupación Hoy</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+            <CardContent className="pt-4 pb-4 px-4">
+              <div className="flex flex-col items-center text-center">
+                <div className="p-2 md:p-3 bg-white/20 rounded-xl backdrop-blur-sm mb-2">
+                  <LogIn className="h-5 w-5 md:h-6 md:w-6 text-white" />
+                </div>
+                <p className="text-2xl md:text-3xl font-bold text-white">{proximosCheckIns}</p>
+                <p className="text-xs md:text-sm font-medium text-purple-100 mt-1">Check-ins Hoy</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-orange-500 to-orange-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+            <CardContent className="pt-4 pb-4 px-4">
+              <div className="flex flex-col items-center text-center">
+                <div className="p-2 md:p-3 bg-white/20 rounded-xl backdrop-blur-sm mb-2">
+                  <LogOut className="h-5 w-5 md:h-6 md:w-6 text-white" />
+                </div>
+                <p className="text-2xl md:text-3xl font-bold text-white">{proximosCheckOuts}</p>
+                <p className="text-xs md:text-sm font-medium text-orange-100 mt-1">Check-outs Hoy</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-teal-500 to-teal-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+            <CardContent className="pt-4 pb-4 px-4">
+              <div className="flex flex-col items-center text-center">
+                <div className="p-2 md:p-3 bg-white/20 rounded-xl backdrop-blur-sm mb-2">
+                  <CalendarIcon className="h-5 w-5 md:h-6 md:w-6 text-white" />
+                </div>
+                <p className="text-2xl md:text-3xl font-bold text-white">{reservasPendientes}</p>
+                <p className="text-xs md:text-sm font-medium text-teal-100 mt-1">Reservas Futuras</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-500 to-green-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+            <CardContent className="pt-4 pb-4 px-4">
+              <div className="flex flex-col items-center text-center">
+                <div className="p-2 md:p-3 bg-white/20 rounded-xl backdrop-blur-sm mb-2">
+                  <DollarSign className="h-5 w-5 md:h-6 md:w-6 text-white" />
+                </div>
+                <p className="text-xl md:text-2xl font-bold text-white">${formatCurrency(ingresosDelMes)}</p>
+                <p className="text-xs md:text-sm font-medium text-green-100 mt-1">Ingresos del Mes</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {(checkIns.length > 0 || checkOuts.length > 0) && (
@@ -903,12 +1016,12 @@ export default function ReservasManager() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div className="text-white">
-                  <p className="text-sm font-medium text-orange-100">Departamentos</p>
-                  <p className="text-4xl font-bold mt-2">{cabins.length}</p>
-                  <p className="text-xs text-orange-100 mt-1">totales activos</p>
+                  <p className="text-sm font-medium text-orange-100">Fecha Actual</p>
+                  <p className="text-2xl font-bold mt-2">{format(now, "dd/MM")}</p>
+                  <p className="text-xs text-orange-100 mt-1">{format(now, "EEEE", { locale: es })}</p>
                 </div>
                 <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
-                  <Home className="h-8 w-8 text-white" />
+                  <CalendarIcon className="h-8 w-8 text-white" />
                 </div>
               </div>
             </CardContent>
@@ -1188,8 +1301,8 @@ export default function ReservasManager() {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-emerald-900 font-semibold text-sm">Fecha de Entrada *</Label>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label className="text-emerald-900 font-semibold text-sm">Fechas de Estadía *</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
@@ -1197,43 +1310,50 @@ export default function ReservasManager() {
                           className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-white text-sm"
                         >
                           <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
-                          {format(formData.fechaInicio, "dd/MM/yyyy")}
+                          <span>
+                            {format(formData.fechaInicio, "dd/MM/yyyy")} → {format(formData.fechaFin, "dd/MM/yyyy")}
+                          </span>
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
+                      <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
-                          mode="single"
-                          selected={formData.fechaInicio}
-                          onSelect={(date) => date && setFormData({ ...formData, fechaInicio: date })}
+                          mode="range"
+                          selected={{
+                            from: formData.fechaInicio,
+                            to: formData.fechaFin,
+                          }}
+                          onSelect={(range) => {
+                            if (range?.from && range?.to) {
+                              // Solo actualizar cuando ambas fechas estén seleccionadas
+                              setFormData({ 
+                                ...formData, 
+                                fechaInicio: range.from,
+                                fechaFin: range.to
+                              })
+                              // Cerrar el popover después de seleccionar ambas fechas
+                              document.querySelector('[data-state="open"]')?.querySelector('button')?.click()
+                            } else if (range?.from) {
+                              // Primera fecha seleccionada, actualizar solo inicio
+                              setFormData({ 
+                                ...formData, 
+                                fechaInicio: range.from,
+                                fechaFin: range.from // Temporalmente igual hasta que seleccione la segunda
+                              })
+                            }
+                          }}
                           locale={es}
+                          numberOfMonths={2}
+                          disabled={(date) => isBefore(date, startOfDay(new Date()))}
+                          defaultMonth={formData.fechaInicio}
                         />
                       </PopoverContent>
                     </Popover>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Selecciona la fecha de entrada y luego la fecha de salida
+                    </p>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-emerald-900 font-semibold text-sm">Fecha de Salida *</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-white text-sm"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
-                          {format(formData.fechaFin, "dd/MM/yyyy")}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={formData.fechaFin}
-                          onSelect={(date) => date && setFormData({ ...formData, fechaFin: date })}
-                          locale={es}
-                          disabled={(date) => isBefore(date, formData.fechaInicio)}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+  
 
                   <div className="space-y-2">
                     <Label className="text-gray-600 font-semibold text-sm">Noches</Label>

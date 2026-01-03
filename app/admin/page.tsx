@@ -5,7 +5,7 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/auth-context"
 import { LanguageProvider } from "@/context/language-context"
-import Dashboard from "@/components/admin/dashboard"
+import Dashboard from "@/components/admin/reservas-manager"
 
 export default function AdminPage() {
   const { user, loading } = useAuth()
