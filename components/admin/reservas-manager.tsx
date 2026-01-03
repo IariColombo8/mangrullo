@@ -45,7 +45,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
-  Plus,
   CalendarIcon,
   Search,
   Edit,
@@ -63,6 +62,9 @@ import {
   Clock,
   LogIn,
   LogOut,
+  ArrowLeft,
+  Menu,
+  LayoutDashboard,
 } from "lucide-react"
 import {
   format,
@@ -80,6 +82,24 @@ import { cn } from "@/lib/utils"
 
 import TimelineView from "./timeline-view" // Imported TimelineView from separate file
 import GridView from "./grid-view" // Imported GridView from separate file
+
+import ComprobanteProfesional from "./ComprobanteProfesional" // Import ComprobanteProfesional
+
+// Import auth context and next navigation
+import { useAuth } from "@/context/auth-context"
+import { useRouter } from "next/navigation"
+
+// Import shadcn UI components for dropdown and sheet
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
 const PAISES = [
   { code: "AR", name: "Argentina", currency: "pesos" },
@@ -132,8 +152,6 @@ const getPrecioNocheValue = (reserva: Reserva): number => {
   return reserva.precioNoche[currency] || 0
 }
 
-import ComprobanteProfesional from "./ComprobanteProfesional"
-
 export default function ReservasManager() {
   const [reservas, setReservas] = useState<Reserva[]>([])
   const [cabins, setCabins] = useState<{ id: string; name: string }[]>([])
@@ -175,6 +193,19 @@ export default function ReservasManager() {
     cantidadAdultos: 2,
     cantidadMenores: 0,
   })
+
+  // Add auth and navigation hooks
+  const { user, logout } = useAuth()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    await logout()
+    router.push("/login")
+  }
+
+  const volverPaginaPrincipal = () => {
+    router.push("/")
+  }
 
   useEffect(() => {
     loadCabins()
@@ -609,25 +640,98 @@ export default function ReservasManager() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-emerald-100">
-          <div className="space-y-1">
-            <h2 className="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-              Reservas - El Mangrullo
-            </h2>
-            <p className="text-gray-600">Gestiona todas las reservas de los departamentos</p>
-          </div>
-          <Button
-            onClick={openNewDialog}
-            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Nueva Reserva
-          </Button>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50">
+      <div className="bg-white/90 backdrop-blur-sm border-b-2 border-emerald-200 shadow-md sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-lg">
+                <LayoutDashboard className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-emerald-900">Panel Admin</h1>
+                <p className="text-sm text-emerald-600">El Mangrullo</p>
+              </div>
+            </div>
 
+            <div className="flex items-center gap-2">
+              {/* Mobile Menu */}
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="md:hidden hover:bg-emerald-100">
+                    <Menu className="h-6 w-6 text-emerald-700" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-64">
+                  <div className="flex flex-col gap-4 mt-8">
+                    <div className="flex items-center gap-3 pb-4 border-b">
+                      <Avatar className="h-12 w-12 border-2 border-emerald-300">
+                        <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold text-lg">
+                          {user?.email?.charAt(0).toUpperCase() || "A"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold text-sm">Admin</p>
+                        <p className="text-xs text-gray-500">{user?.email}</p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={volverPaginaPrincipal}
+                      variant="outline"
+                      className="w-full justify-start border-emerald-300 hover:bg-emerald-50 bg-transparent"
+                    >
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Página Principal
+                    </Button>
+                    <Button
+                      onClick={handleLogout}
+                      variant="outline"
+                      className="w-full justify-start border-red-300 hover:bg-red-50 text-red-600 bg-transparent"
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Cerrar Sesión
+                    </Button>
+                  </div>
+                </SheetContent>
+              </Sheet>
+
+              {/* Desktop user menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild className="hidden md:block">
+                  <Button variant="ghost" size="icon" className="hover:bg-emerald-100 rounded-full">
+                    <Avatar className="h-9 w-9 border-2 border-emerald-300">
+                      <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold">
+                        {user?.email?.charAt(0).toUpperCase() || "A"}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">Admin</p>
+                      <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={volverPaginaPrincipal} className="cursor-pointer">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Página Principal
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Cerrar Sesión
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 py-6 space-y-6">
+        {/* Metrics Cards - 6 cards in a grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
           <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
             <CardContent className="pt-4 pb-4 px-4">
@@ -702,6 +806,70 @@ export default function ReservasManager() {
           </Card>
         </div>
 
+        {/* Additional Stats Cards - 4 cards in a grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="text-white">
+                  <p className="text-sm font-medium text-blue-100">Total Reservas</p>
+                  <p className="text-4xl font-bold mt-2">{stats.totalReservas}</p>
+                  <p className="text-xs text-blue-100 mt-1">del mes seleccionado</p>
+                </div>
+                <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
+                  <CalendarIcon className="h-8 w-8 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="text-white">
+                  <p className="text-sm font-medium text-green-100">Ingresos</p>
+                  <p className="text-3xl font-bold mt-2">${formatCurrency(stats.totalIngresos)}</p>
+                  <p className="text-xs text-green-100 mt-1">{format(filterMes, "MMMM yyyy", { locale: es })}</p>
+                </div>
+                <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
+                  <DollarSign className="h-8 w-8 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="text-white">
+                  <p className="text-sm font-medium text-purple-100">Ocupación</p>
+                  <p className="text-4xl font-bold mt-2">{stats.ocupacionTotal}%</p>
+                  <p className="text-xs text-purple-100 mt-1">del mes</p>
+                </div>
+                <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
+                  <TrendingUp className="h-8 w-8 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-orange-500 to-orange-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="text-white">
+                  <p className="text-sm font-medium text-orange-100">Fecha Actual</p>
+                  <p className="text-2xl font-bold mt-2">{format(now, "dd/MM")}</p>
+                  <p className="text-xs text-orange-100 mt-1">{format(now, "EEEE", { locale: es })}</p>
+                </div>
+                <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
+                  <CalendarIcon className="h-8 w-8 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Check-ins/Check-outs Today Card */}
         {(checkIns.length > 0 || checkOuts.length > 0) && (
           <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200 shadow-lg">
             <CardContent className="pt-6">
@@ -965,68 +1133,7 @@ export default function ReservasManager() {
           </CardContent>
         </Card>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="text-white">
-                  <p className="text-sm font-medium text-blue-100">Total Reservas</p>
-                  <p className="text-4xl font-bold mt-2">{stats.totalReservas}</p>
-                  <p className="text-xs text-blue-100 mt-1">del mes seleccionado</p>
-                </div>
-                <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
-                  <CalendarIcon className="h-8 w-8 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="text-white">
-                  <p className="text-sm font-medium text-green-100">Ingresos</p>
-                  <p className="text-3xl font-bold mt-2">${formatCurrency(stats.totalIngresos)}</p>
-                  <p className="text-xs text-green-100 mt-1">{format(filterMes, "MMMM yyyy", { locale: es })}</p>
-                </div>
-                <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
-                  <DollarSign className="h-8 w-8 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="text-white">
-                  <p className="text-sm font-medium text-purple-100">Ocupación</p>
-                  <p className="text-4xl font-bold mt-2">{stats.ocupacionTotal}%</p>
-                  <p className="text-xs text-purple-100 mt-1">del mes</p>
-                </div>
-                <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
-                  <TrendingUp className="h-8 w-8 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-orange-500 to-orange-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="text-white">
-                  <p className="text-sm font-medium text-orange-100">Fecha Actual</p>
-                  <p className="text-2xl font-bold mt-2">{format(now, "dd/MM")}</p>
-                  <p className="text-xs text-orange-100 mt-1">{format(now, "EEEE", { locale: es })}</p>
-                </div>
-                <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
-                  <CalendarIcon className="h-8 w-8 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        
 
         {/* View Tabs */}
         <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as typeof viewMode)}>
@@ -1325,19 +1432,19 @@ export default function ReservasManager() {
                           onSelect={(range) => {
                             if (range?.from && range?.to) {
                               // Solo actualizar cuando ambas fechas estén seleccionadas
-                              setFormData({ 
-                                ...formData, 
+                              setFormData({
+                                ...formData,
                                 fechaInicio: range.from,
-                                fechaFin: range.to
+                                fechaFin: range.to,
                               })
                               // Cerrar el popover después de seleccionar ambas fechas
-                              document.querySelector('[data-state="open"]')?.querySelector('button')?.click()
+                              document.querySelector('[data-state="open"]')?.querySelector("button")?.click()
                             } else if (range?.from) {
                               // Primera fecha seleccionada, actualizar solo inicio
-                              setFormData({ 
-                                ...formData, 
+                              setFormData({
+                                ...formData,
                                 fechaInicio: range.from,
-                                fechaFin: range.from // Temporalmente igual hasta que seleccione la segunda
+                                fechaFin: range.from, // Temporalmente igual hasta que seleccione la segunda
                               })
                             }
                           }}
@@ -1352,8 +1459,6 @@ export default function ReservasManager() {
                       Selecciona la fecha de entrada y luego la fecha de salida
                     </p>
                   </div>
-
-  
 
                   <div className="space-y-2">
                     <Label className="text-gray-600 font-semibold text-sm">Noches</Label>
