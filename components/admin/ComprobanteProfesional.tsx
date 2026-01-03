@@ -1,6 +1,7 @@
+"use client"
+
 import type React from "react"
 import { format } from "date-fns"
-import { es } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
 import { Edit, Download, CheckCircle2 } from "lucide-react"
 import type { Reserva } from "@/types/reserva"
@@ -67,38 +68,40 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({ reserva
   }
 
   const precioNocheMostrar =
-    reserva.precioNoche && typeof reserva.precioNoche === "object"
-      ? reserva.precioNoche[monedaReserva] || 0
-      : 0
+    reserva.precioNoche && typeof reserva.precioNoche === "object" ? reserva.precioNoche[monedaReserva] || 0 : 0
 
   const handleDownload = async () => {
-    const element = document.getElementById('comprobante-content')
+    const element = document.getElementById("comprobante-content")
     if (!element) return
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 150))
-      
+      await new Promise((resolve) => setTimeout(resolve, 150))
+
       const canvas = await html2canvas(element, {
         scale: 2.5,
-        backgroundColor: '#ffffff',
+        backgroundColor: "#ffffff",
         logging: false,
         useCORS: true,
         allowTaint: false,
-        imageTimeout: 0
+        imageTimeout: 0,
       })
 
-      const link = document.createElement('a')
-      link.download = `comprobante-${reserva.nombre.replace(/\s+/g, '-')}-${format(new Date(), 'dd-MM-yyyy')}.png`
-      link.href = canvas.toDataURL('image/png', 1.0)
+      const link = document.createElement("a")
+      link.download = `comprobante-${reserva.nombre.replace(/\s+/g, "-")}-${format(new Date(), "dd-MM-yyyy")}.png`
+      link.href = canvas.toDataURL("image/png", 1.0)
       link.click()
     } catch (error) {
-      console.error('Error al generar la imagen:', error)
+      console.error("Error al generar la imagen:", error)
     }
   }
 
   return (
     <div className="max-w-4xl mx-auto bg-white">
-      <div id="comprobante-content" className="bg-white border-4 border-double border-gray-400 rounded-lg p-6 shadow-2xl" style={{ width: '794px' }}>
+      <div
+        id="comprobante-content"
+        className="bg-white border-4 border-double border-gray-400 rounded-lg p-6 shadow-2xl"
+        style={{ width: "794px" }}
+      >
         {/* Header */}
         <div className="flex items-center justify-between mb-4 pb-3 border-b-2 border-gray-300">
           <div className="flex items-center">
@@ -111,8 +114,8 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({ reserva
         </div>
 
         {/* Título */}
-        <div className="mt-1 bg-gray-200 p-2 rounded border-2 border-gray-400">
-          <h2 className="text-center text-base text-gray-900 font-bold text-xs uppercase tracking-wide">
+        <div className="mt-1 bg-gray-200 p-2.5 rounded border-2 border-gray-400">
+          <h2 className="text-center text-base text-gray-900 font-bold uppercase tracking-wide">
             Comprobante de Reserva / Pago
           </h2>
         </div>
@@ -120,36 +123,36 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({ reserva
         {/* Datos del huésped */}
         <div className="grid grid-cols-2 gap-4 mb-3">
           <div>
-            <label className="text-gray-700 font-semibold text-xs uppercase tracking-wide">Nombre del huésped:</label>
-            <div className="border-b border-gray-400 py-1 mt-1">
-                <p className="text-gray-900">{reserva.nombre}</p>
+            <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">Nombre del huésped:</label>
+            <div className="border-b-2 border-gray-400 py-1.5 mt-1">
+              <p className="text-gray-900 font-medium text-base">{reserva.nombre}</p>
             </div>
           </div>
           <div>
-            <label className="text-gray-700 font-semibold text-xs uppercase tracking-wide">País:</label>
-            <div className="border-b border-gray-400 py-1 mt-1">
-                <p className="text-gray-900">{paisData?.name || reserva.pais}</p>
+            <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">País:</label>
+            <div className="border-b-2 border-gray-400 py-1.5 mt-1">
+              <p className="text-gray-900 font-medium text-base">{paisData?.name || reserva.pais}</p>
             </div>
           </div>
         </div>
 
         {/* Canal de alquiler */}
         <div className="mb-3">
-          <label className="text-gray-700 font-semibold text-xs uppercase tracking-wide mb-1.5 block">
+          <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide mb-2 block">
             Canal de alquiler:
           </label>
-          <div className="flex gap-4 py-1 flex-wrap">
+          <div className="flex gap-5 py-1 flex-wrap">
             {ORIGENES.map((origen) => (
-              <div key={origen.value} className="flex items-center gap-1.5">
+              <div key={origen.value} className="flex items-center gap-2">
                 <div
                   className={cn(
-                    "w-4 h-4 border-2 border-gray-700 flex items-center justify-center rounded-sm",
+                    "w-5 h-5 border-2 border-gray-700 flex items-center justify-center rounded-sm",
                     reserva.origen === origen.value && "bg-gray-900",
                   )}
                 >
-                  {reserva.origen === origen.value && <CheckCircle2 className="w-3 h-3 text-white" />}
+                  {reserva.origen === origen.value && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
                 </div>
-                <span className="text-gray-700 text-xs font-medium">{origen.label}</span>
+                <span className="text-gray-700 text-sm font-medium">{origen.label}</span>
               </div>
             ))}
           </div>
@@ -158,109 +161,135 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({ reserva
         {/* Grid de 2 columnas */}
         <div className="grid grid-cols-2 gap-4 mb-3">
           {/* Columna izquierda */}
-          <div className="bg-gray-50 p-3 rounded-lg border border-gray-300 space-y-2.5">
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-300 space-y-3">
+            {/* Departamentos en 2 columnas */}
             <div>
-              <label className="text-gray-700 font-semibold text-xs uppercase tracking-wide">Departamento/s:</label>
-              <div className="flex flex-col gap-1.5 mt-1.5">
-                {DEPARTAMENTOS.map((dept) => (
-                  <div key={dept} className="flex items-center gap-1.5">
-                    <div
-                      className={cn(
-                        "w-4 h-4 border-2 border-gray-700 flex items-center justify-center rounded-sm",
-                        reserva.departamento === dept && "bg-gray-900",
-                      )}
-                    >
-                      {reserva.departamento === dept && <CheckCircle2 className="w-3 h-3 text-white" />}
+              <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide mb-2 block">
+                Departamento/s:
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {DEPARTAMENTOS.map((dept) => {
+                  const isSelected = reserva.departamento?.trim() === dept.trim()
+
+                  return (
+                    <div key={dept} className="flex items-center gap-2">
+                      <div
+                        className={cn(
+                          "w-5 h-5 border-2 border-gray-700 flex items-center justify-center rounded-sm flex-shrink-0",
+                          isSelected && "bg-gray-900",
+                        )}
+                      >
+                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                      </div>
+                      <span className="text-gray-700 text-sm">{dept}</span>
                     </div>
-                    <span className="text-gray-700 text-xs">{dept}</span>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
 
-            <div>
-              <label className="text-gray-700 font-semibold text-xs uppercase tracking-wide">Fecha de entrada:</label>
-              <div className="border-b border-gray-400 py-1 mt-1">
-                <p className="text-gray-900">
-                  {format(reserva.fechaInicio as Date, "dd / MM / yyyy")}
-                </p>
+            {/* Fechas en una fila */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">Fecha de entrada:</label>
+                <div className="border-b border-gray-400 py-1 mt-1">
+                  <p className="text-gray-900 text-sm font-medium">
+                    {format(reserva.fechaInicio as Date, "dd / MM / yyyy")}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">Fecha de salida:</label>
+                <div className="border-b border-gray-400 py-1 mt-1">
+                  <p className="text-gray-900 text-sm font-medium">
+                    {format(reserva.fechaFin as Date, "dd / MM / yyyy")}
+                  </p>
+                </div>
               </div>
             </div>
 
+            {/* Cantidad de noches */}
             <div>
-              <label className="text-gray-700 font-semibold text-xs uppercase tracking-wide">Fecha de salida:</label>
+              <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">Cantidad de noches:</label>
               <div className="border-b border-gray-400 py-1 mt-1">
-                <p className="text-gray-900">{format(reserva.fechaFin as Date, "dd / MM / yyyy")}</p>
+                <p className="text-gray-900 font-bold text-sm">{noches}</p>
               </div>
             </div>
 
+            {/* Cantidad de personas */}
             <div>
-              <label className="text-gray-700 font-semibold text-xs uppercase tracking-wide">Cantidad de noches:</label>
+              <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">Cantidad de personas:</label>
               <div className="border-b border-gray-400 py-1 mt-1">
-                <p className="text-gray-900">{noches}</p>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-gray-700 font-semibold text-sm">Cantidad de personas:</label>
-              <div className="border-b border-gray-400 py-1 mt-1">
-                <p className="text-gray-900">
+                <p className="text-gray-900 text-sm">
                   {reserva.cantidadAdultos || 0} Adultos, {reserva.cantidadMenores || 0} Menores
                 </p>
               </div>
             </div>
+
+            {/* Observaciones dentro del mismo recuadro */}
+            {reserva.notas && reserva.notas.trim() !== "" && (
+              <div className="pt-2">
+                <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide mb-1.5 block">
+                  Observaciones:
+                </label>
+                <div className="border border-gray-300 rounded p-2.5 bg-white">
+                  <p className="text-gray-700 text-sm leading-relaxed">{reserva.notas}</p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Columna derecha */}
-          <div className="bg-gray-50 p-3 rounded-lg border border-gray-300 space-y-2.5">
-            <div className="border-b border-gray-400 py-1 mt-1">
-                <p className="text-gray-900">Moneda: {nombreMoneda}</p>
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-300 space-y-3">
+            <div className="mb-1 pb-2 border-b border-gray-300">
+              <p className="text-sm text-gray-600 font-medium">Moneda: {nombreMoneda}</p>
             </div>
 
             <div>
-              <label className="text-gray-700 font-semibold text-xs uppercase tracking-wide">Precio por noche:</label>
+              <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">Precio por noche:</label>
               <div className="border-b border-gray-400 py-1 mt-1">
-                <p className="text-gray-900">
+                <p className="text-gray-900 text-base font-semibold">
                   {simboloMoneda} {formatCurrency(precioNocheMostrar)}
                 </p>
               </div>
             </div>
 
             <div>
-              <label className="text-gray-700 font-semibold text-xs uppercase tracking-wide">Cantidad de noches:</label>
+              <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">Cantidad de noches:</label>
               <div className="border-b border-gray-400 py-1 mt-1">
-                <p className="text-gray-900">{noches}</p>
+                <p className="text-gray-900 font-bold text-base">{noches}</p>
               </div>
             </div>
 
             <div className="pt-2 border-t-2 border-gray-400">
-              <label className="text-gray-700 font-semibold text-xs uppercase tracking-wide">Subtotal:</label>
-              <div className="mt-1 bg-white p-1.5 rounded border border-gray-300">
+              <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">Subtotal:</label>
+              <div className="mt-1 bg-white p-2 rounded border border-gray-300">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-700 font-semibold text-xs">{simboloMoneda}</span>
-                  <span className="text-gray-900 font-bold text-base">{formatCurrency(reserva.precioTotal)}</span>
+                  <span className="text-gray-700 font-semibold text-sm">{simboloMoneda}</span>
+                  <span className="text-gray-900 font-bold text-lg">{formatCurrency(reserva.precioTotal)}</span>
                 </div>
               </div>
             </div>
 
             {reserva.hizoDeposito && (
               <div>
-                <label className="text-green-700 font-semibold text-xs uppercase tracking-wide">Seña / Depósito:</label>
-                <div className="mt-1 bg-green-50 p-1.5 rounded border border-green-300">
+                <label className="text-green-700 font-semibold text-sm uppercase tracking-wide">Seña / Depósito:</label>
+                <div className="mt-1 bg-green-50 p-2 rounded border border-green-300">
                   <div className="flex justify-between items-center">
-                    <span className="text-green-700 font-semibold text-xs">{simboloMoneda}</span>
-                    <span className="text-green-700 font-bold text-base">{formatCurrency(reserva.montoDeposito)}</span>
+                    <span className="text-green-700 font-semibold text-sm">{simboloMoneda}</span>
+                    <span className="text-green-700 font-bold text-lg">{formatCurrency(reserva.montoDeposito)}</span>
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="pt-1.5">
-              <label className="text-gray-900 font-bold text-xs uppercase tracking-wide">Total a pagar:</label>
-              <div className="mt-1 bg-gray-200 p-2 rounded border-2 border-gray-400">
+            <div className="pt-2">
+              <label className="text-gray-900 font-bold text-sm uppercase tracking-wide">Total a pagar:</label>
+              <div className="mt-1 bg-gray-200 p-2.5 rounded border-2 border-gray-400">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-900 font-bold text-sm">{simboloMoneda}</span>
-                  <span className="text-gray-900 font-bold text-xl">
+                  <span className="text-gray-900 font-bold text-base">{simboloMoneda}</span>
+                  <span className="text-gray-900 font-bold text-2xl">
                     {formatCurrency(
                       reserva.hizoDeposito
                         ? (reserva.precioTotal || 0) - (reserva.montoDeposito || 0)
@@ -273,31 +302,19 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({ reserva
           </div>
         </div>
 
-        {/* Observaciones */}
-        {reserva.notas && reserva.notas.trim() !== "" && (
-          <div className="mb-5">
-            <label className="text-gray-800 font-semibold text-xs uppercase tracking-wide mb-1.5 block">
-              Observaciones:
-            </label>
-            <div className="border-b border-gray-400 py-1 mt-1">
-                <p className="text-gray-900">{reserva.notas}</p>
-            </div>
-          </div>
-        )}
-
         {/* Footer */}
-        <div className="grid grid-cols-2 gap-6 mb-6 text-xs">
-          <div className="space-y-0.5">
-            <p className="text-gray-900 font-semibold">Federación - Entre Ríos</p>
-            <p className="text-gray-800">WhatsApp: +54 9 3456 551-306</p>
-            <p className="text-gray-800">Instagram: @el_mangrullo_federacion</p>
+        <div className="grid grid-cols-2 gap-6 mb-6 text-sm">
+          <div className="space-y-1">
+            <p className="text-gray-700 font-semibold">Federación - Entre Ríos</p>
+            <p className="text-gray-600">WhatsApp: +54 9 3456 551-306</p>
+            <p className="text-gray-600">Instagram: @el_mangrullo_federacion</p>
           </div>
-          <div className="text-right space-y-0.5">
-            <p className="text-gray-800">
+          <div className="text-right space-y-1">
+            <p className="text-gray-700">
               N° de comprobante:{" "}
               <span className="font-bold text-gray-900">{reserva.id?.substring(0, 8).toUpperCase()}</span>
             </p>
-            <p className="text-gray-800">
+            <p className="text-gray-700">
               Fecha de emisión: <span className="font-semibold">{format(new Date(), "dd/MM/yyyy")}</span>
             </p>
           </div>
@@ -306,7 +323,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({ reserva
 
       {/* Botones */}
       <div className="flex gap-3 mt-6">
-        <Button onClick={onClose} variant="outline" className="flex-1 border-gray-300 hover:bg-gray-100">
+        <Button onClick={onClose} variant="outline" className="flex-1 border-gray-300 hover:bg-gray-100 bg-transparent">
           Cerrar
         </Button>
         <Button onClick={handleDownload} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-md">
