@@ -793,7 +793,7 @@ export default function ReservasManager() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-green-500 to-green-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+          <Card className="bg-gradient-to-br from-teal-800 to-teal-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
             <CardContent className="pt-4 pb-4 px-4">
               <div className="flex flex-col items-center text-center">
                 <div className="p-2 md:p-3 bg-white/20 rounded-xl backdrop-blur-sm mb-2">
