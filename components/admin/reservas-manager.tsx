@@ -28,12 +28,10 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,40 +42,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import {
-  CalendarIcon,
-  Search,
-  Edit,
-  Trash2,
-  Eye,
-  TrendingUp,
-  DollarSign,
-  Home,
-  ChevronLeft,
-  ChevronRight,
-  Sparkles,
-  AlertTriangle,
-  X,
-  CheckCircle,
-  Clock,
-  Plus,
-} from "lucide-react"
+import { CalendarIcon, Search, DollarSign, Home, Sparkles, AlertTriangle, CheckCircle, Clock, Plus } from "lucide-react"
 import {
   format,
   startOfMonth,
   endOfMonth,
   startOfDay,
-  addMonths,
-  subMonths,
   isSameDay,
   isBefore,
   endOfDay, // Import endOfDay
 } from "date-fns"
 import { es } from "date-fns/locale"
 import { cn } from "@/lib/utils"
-
-import TimelineView from "./timeline-view" // Imported TimelineView from separate file
-import GridView from "./grid-view" // Imported GridView from separate file
 
 import ComprobanteProfesional from "./ComprobanteProfesional" // Import ComprobanteProfesional
 
@@ -86,6 +62,9 @@ import DashboardMetrics from "./dashboard-metrics"
 // Import auth context and next navigation
 import { useAuth } from "@/context/auth-context"
 import { useRouter } from "next/navigation"
+
+// Imported new component for tabbed view
+import ReservasViewTabs from "./reservas-view-tabs"
 
 const PAISES = [
   { code: "AR", name: "Argentina", currency: "pesos" },
@@ -152,11 +131,12 @@ export default function ReservasManager() {
   const [filterOrigen, setFilterOrigen] = useState<string>("todos")
   const [filterPais, setFilterPais] = useState<string>("todos")
   const [filterDeposito, setFilterDeposito] = useState<string>("todos")
-  const [filterCheckinDesde, setFilterCheckinDesde] = useState<Date | undefined>(undefined)
-  const [filterCheckinHasta, setFilterCheckinHasta] = useState<Date | undefined>(undefined)
-  const [filterCheckoutDesde, setFilterCheckoutDesde] = useState<Date | undefined>(undefined)
-  const [filterCheckoutHasta, setFilterCheckoutHasta] = useState<Date | undefined>(undefined)
   const [filterMes, setFilterMes] = useState<Date>(new Date())
+
+  // Renamed filter variables and added search query state
+  const [filterFechaDesde, setFilterFechaDesde] = useState<Date | null>(null)
+  const [filterFechaHasta, setFilterFechaHasta] = useState<Date | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
 
   const [viewMode, setViewMode] = useState<"tabla" | "timeline" | "grid">("tabla")
   const [currentPage, setCurrentPage] = useState(1)
@@ -438,9 +418,9 @@ export default function ReservasManager() {
   const filteredReservas = useMemo(() => {
     return reservas.filter((reserva) => {
       const matchesSearch =
-        !searchTerm ||
-        (reserva.nombre && reserva.nombre.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (reserva.numero && reserva.numero.includes(searchTerm))
+        !searchQuery ||
+        (reserva.nombre && reserva.nombre.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (reserva.numero && reserva.numero.includes(searchQuery))
 
       const matchesDepartamento = filterDepartamento === "todos" || reserva.departamento === filterDepartamento
       const matchesOrigen = filterOrigen === "todos" || reserva.origen === filterOrigen
@@ -454,23 +434,13 @@ export default function ReservasManager() {
       }
 
       let matchesCheckinDesde = true
-      if (filterCheckinDesde) {
-        matchesCheckinDesde = (reserva.fechaInicio as Date) >= filterCheckinDesde
+      if (filterFechaDesde) {
+        matchesCheckinDesde = (reserva.fechaInicio as Date) >= startOfDay(filterFechaDesde)
       }
 
       let matchesCheckinHasta = true
-      if (filterCheckinHasta) {
-        matchesCheckinHasta = (reserva.fechaInicio as Date) <= filterCheckinHasta
-      }
-
-      let matchesCheckoutDesde = true
-      if (filterCheckoutDesde) {
-        matchesCheckoutDesde = (reserva.fechaFin as Date) >= filterCheckoutDesde
-      }
-
-      let matchesCheckoutHasta = true
-      if (filterCheckoutHasta) {
-        matchesCheckoutHasta = (reserva.fechaFin as Date) <= filterCheckoutHasta
+      if (filterFechaHasta) {
+        matchesCheckinHasta = (reserva.fechaInicio as Date) <= endOfDay(filterFechaHasta)
       }
 
       const reservaMonth = (reserva.fechaInicio as Date).getMonth()
@@ -487,22 +457,18 @@ export default function ReservasManager() {
         matchesDeposito &&
         matchesCheckinDesde &&
         matchesCheckinHasta &&
-        matchesCheckoutDesde &&
-        matchesCheckoutHasta &&
         matchesMes
       )
     })
   }, [
     reservas,
-    searchTerm,
+    searchQuery,
     filterDepartamento,
     filterOrigen,
     filterPais,
     filterDeposito,
-    filterCheckinDesde,
-    filterCheckinHasta,
-    filterCheckoutDesde,
-    filterCheckoutHasta,
+    filterFechaDesde,
+    filterFechaHasta,
     filterMes,
   ])
 
@@ -523,23 +489,20 @@ export default function ReservasManager() {
     setFilterOrigen("todos")
     setFilterPais("todos")
     setFilterDeposito("todos")
-    setFilterCheckinDesde(undefined)
-    setFilterCheckinHasta(undefined)
-    setFilterCheckoutDesde(undefined)
-    setFilterCheckoutHasta(undefined)
+    setFilterFechaDesde(null)
+    setFilterFechaHasta(null)
     setFilterMes(new Date())
+    setSearchQuery("")
   }
 
   const hasActiveFilters =
-    searchTerm ||
+    searchQuery ||
     filterDepartamento !== "todos" ||
     filterOrigen !== "todos" ||
     filterPais !== "todos" ||
     filterDeposito !== "todos" ||
-    filterCheckinDesde ||
-    filterCheckinHasta ||
-    filterCheckoutDesde ||
-    filterCheckoutHasta
+    filterFechaDesde ||
+    filterFechaHasta
 
   const stats = useMemo(() => {
     const totalReservas = filteredReservas.length
@@ -626,174 +589,329 @@ export default function ReservasManager() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50">
-      <div className="container mx-auto px-4 py-6 space-y-6">
-        <DashboardMetrics
-          departamentosAlquiladosHoy={departamentosAlquiladosHoy}
-          ocupacionHoy={ocupacionHoy}
-          proximosCheckIns={proximosCheckIns}
-          proximosCheckOuts={proximosCheckOuts}
-          reservasPendientes={reservasPendientes}
-          ingresosDelMes={ingresosDelMes}
-          totalReservas={stats.totalReservas}
-          totalIngresos={stats.totalIngresos}
-          ocupacionTotal={stats.ocupacionTotal}
-          filterMes={filterMes}
-          now={now}
-          formatCurrency={formatCurrency}
-        />
+    <div className="w-full space-y-4 sm:space-y-6">
+      <DashboardMetrics
+        departamentosAlquiladosHoy={departamentosAlquiladosHoy}
+        ocupacionHoy={ocupacionHoy}
+        proximosCheckIns={proximosCheckIns}
+        proximosCheckOuts={proximosCheckOuts}
+        reservasPendientes={reservasPendientes}
+        ingresosDelMes={ingresosDelMes}
+        totalReservas={stats.totalReservas}
+        totalIngresos={stats.totalIngresos}
+        ocupacionTotal={stats.ocupacionTotal}
+        filterMes={filterMes}
+        now={now}
+        formatCurrency={formatCurrency}
+      />
 
-        {/* Check-ins/Check-outs Today Card */}
-        {(checkIns.length > 0 || checkOuts.length > 0) && (
-          <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200 shadow-lg">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Clock className="h-5 w-5 text-blue-600" />
-                <h3 className="text-lg font-bold text-blue-900">
-                  Hoy - {format(new Date(), "EEEE d 'de' MMMM", { locale: es })}
-                </h3>
-                <Button
-                  onClick={openNewDialog}
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg hidden md:flex"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nueva Reserva
-                </Button>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="bg-white rounded-lg p-4 border border-green-200 shadow-sm">
-                  <div className="flex items-center gap-2 mb-3">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <h4 className="font-semibold text-green-900">Check-ins ({checkIns.length})</h4>
-                  </div>
-                  <div className="space-y-2">
-                    {checkIns.length === 0 ? (
-                      <p className="text-sm text-gray-500">No hay check-ins hoy</p>
-                    ) : (
-                      checkIns.map((reserva) => (
-                        <div
-                          key={reserva.id}
-                          className="flex items-center justify-between p-2 bg-green-50 rounded-lg border border-green-200"
-                        >
-                          <div>
-                            <p className="font-semibold text-sm text-gray-900">{reserva.nombre}</p>
-                            <p className="text-xs text-gray-600">{reserva.departamento}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {!reserva.hizoDeposito && (
-                              <AlertTriangle className="h-4 w-4 text-red-500" title="Sin depósito" />
-                            )}
-                            <Badge className={cn("text-white text-xs", getOrigenColor(reserva.origen))}>
-                              {ORIGENES.find((o) => o.value === reserva.origen)?.label}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-lg p-4 border border-orange-200 shadow-sm">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Home className="h-4 w-4 text-orange-600" />
-                    <h4 className="font-semibold text-orange-900">Check-outs ({checkOuts.length})</h4>
-                  </div>
-                  <div className="space-y-2">
-                    {checkOuts.length === 0 ? (
-                      <p className="text-sm text-gray-500">No hay check-outs hoy</p>
-                    ) : (
-                      checkOuts.map((reserva) => (
-                        <div
-                          key={reserva.id}
-                          className="flex items-center justify-between p-2 bg-orange-50 rounded-lg border border-orange-200"
-                        >
-                          <div>
-                            <p className="font-semibold text-sm text-gray-900">{reserva.nombre}</p>
-                            <p className="text-xs text-gray-600">{reserva.departamento}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {!reserva.hizoDeposito && (
-                              <AlertTriangle className="h-4 w-4 text-red-500" title="Sin depósito" />
-                            )}
-                            <Badge className={cn("text-white text-xs", getOrigenColor(reserva.origen))}>
-                              {ORIGENES.find((o) => o.value === reserva.origen)?.label}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <Card className="border-emerald-100 shadow-lg bg-white/80 backdrop-blur-sm">
+      {/* Check-ins/Check-outs Today Card */}
+      {(checkIns.length > 0 || checkOuts.length > 0) && (
+        <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200 shadow-lg">
           <CardContent className="pt-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-emerald-900">Filtros</h3>
-                {hasActiveFilters && (
+            <div className="flex items-center gap-2 mb-4">
+              <Clock className="h-5 w-5 text-blue-600" />
+              <h3 className="text-lg font-bold text-blue-900">
+                Hoy - {format(new Date(), "EEEE d 'de' MMMM", { locale: es })}
+              </h3>
+              <Button
+                onClick={openNewDialog}
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg hidden md:flex"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nueva Reserva
+              </Button>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="bg-white rounded-lg p-4 border border-green-200 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <h4 className="font-semibold text-green-900">Check-ins ({checkIns.length})</h4>
+                </div>
+                <div className="space-y-2">
+                  {checkIns.length === 0 ? (
+                    <p className="text-sm text-gray-500">No hay check-ins hoy</p>
+                  ) : (
+                    checkIns.map((reserva) => (
+                      <div
+                        key={reserva.id}
+                        className="flex items-center justify-between p-2 bg-green-50 rounded-lg border border-green-200"
+                      >
+                        <div>
+                          <p className="font-semibold text-sm text-gray-900">{reserva.nombre}</p>
+                          <p className="text-xs text-gray-600">{reserva.departamento}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {!reserva.hizoDeposito && (
+                            <AlertTriangle className="h-4 w-4 text-red-500" title="Sin depósito" />
+                          )}
+                          <Badge className={cn("text-white text-xs", getOrigenColor(reserva.origen))}>
+                            {ORIGENES.find((o) => o.value === reserva.origen)?.label}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg p-4 border border-orange-200 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <Home className="h-4 w-4 text-orange-600" />
+                  <h4 className="font-semibold text-orange-900">Check-outs ({checkOuts.length})</h4>
+                </div>
+                <div className="space-y-2">
+                  {checkOuts.length === 0 ? (
+                    <p className="text-sm text-gray-500">No hay check-outs hoy</p>
+                  ) : (
+                    checkOuts.map((reserva) => (
+                      <div
+                        key={reserva.id}
+                        className="flex items-center justify-between p-2 bg-orange-50 rounded-lg border border-orange-200"
+                      >
+                        <div>
+                          <p className="font-semibold text-sm text-gray-900">{reserva.nombre}</p>
+                          <p className="text-xs text-gray-600">{reserva.departamento}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {!reserva.hizoDeposito && (
+                            <AlertTriangle className="h-4 w-4 text-red-500" title="Sin depósito" />
+                          )}
+                          <Badge className={cn("text-white text-xs", getOrigenColor(reserva.origen))}>
+                            {ORIGENES.find((o) => o.value === reserva.origen)?.label}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-emerald-200 shadow-lg">
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="filterMes" className="text-emerald-900 font-semibold text-xs">
+                Mes
+              </Label>
+              <Popover>
+                <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    size="sm"
-                    onClick={clearAllFilters}
-                    className="text-red-600 hover:text-red-700 bg-transparent"
+                    className="w-full justify-start border-emerald-200 hover:bg-emerald-50 text-xs h-9 bg-transparent"
                   >
-                    <X className="h-4 w-4 mr-1" />
-                    Limpiar filtros
+                    <CalendarIcon className="mr-2 h-3.5 w-3.5 text-emerald-600" />
+                    <span className="truncate">{format(filterMes, "MMMM yyyy", { locale: es })}</span>
                   </Button>
-                )}
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={filterMes}
+                    onSelect={(date) => date && setFilterMes(date)}
+                    locale={es}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="filterDepartamento" className="text-emerald-900 font-semibold text-xs">
+                Departamento
+              </Label>
+              <Select value={filterDepartamento} onValueChange={setFilterDepartamento}>
+                <SelectTrigger className="border-emerald-200 focus:border-emerald-400 text-xs h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  {cabins.map((cabin) => (
+                    <SelectItem key={cabin.id} value={cabin.name}>
+                      {cabin.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="filterOrigen" className="text-emerald-900 font-semibold text-xs">
+                Origen
+              </Label>
+              <Select value={filterOrigen} onValueChange={setFilterOrigen}>
+                <SelectTrigger className="border-emerald-200 focus:border-emerald-400 text-xs h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  {ORIGENES.map((origen) => (
+                    <SelectItem key={origen.value} value={origen.value}>
+                      {origen.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="filterPais" className="text-emerald-900 font-semibold text-xs">
+                País
+              </Label>
+              <Select value={filterPais} onValueChange={setFilterPais}>
+                <SelectTrigger className="border-emerald-200 focus:border-emerald-400 text-xs h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  {PAISES.map((pais) => (
+                    <SelectItem key={pais.code} value={pais.code}>
+                      {pais.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="filterDeposito" className="text-emerald-900 font-semibold text-xs">
+                Depósito
+              </Label>
+              <Select value={filterDeposito} onValueChange={setFilterDeposito}>
+                <SelectTrigger className="border-emerald-200 focus:border-emerald-400 text-xs h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="si">Sí</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-emerald-900 font-semibold text-xs">Check-in desde</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start border-emerald-200 hover:bg-emerald-50 text-xs h-9 bg-transparent"
+                  >
+                    <CalendarIcon className="mr-2 h-3.5 w-3.5 text-emerald-600" />
+                    <span className="truncate">
+                      {filterFechaDesde ? format(filterFechaDesde, "dd/MM/yyyy") : "Seleccionar..."}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={filterFechaDesde || undefined}
+                    onSelect={(date) => setFilterFechaDesde(date || null)}
+                    locale={es}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-emerald-900 font-semibold text-xs">Check-in hasta</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start border-emerald-200 hover:bg-emerald-50 text-xs h-9 bg-transparent"
+                  >
+                    <CalendarIcon className="mr-2 h-3.5 w-3.5 text-emerald-600" />
+                    <span className="truncate">
+                      {filterFechaHasta ? format(filterFechaHasta, "dd/MM/yyyy") : "Seleccionar..."}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={filterFechaHasta || undefined}
+                    onSelect={(date) => setFilterFechaHasta(date || null)}
+                    locale={es}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="searchQuery" className="text-emerald-900 font-semibold text-xs">
+                Buscar
+              </Label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                <Input
+                  id="searchQuery"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Nombre o teléfono..."
+                  className="pl-8 border-emerald-200 focus:border-emerald-400 text-xs h-9"
+                />
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-emerald-900 font-semibold">Mes</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start bg-white hover:bg-emerald-50 border-emerald-200"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
-                        <span className="truncate">{format(filterMes, "MMMM yyyy", { locale: es })}</span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <div className="p-3 space-y-2 bg-white">
-                        <div className="flex items-center justify-between">
-                          <Button variant="outline" size="icon" onClick={() => setFilterMes(subMonths(filterMes, 1))}>
-                            <ChevronLeft className="h-4 w-4" />
-                          </Button>
-                          <span className="font-semibold text-emerald-900">
-                            {format(filterMes, "MMMM yyyy", { locale: es })}
-                          </span>
-                          <Button variant="outline" size="icon" onClick={() => setFilterMes(addMonths(filterMes, 1))}>
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <Button
-                          variant="outline"
-                          className="w-full bg-emerald-50 hover:bg-emerald-100 border-emerald-200"
-                          onClick={() => setFilterMes(new Date())}
-                        >
-                          Mes actual
-                        </Button>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
+      <ReservasViewTabs
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        filteredReservas={filteredReservas}
+        cabins={cabins}
+        filterMes={filterMes}
+        setViewingReserva={setViewingReserva}
+        openEditDialog={openEditDialog}
+        setDeleteReserva={setDeleteReserva}
+      />
 
+      {/* Dialog for creating/editing reservation */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-emerald-50/30">
+          <DialogHeader>
+            <DialogTitle className="text-xl md:text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+              {editingReserva ? "Editar Reserva" : "Nueva Reserva"}
+            </DialogTitle>
+            <DialogDescription className="text-sm md:text-base text-gray-600">
+              {editingReserva
+                ? "Modifica los datos de la reserva existente"
+                : "Completa los datos para crear una nueva reserva"}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
+            {/* Departamento y Fechas */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-emerald-100 shadow-sm">
+              <h3 className="font-semibold text-base md:text-lg text-emerald-900 mb-4 flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 md:h-5 md:w-5" />
+                Fechas y Ubicación
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-emerald-900 font-semibold">Departamento</Label>
-                  <Select value={filterDepartamento} onValueChange={setFilterDepartamento}>
-                    <SelectTrigger className="bg-white border-emerald-200 hover:bg-emerald-50">
+                  <Label htmlFor="departamento" className="text-emerald-900 font-semibold text-sm">
+                    Departamento *
+                  </Label>
+                  <Select
+                    value={formData.departamento}
+                    onValueChange={(value) => setFormData({ ...formData, departamento: value })}
+                  >
+                    <SelectTrigger className="border-emerald-200 focus:border-emerald-400">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
                       {cabins.map((cabin) => (
                         <SelectItem key={cabin.id} value={cabin.name}>
                           {cabin.name}
@@ -803,31 +921,96 @@ export default function ReservasManager() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-emerald-900 font-semibold">Origen</Label>
-                  <Select value={filterOrigen} onValueChange={setFilterOrigen}>
-                    <SelectTrigger className="bg-white border-emerald-200 hover:bg-emerald-50">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      {ORIGENES.map((origen) => (
-                        <SelectItem key={origen.value} value={origen.value}>
-                          {origen.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-emerald-900 font-semibold text-sm">Fechas de Estadía *</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-white text-sm"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
+                        <span>
+                          {format(formData.fechaInicio, "dd/MM/yyyy")} → {format(formData.fechaFin, "dd/MM/yyyy")}
+                        </span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="range"
+                        selected={{
+                          from: formData.fechaInicio,
+                          to: formData.fechaFin,
+                        }}
+                        onSelect={(range) => {
+                          if (range?.from && range?.to) {
+                            // Solo actualizar cuando ambas fechas estén seleccionadas
+                            setFormData({
+                              ...formData,
+                              fechaInicio: range.from,
+                              fechaFin: range.to,
+                            })
+                            // Cerrar el popover después de seleccionar ambas fechas
+                            document.querySelector('[data-state="open"]')?.querySelector("button")?.click()
+                          } else if (range?.from) {
+                            // Primera fecha seleccionada, actualizar solo inicio
+                            setFormData({
+                              ...formData,
+                              fechaInicio: range.from,
+                              fechaFin: range.from, // Temporalmente igual hasta que seleccione la segunda
+                            })
+                          }
+                        }}
+                        locale={es}
+                        numberOfMonths={2}
+                        disabled={(date) => isBefore(date, startOfDay(new Date()))}
+                        defaultMonth={formData.fechaInicio}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Selecciona la fecha de entrada y luego la fecha de salida
+                  </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-emerald-900 font-semibold">País</Label>
-                  <Select value={filterPais} onValueChange={setFilterPais}>
-                    <SelectTrigger className="bg-white border-emerald-200 hover:bg-emerald-50">
+                  <Label className="text-gray-600 font-semibold text-sm">Noches</Label>
+                  <div className="flex items-center h-10 px-4 border-2 border-emerald-300 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50">
+                    <span className="text-lg md:text-xl font-bold text-emerald-700">
+                      {calculateNights(formData.fechaInicio, formData.fechaFin)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Datos del Cliente */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-blue-100 shadow-sm">
+              <h3 className="font-semibold text-base md:text-lg text-blue-900 mb-4">Datos del Cliente</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="nombre" className="text-blue-900 font-semibold text-sm">
+                    Nombre Completo *
+                  </Label>
+                  <Input
+                    id="nombre"
+                    value={formData.nombre}
+                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                    placeholder="Juan Pérez"
+                    required
+                    className="border-blue-200 focus:border-blue-400"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="pais" className="text-blue-900 font-semibold text-sm">
+                    País *
+                  </Label>
+                  <Select value={formData.pais} onValueChange={(value) => setFormData({ ...formData, pais: value })}>
+                    <SelectTrigger className="border-blue-200 focus:border-blue-400">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
                       {PAISES.map((pais) => (
                         <SelectItem key={pais.code} value={pais.code}>
                           {pais.name}
@@ -838,805 +1021,344 @@ export default function ReservasManager() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-emerald-900 font-semibold">Depósito</Label>
-                  <Select value={filterDeposito} onValueChange={setFilterDeposito}>
-                    <SelectTrigger className="bg-white border-emerald-200 hover:bg-emerald-50">
+                  <Label htmlFor="numero" className="text-blue-900 font-semibold text-sm">
+                    Teléfono
+                  </Label>
+                  <Input
+                    id="numero"
+                    value={formData.numero}
+                    onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
+                    placeholder="+54 11 1234-5678"
+                    className="border-blue-200 focus:border-blue-400"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cantidadAdultos" className="text-blue-900 font-semibold text-sm">
+                    Cantidad de Adultos
+                  </Label>
+                  <Input
+                    id="cantidadAdultos"
+                    type="number"
+                    value={formData.cantidadAdultos || 0}
+                    onChange={(e) => setFormData({ ...formData, cantidadAdultos: Number(e.target.value) })}
+                    placeholder="0"
+                    className="border-blue-200 focus:border-blue-400"
+                    min={0}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cantidadMenores" className="text-blue-900 font-semibold text-sm">
+                    Cantidad de Menores
+                  </Label>
+                  <Input
+                    id="cantidadMenores"
+                    type="number"
+                    value={formData.cantidadMenores || 0}
+                    onChange={(e) => setFormData({ ...formData, cantidadMenores: Number(e.target.value) })}
+                    placeholder="0"
+                    className="border-blue-200 focus:border-blue-400"
+                    min={0}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Origen de la Reserva */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-purple-100 shadow-sm">
+              <h3 className="font-semibold text-base md:text-lg text-purple-900 mb-4">Origen de la Reserva</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="origen" className="text-purple-900 font-semibold text-sm">
+                    Origen *
+                  </Label>
+                  <Select
+                    value={formData.origen}
+                    onValueChange={(value: OrigenReserva) => setFormData({ ...formData, origen: value })}
+                  >
+                    <SelectTrigger className="border-purple-200 focus:border-purple-400">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      <SelectItem value="si">Sí</SelectItem>
-                      <SelectItem value="no">No</SelectItem>
+                      {ORIGENES.map((origen) => (
+                        <SelectItem key={origen.value} value={origen.value}>
+                          {origen.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {formData.origen === "particular" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="contactoParticular" className="text-purple-900 font-semibold text-sm">
+                      Contacto
+                    </Label>
+                    <Select
+                      value={formData.contactoParticular || ""}
+                      onValueChange={(value: ContactoParticular) =>
+                        setFormData({ ...formData, contactoParticular: value })
+                      }
+                    >
+                      <SelectTrigger className="border-purple-200 focus:border-purple-400">
+                        <SelectValue placeholder="Seleccionar..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CONTACTOS_PARTICULARES.map((contacto) => (
+                          <SelectItem key={contacto} value={contacto}>
+                            {contacto}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Precios */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-green-100 shadow-sm">
+              <h3 className="font-semibold text-base md:text-lg text-green-900 mb-4 flex items-center gap-2">
+                <DollarSign className="h-4 w-4 md:h-5 md:w-5" />
+                Precios y Pagos
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Currency Selector */}
+                <div className="space-y-2">
+                  <Label htmlFor="moneda" className="text-green-900 font-semibold text-sm">
+                    Moneda
+                  </Label>
+                  <Select
+                    value={formData.moneda}
+                    onValueChange={(value: string) => {
+                      const currentPrecioNoche = formData.precioNoche || { pesos: 0 }
+                      const existingValue = currentPrecioNoche[value as keyof PrecioNoche] || 0
+                      setFormData({
+                        ...formData,
+                        moneda: value,
+                        precioNoche: { ...currentPrecioNoche, [value]: existingValue }, // Keep existing value if available for the new currency, otherwise 0
+                      })
+                    }}
+                  >
+                    <SelectTrigger className="border-green-200 focus:border-green-400">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAISES.map((pais) => (
+                        <SelectItem key={pais.code} value={pais.code}>
+                          {pais.name} ({pais.currency})
+                        </SelectItem>
+                      ))}
+                      {/* Add any other relevant currencies if needed */}
+                      <SelectItem value="USD">Dólar Estadounidense (USD)</SelectItem>
+                      <SelectItem value="EUR">Euro (EUR)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-emerald-900 font-semibold">Check-in desde</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start bg-white hover:bg-emerald-50 border-emerald-200"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
-                        <span className="truncate">
-                          {filterCheckinDesde ? format(filterCheckinDesde, "dd/MM/yyyy") : "Seleccionar..."}
-                        </span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={filterCheckinDesde}
-                        onSelect={setFilterCheckinDesde}
-                        locale={es}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <Label htmlFor="precioNoche" className="text-green-900 font-semibold text-sm">
+                    Precio por Noche ({formData.moneda})
+                  </Label>
+                  <Input
+                    id="precioNoche"
+                    type="number"
+                    value={formData.precioNoche[formData.moneda as keyof PrecioNoche] || 0}
+                    onChange={(e) => {
+                      const currentCurrency = formData.moneda as keyof PrecioNoche
+                      const newPrecioNocheValue = Number(e.target.value)
+                      setFormData({
+                        ...formData,
+                        precioNoche: { ...formData.precioNoche, [currentCurrency]: newPrecioNocheValue },
+                        // Optionally update precioTotal automatically if it's 0 or based on nights
+                        precioTotal:
+                          formData.precioTotal === 0
+                            ? newPrecioNocheValue * calculateNights(formData.fechaInicio, formData.fechaFin)
+                            : formData.precioTotal,
+                      })
+                    }}
+                    placeholder="0"
+                    className="border-green-200 focus:border-green-400"
+                    min={0}
+                  />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-emerald-900 font-semibold">Check-in hasta</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start bg-white hover:bg-emerald-50 border-emerald-200"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
-                        <span className="truncate">
-                          {filterCheckinHasta ? format(filterCheckinHasta, "dd/MM/yyyy") : "Seleccionar..."}
-                        </span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={filterCheckinHasta}
-                        onSelect={setFilterCheckinHasta}
-                        locale={es}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <Label htmlFor="precioTotal" className="text-green-900 font-semibold text-sm">
+                    Precio Total *
+                  </Label>
+                  <Input
+                    id="precioTotal"
+                    type="number"
+                    value={formData.precioTotal}
+                    onChange={(e) => setFormData({ ...formData, precioTotal: Number(e.target.value) })}
+                    placeholder="0"
+                    required
+                    className="border-green-200 focus:border-green-400"
+                    min={0}
+                  />
                 </div>
 
-                <div className="space-y-2 sm:col-span-2 lg:col-span-1">
-                  <Label className="text-emerald-900 font-semibold">Buscar</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-emerald-600" />
-                    <Input
-                      placeholder="Nombre o teléfono..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 bg-white border-emerald-200 focus:border-emerald-400"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="precioImpuestos" className="text-green-900 font-semibold text-sm">
+                    Impuestos
+                  </Label>
+                  <Input
+                    id="precioImpuestos"
+                    type="number"
+                    value={formData.precioImpuestos}
+                    onChange={(e) => setFormData({ ...formData, precioImpuestos: Number(e.target.value) })}
+                    placeholder="0"
+                    className="border-green-200 focus:border-green-400"
+                    min={0}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="precioGanancia" className="text-green-900 font-semibold text-sm">
+                    Ganancia
+                  </Label>
+                  <Input
+                    id="precioGanancia"
+                    type="number"
+                    value={formData.precioGanancia}
+                    onChange={(e) => setFormData({ ...formData, precioGanancia: Number(e.target.value) })}
+                    placeholder="0"
+                    className="border-green-200 focus:border-green-400"
+                    min={0}
+                  />
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
 
-        <Tabs value={viewMode} onValueChange={(value: string) => setViewMode(value as any)}>
-          <TabsList className="grid w-full grid-cols-3 bg-transparent border-b border-emerald-200 mb-4">
-            <TabsTrigger
-              value="tabla"
-              className="data-[state=active]:bg-emerald-50 data-[state=active]:shadow-inner data-[state=active]:border-b-2 data-[state=active]:border-emerald-500 text-emerald-700 hover:bg-emerald-50 transition-all duration-200"
-            >
-              <Table className="h-4 w-4 mr-2" /> Tabla
-            </TabsTrigger>
-            <TabsTrigger
-              value="timeline"
-              className="data-[state=active]:bg-blue-50 data-[state=active]:shadow-inner data-[state=active]:border-b-2 data-[state=active]:border-blue-500 text-blue-700 hover:bg-blue-50 transition-all duration-200"
-            >
-              <TrendingUp className="h-4 w-4 mr-2" /> Cronograma
-            </TabsTrigger>
-            <TabsTrigger
-              value="grid"
-              className="data-[state=active]:bg-purple-50 data-[state=active]:shadow-inner data-[state=active]:border-b-2 data-[state=active]:border-purple-500 text-purple-700 hover:bg-purple-50 transition-all duration-200"
-            >
-              <Home className="h-4 w-4 mr-2" /> Cuadrícula
-            </TabsTrigger>
-          </TabsList>
+              <div className="flex items-center space-x-2 pt-4 mt-4 border-t border-green-100">
+                <Checkbox
+                  id="hizoDeposito"
+                  checked={formData.hizoDeposito}
+                  onCheckedChange={(checked) => setFormData({ ...formData, hizoDeposito: checked as boolean })}
+                  className="border-green-300"
+                />
+                <Label htmlFor="hizoDeposito" className="font-semibold cursor-pointer text-green-900 text-sm">
+                  ¿Hizo depósito?
+                </Label>
+              </div>
 
-          {viewMode === "tabla" && (
-            <TabsContent value="tabla" className="space-y-4 mt-0">
-              <Card className="border-emerald-100 shadow-lg bg-white/80 backdrop-blur-sm">
-                <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b-2 border-emerald-200">
-                          <TableHead className="font-bold text-emerald-900">Departamento</TableHead>
-                          <TableHead className="font-bold text-emerald-900">Check-in</TableHead>
-                          <TableHead className="font-bold text-emerald-900">Check-out</TableHead>
-                          <TableHead className="text-center font-bold text-emerald-900">Noches</TableHead>
-                          <TableHead className="font-bold text-emerald-900">Nombre</TableHead>
-                          <TableHead className="font-bold text-emerald-900">País</TableHead>
-                          <TableHead className="font-bold text-emerald-900">Teléfono</TableHead>
-                          <TableHead className="font-bold text-emerald-900">Origen</TableHead>
-                          <TableHead className="font-bold text-emerald-900">Contacto</TableHead>
-                          <TableHead className="text-center font-bold text-emerald-900">Depósito</TableHead>
-                          <TableHead className="text-right font-bold text-emerald-900">$ Noche</TableHead>
-                          <TableHead className="text-right font-bold text-emerald-900">$ Total</TableHead>
-                          <TableHead className="text-center font-bold text-emerald-900">Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {paginatedReservas.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={13} className="text-center py-12 text-gray-500">
-                              <div className="flex flex-col items-center gap-3">
-                                <CalendarIcon className="h-12 w-12 text-gray-300" />
-                                <p className="text-lg font-medium">No se encontraron reservas</p>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          paginatedReservas.map((reserva) => {
-                            const nights = calculateNights(reserva.fechaInicio as Date, reserva.fechaFin as Date)
-                            const currency = getCurrency(reserva.pais, reserva.origen)
-                            const precioNoche =
-                              reserva.precioNoche && typeof reserva.precioNoche === "object"
-                                ? reserva.precioNoche[currency as keyof PrecioNoche] || 0
-                                : 0
-                            const hasAlert = needsPaymentAlert(reserva)
-
-                            return (
-                              <TableRow
-                                key={reserva.id}
-                                className={cn(
-                                  "hover:bg-emerald-50/50 transition-colors duration-150 border-b border-emerald-100",
-                                  hasAlert && "bg-red-50/50 hover:bg-red-50",
-                                )}
-                              >
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    {hasAlert && (
-                                      <AlertTriangle
-                                        className="h-4 w-4 text-red-500 flex-shrink-0"
-                                        title="Reserva vencida sin pago"
-                                      />
-                                    )}
-                                    <Badge
-                                      variant="outline"
-                                      className="font-medium border-emerald-300 text-emerald-700 bg-emerald-50"
-                                    >
-                                      {reserva.departamento}
-                                    </Badge>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="font-medium text-gray-700">
-                                  {format(reserva.fechaInicio as Date, "dd/MM/yy")}
-                                </TableCell>
-                                <TableCell className="font-medium text-gray-700">
-                                  {format(reserva.fechaFin as Date, "dd/MM/yy")}
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold">
-                                    {nights}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="font-medium text-gray-900">{reserva.nombre}</TableCell>
-                                <TableCell className="text-gray-600">
-                                  {PAISES.find((p) => p.code === reserva.pais)?.name || reserva.pais}
-                                </TableCell>
-                                <TableCell className="font-mono text-sm text-gray-700">{reserva.numero}</TableCell>
-                                <TableCell>
-                                  <Badge
-                                    className={cn("text-white font-medium shadow-sm", getOrigenColor(reserva.origen))}
-                                  >
-                                    {ORIGENES.find((o) => o.value === reserva.origen)?.label}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-gray-600">
-                                  {reserva.origen === "particular" && reserva.contactoParticular
-                                    ? reserva.contactoParticular
-                                    : "-"}
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  {reserva.hizoDeposito ? (
-                                    <Badge
-                                      variant="default"
-                                      className="bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-sm"
-                                    >
-                                      Sí
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="secondary" className="bg-gray-200 text-gray-600">
-                                      No
-                                    </Badge>
-                                  )}
-                                </TableCell>
-                                <TableCell className="text-right font-semibold text-gray-700">
-                                  ${precioNoche.toLocaleString()}
-                                </TableCell>
-                                <TableCell className="text-right font-bold text-emerald-600 text-lg">
-                                  ${(reserva.precioTotal || 0).toLocaleString()}
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex items-center justify-center gap-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => setViewingReserva(reserva)}
-                                      title="Ver detalles"
-                                      className="hover:bg-blue-50 hover:text-blue-600"
-                                    >
-                                      <Eye className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => openEditDialog(reserva)}
-                                      title="Editar"
-                                      className="hover:bg-emerald-50 hover:text-emerald-600"
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => setDeleteReserva(reserva)}
-                                      title="Eliminar"
-                                      className="hover:bg-red-50 text-red-600 hover:text-red-700"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            )
-                          })
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-
-                  {totalPages > 1 && (
-                    <div className="flex items-center justify-between p-4 border-t border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50">
-                      <div className="text-sm text-gray-600 font-medium">
-                        Mostrando {(currentPage - 1) * itemsPerPage + 1} -{" "}
-                        {Math.min(currentPage * itemsPerPage, filteredReservas.length)} de {filteredReservas.length}{" "}
-                        reservas
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                          disabled={currentPage === 1}
-                          className="border-emerald-300 hover:bg-emerald-50"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <div className="text-sm font-semibold text-emerald-900 px-3">
-                          Página {currentPage} de {totalPages}
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                          disabled={currentPage === totalPages}
-                          className="border-emerald-300 hover:bg-emerald-50"
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          )}
-
-          {viewMode === "timeline" && (
-            <TabsContent value="timeline" className="mt-0">
-              <TimelineView
-                reservas={filteredReservas}
-                mes={filterMes}
-                cabins={cabins}
-                setViewingReserva={setViewingReserva}
-              />
-            </TabsContent>
-          )}
-
-          {viewMode === "grid" && (
-            <TabsContent value="grid" className="mt-0">
-              <GridView
-                reservas={filteredReservas}
-                mes={filterMes}
-                cabins={cabins}
-                setViewingReserva={setViewingReserva}
-              />
-            </TabsContent>
-          )}
-        </Tabs>
-
-        {/* Dialog for creating/editing reservation */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-emerald-50/30">
-            <DialogHeader>
-              <DialogTitle className="text-xl md:text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                {editingReserva ? "Editar Reserva" : "Nueva Reserva"}
-              </DialogTitle>
-              <DialogDescription className="text-sm md:text-base text-gray-600">
-                {editingReserva
-                  ? "Modifica los datos de la reserva existente"
-                  : "Completa los datos para crear una nueva reserva"}
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
-              {/* Departamento y Fechas */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-emerald-100 shadow-sm">
-                <h3 className="font-semibold text-base md:text-lg text-emerald-900 mb-4 flex items-center gap-2">
-                  <CalendarIcon className="h-4 w-4 md:h-5 md:w-5" />
-                  Fechas y Ubicación
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {formData.hizoDeposito && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="departamento" className="text-emerald-900 font-semibold text-sm">
-                      Departamento *
+                    <Label htmlFor="montoDeposito" className="text-green-900 font-semibold text-sm">
+                      Monto del Depósito
                     </Label>
-                    <Select
-                      value={formData.departamento}
-                      onValueChange={(value) => setFormData({ ...formData, departamento: value })}
-                    >
-                      <SelectTrigger className="border-emerald-200 focus:border-emerald-400">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {cabins.map((cabin) => (
-                          <SelectItem key={cabin.id} value={cabin.name}>
-                            {cabin.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Input
+                      id="montoDeposito"
+                      type="number"
+                      value={formData.montoDeposito || 0}
+                      onChange={(e) => setFormData({ ...formData, montoDeposito: Number(e.target.value) })}
+                      placeholder="0"
+                      className="border-green-200 focus:border-green-400"
+                      min={0}
+                    />
                   </div>
 
-                  <div className="space-y-2 md:col-span-2">
-                    <Label className="text-emerald-900 font-semibold text-sm">Fechas de Estadía *</Label>
+                  <div className="space-y-2">
+                    <Label className="text-green-900 font-semibold text-sm">Fecha del Depósito</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-white text-sm"
+                          className="w-full justify-start border-green-200 hover:bg-green-50 bg-white text-sm"
                         >
-                          <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
-                          <span>
-                            {format(formData.fechaInicio, "dd/MM/yyyy")} → {format(formData.fechaFin, "dd/MM/yyyy")}
-                          </span>
+                          <CalendarIcon className="mr-2 h-4 w-4 text-green-600" />
+                          {formData.fechaDeposito ? format(formData.fechaDeposito, "dd/MM/yyyy") : "Seleccionar fecha"}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent className="w-auto p-0">
                         <Calendar
-                          mode="range"
-                          selected={{
-                            from: formData.fechaInicio,
-                            to: formData.fechaFin,
-                          }}
-                          onSelect={(range) => {
-                            if (range?.from && range?.to) {
-                              // Solo actualizar cuando ambas fechas estén seleccionadas
-                              setFormData({
-                                ...formData,
-                                fechaInicio: range.from,
-                                fechaFin: range.to,
-                              })
-                              // Cerrar el popover después de seleccionar ambas fechas
-                              document.querySelector('[data-state="open"]')?.querySelector("button")?.click()
-                            } else if (range?.from) {
-                              // Primera fecha seleccionada, actualizar solo inicio
-                              setFormData({
-                                ...formData,
-                                fechaInicio: range.from,
-                                fechaFin: range.from, // Temporalmente igual hasta que seleccione la segunda
-                              })
-                            }
-                          }}
+                          mode="single"
+                          selected={formData.fechaDeposito}
+                          onSelect={(date) => date && setFormData({ ...formData, fechaDeposito: date })}
                           locale={es}
-                          numberOfMonths={2}
-                          disabled={(date) => isBefore(date, startOfDay(new Date()))}
-                          defaultMonth={formData.fechaInicio}
                         />
                       </PopoverContent>
                     </Popover>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Selecciona la fecha de entrada y luego la fecha de salida
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-gray-600 font-semibold text-sm">Noches</Label>
-                    <div className="flex items-center h-10 px-4 border-2 border-emerald-300 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50">
-                      <span className="text-lg md:text-xl font-bold text-emerald-700">
-                        {calculateNights(formData.fechaInicio, formData.fechaFin)}
-                      </span>
-                    </div>
                   </div>
                 </div>
-              </div>
+              )}
+            </div>
 
-              {/* Datos del Cliente */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-blue-100 shadow-sm">
-                <h3 className="font-semibold text-base md:text-lg text-blue-900 mb-4">Datos del Cliente</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="nombre" className="text-blue-900 font-semibold text-sm">
-                      Nombre Completo *
-                    </Label>
-                    <Input
-                      id="nombre"
-                      value={formData.nombre}
-                      onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                      placeholder="Juan Pérez"
-                      required
-                      className="border-blue-200 focus:border-blue-400"
-                    />
-                  </div>
+            {/* Notas */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-gray-200 shadow-sm">
+              <Label htmlFor="notas" className="text-gray-900 font-semibold text-sm md:text-base">
+                Notas
+              </Label>
+              <Textarea
+                id="notas"
+                value={formData.notas || ""}
+                onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
+                placeholder="Información adicional sobre la reserva..."
+                rows={3}
+                className="mt-2 border-gray-300 focus:border-gray-400"
+              />
+            </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="pais" className="text-blue-900 font-semibold text-sm">
-                      País *
-                    </Label>
-                    <Select value={formData.pais} onValueChange={(value) => setFormData({ ...formData, pais: value })}>
-                      <SelectTrigger className="border-blue-200 focus:border-blue-400">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PAISES.map((pais) => (
-                          <SelectItem key={pais.code} value={pais.code}>
-                            {pais.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsDialogOpen(false)}
+                className="border-gray-300"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg"
+              >
+                {editingReserva ? "Guardar Cambios" : "Crear Reserva"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="numero" className="text-blue-900 font-semibold text-sm">
-                      Teléfono
-                    </Label>
-                    <Input
-                      id="numero"
-                      value={formData.numero}
-                      onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
-                      placeholder="+54 11 1234-5678"
-                      className="border-blue-200 focus:border-blue-400"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="cantidadAdultos" className="text-blue-900 font-semibold text-sm">
-                      Cantidad de Adultos
-                    </Label>
-                    <Input
-                      id="cantidadAdultos"
-                      type="number"
-                      value={formData.cantidadAdultos || 0}
-                      onChange={(e) => setFormData({ ...formData, cantidadAdultos: Number(e.target.value) })}
-                      placeholder="0"
-                      className="border-blue-200 focus:border-blue-400"
-                      min={0}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="cantidadMenores" className="text-blue-900 font-semibold text-sm">
-                      Cantidad de Menores
-                    </Label>
-                    <Input
-                      id="cantidadMenores"
-                      type="number"
-                      value={formData.cantidadMenores || 0}
-                      onChange={(e) => setFormData({ ...formData, cantidadMenores: Number(e.target.value) })}
-                      placeholder="0"
-                      className="border-blue-200 focus:border-blue-400"
-                      min={0}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Origen de la Reserva */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-purple-100 shadow-sm">
-                <h3 className="font-semibold text-base md:text-lg text-purple-900 mb-4">Origen de la Reserva</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="origen" className="text-purple-900 font-semibold text-sm">
-                      Origen *
-                    </Label>
-                    <Select
-                      value={formData.origen}
-                      onValueChange={(value: OrigenReserva) => setFormData({ ...formData, origen: value })}
-                    >
-                      <SelectTrigger className="border-purple-200 focus:border-purple-400">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ORIGENES.map((origen) => (
-                          <SelectItem key={origen.value} value={origen.value}>
-                            {origen.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {formData.origen === "particular" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="contactoParticular" className="text-purple-900 font-semibold text-sm">
-                        Contacto
-                      </Label>
-                      <Select
-                        value={formData.contactoParticular || ""}
-                        onValueChange={(value: ContactoParticular) =>
-                          setFormData({ ...formData, contactoParticular: value })
-                        }
-                      >
-                        <SelectTrigger className="border-purple-200 focus:border-purple-400">
-                          <SelectValue placeholder="Seleccionar..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {CONTACTOS_PARTICULARES.map((contacto) => (
-                            <SelectItem key={contacto} value={contacto}>
-                              {contacto}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Precios */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-green-100 shadow-sm">
-                <h3 className="font-semibold text-base md:text-lg text-green-900 mb-4 flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 md:h-5 md:w-5" />
-                  Precios y Pagos
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Currency Selector */}
-                  <div className="space-y-2">
-                    <Label htmlFor="moneda" className="text-green-900 font-semibold text-sm">
-                      Moneda
-                    </Label>
-                    <Select
-                      value={formData.moneda}
-                      onValueChange={(value: string) => {
-                        const currentPrecioNoche = formData.precioNoche || { pesos: 0 }
-                        const existingValue = currentPrecioNoche[value as keyof PrecioNoche] || 0
-                        setFormData({
-                          ...formData,
-                          moneda: value,
-                          precioNoche: { ...currentPrecioNoche, [value]: existingValue }, // Keep existing value if available for the new currency, otherwise 0
-                        })
-                      }}
-                    >
-                      <SelectTrigger className="border-green-200 focus:border-green-400">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PAISES.map((pais) => (
-                          <SelectItem key={pais.code} value={pais.code}>
-                            {pais.name} ({pais.currency})
-                          </SelectItem>
-                        ))}
-                        {/* Add any other relevant currencies if needed */}
-                        <SelectItem value="USD">Dólar Estadounidense (USD)</SelectItem>
-                        <SelectItem value="EUR">Euro (EUR)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="precioNoche" className="text-green-900 font-semibold text-sm">
-                      Precio por Noche ({formData.moneda})
-                    </Label>
-                    <Input
-                      id="precioNoche"
-                      type="number"
-                      value={formData.precioNoche[formData.moneda as keyof PrecioNoche] || 0}
-                      onChange={(e) => {
-                        const currentCurrency = formData.moneda as keyof PrecioNoche
-                        const newPrecioNocheValue = Number(e.target.value)
-                        setFormData({
-                          ...formData,
-                          precioNoche: { ...formData.precioNoche, [currentCurrency]: newPrecioNocheValue },
-                          // Optionally update precioTotal automatically if it's 0 or based on nights
-                          precioTotal:
-                            formData.precioTotal === 0
-                              ? newPrecioNocheValue * calculateNights(formData.fechaInicio, formData.fechaFin)
-                              : formData.precioTotal,
-                        })
-                      }}
-                      placeholder="0"
-                      className="border-green-200 focus:border-green-400"
-                      min={0}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="precioTotal" className="text-green-900 font-semibold text-sm">
-                      Precio Total *
-                    </Label>
-                    <Input
-                      id="precioTotal"
-                      type="number"
-                      value={formData.precioTotal}
-                      onChange={(e) => setFormData({ ...formData, precioTotal: Number(e.target.value) })}
-                      placeholder="0"
-                      required
-                      className="border-green-200 focus:border-green-400"
-                      min={0}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="precioImpuestos" className="text-green-900 font-semibold text-sm">
-                      Impuestos
-                    </Label>
-                    <Input
-                      id="precioImpuestos"
-                      type="number"
-                      value={formData.precioImpuestos}
-                      onChange={(e) => setFormData({ ...formData, precioImpuestos: Number(e.target.value) })}
-                      placeholder="0"
-                      className="border-green-200 focus:border-green-400"
-                      min={0}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="precioGanancia" className="text-green-900 font-semibold text-sm">
-                      Ganancia
-                    </Label>
-                    <Input
-                      id="precioGanancia"
-                      type="number"
-                      value={formData.precioGanancia}
-                      onChange={(e) => setFormData({ ...formData, precioGanancia: Number(e.target.value) })}
-                      placeholder="0"
-                      className="border-green-200 focus:border-green-400"
-                      min={0}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2 pt-4 mt-4 border-t border-green-100">
-                  <Checkbox
-                    id="hizoDeposito"
-                    checked={formData.hizoDeposito}
-                    onCheckedChange={(checked) => setFormData({ ...formData, hizoDeposito: checked as boolean })}
-                    className="border-green-300"
-                  />
-                  <Label htmlFor="hizoDeposito" className="font-semibold cursor-pointer text-green-900 text-sm">
-                    ¿Hizo depósito?
-                  </Label>
-                </div>
-
-                {formData.hizoDeposito && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="montoDeposito" className="text-green-900 font-semibold text-sm">
-                        Monto del Depósito
-                      </Label>
-                      <Input
-                        id="montoDeposito"
-                        type="number"
-                        value={formData.montoDeposito || 0}
-                        onChange={(e) => setFormData({ ...formData, montoDeposito: Number(e.target.value) })}
-                        placeholder="0"
-                        className="border-green-200 focus:border-green-400"
-                        min={0}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-green-900 font-semibold text-sm">Fecha del Depósito</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="w-full justify-start border-green-200 hover:bg-green-50 bg-white text-sm"
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4 text-green-600" />
-                            {formData.fechaDeposito
-                              ? format(formData.fechaDeposito, "dd/MM/yyyy")
-                              : "Seleccionar fecha"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar
-                            mode="single"
-                            selected={formData.fechaDeposito}
-                            onSelect={(date) => date && setFormData({ ...formData, fechaDeposito: date })}
-                            locale={es}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Notas */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-gray-200 shadow-sm">
-                <Label htmlFor="notas" className="text-gray-900 font-semibold text-sm md:text-base">
-                  Notas
-                </Label>
-                <Textarea
-                  id="notas"
-                  value={formData.notas || ""}
-                  onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
-                  placeholder="Información adicional sobre la reserva..."
-                  rows={3}
-                  className="mt-2 border-gray-300 focus:border-gray-400"
-                />
-              </div>
-
-              <DialogFooter className="gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsDialogOpen(false)}
-                  className="border-gray-300"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg"
-                >
-                  {editingReserva ? "Guardar Cambios" : "Crear Reserva"}
-                </Button>
-              </DialogFooter>
-            </form>
+      {/* Dialog for viewing reservation details */}
+      {viewingReserva && (
+        <Dialog open={!!viewingReserva} onOpenChange={() => setViewingReserva(null)}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <ComprobanteProfesional
+              reserva={viewingReserva}
+              onClose={() => setViewingReserva(null)}
+              onEdit={() => {
+                const reservaToEdit = viewingReserva
+                setViewingReserva(null)
+                openEditDialog(reservaToEdit)
+              }}
+            />
           </DialogContent>
         </Dialog>
+      )}
 
-        {/* Dialog for viewing reservation details */}
-        {viewingReserva && (
-          <Dialog open={!!viewingReserva} onOpenChange={() => setViewingReserva(null)}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <ComprobanteProfesional
-                reserva={viewingReserva}
-                onClose={() => setViewingReserva(null)}
-                onEdit={() => {
-                  const reservaToEdit = viewingReserva
-                  setViewingReserva(null)
-                  openEditDialog(reservaToEdit)
-                }}
-              />
-            </DialogContent>
-          </Dialog>
-        )}
-
-        {/* Dialog for deleting reservation */}
-        <AlertDialog open={!!deleteReserva} onOpenChange={() => setDeleteReserva(null)}>
-          <AlertDialogContent className="bg-gradient-to-br from-white to-red-50/30">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-xl md:text-2xl text-red-700">¿Estás seguro?</AlertDialogTitle>
-              <AlertDialogDescription className="text-sm md:text-base text-gray-600">
-                Esta acción no se puede deshacer. Se eliminará permanentemente la reserva de{" "}
-                <span className="font-semibold text-gray-900">{deleteReserva?.nombre}</span>.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-              <AlertDialogCancel className="border-gray-300 w-full sm:w-auto">Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDelete}
-                className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white w-full sm:w-auto"
-              >
-                Eliminar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
+      {/* Dialog for deleting reservation */}
+      <AlertDialog open={!!deleteReserva} onOpenChange={() => setDeleteReserva(null)}>
+        <AlertDialogContent className="bg-gradient-to-br from-white to-red-50/30">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl md:text-2xl text-red-700">¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm md:text-base text-gray-600">
+              Esta acción no se puede deshacer. Se eliminará permanentemente la reserva de{" "}
+              <span className="font-semibold text-gray-900">{deleteReserva?.nombre}</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel className="border-gray-300 w-full sm:w-auto">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white w-full sm:w-auto"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

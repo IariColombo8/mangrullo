@@ -64,7 +64,8 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
   return (
     <Card className="border-emerald-100 shadow-lg bg-white/80 backdrop-blur-sm">
       <CardContent className="pt-4">
-        <div className="overflow-x-auto">
+        {/* Vista Desktop - Horizontal */}
+        <div className="hidden md:block overflow-x-auto">
           <div className="min-w-[900px]">
             <div className="grid grid-cols-[120px_1fr] gap-0 border-b-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-teal-50 sticky top-0 z-20">
               <div className="p-2 font-bold text-emerald-900 text-xs flex items-center border-r-2 border-emerald-300">
@@ -190,7 +191,93 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
           </div>
         </div>
 
-        <div className="mt-4 pt-4 border-t border-gray-200">
+        {/* Vista Mobile - Horizontal invertida (días en vertical, departamentos en horizontal) */}
+        <div className="md:hidden overflow-x-auto">
+          <div className="min-w-full">
+            {/* Encabezado con departamentos */}
+            <div className="grid gap-0 border-b-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-teal-50 sticky top-0 z-20"
+                 style={{ gridTemplateColumns: `50px repeat(${cabins.length}, 1fr)` }}>
+              <div className="p-1 font-bold text-emerald-900 text-[9px] flex items-center justify-center border-r-2 border-emerald-300">
+                Día
+              </div>
+              {cabins.map((cabin) => (
+                <div key={cabin.id} className="p-1 border-l border-emerald-200 text-center">
+                  <div className="flex items-center justify-center gap-0.5">
+                    <Home className="h-2.5 w-2.5 text-emerald-600 flex-shrink-0" />
+                    <span className="font-bold text-emerald-900 text-[9px] truncate">{cabin.name}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Filas de días */}
+            {daysInMonth.map((day) => {
+              const isToday = isSameDay(day, new Date())
+              const isWeekend = day.getDay() === 0 || day.getDay() === 6
+
+              return (
+                <div
+                  key={day.toISOString()}
+                  className="grid gap-0 border-b border-gray-200 hover:bg-gray-50/50 transition-colors"
+                  style={{ gridTemplateColumns: `50px repeat(${cabins.length}, 1fr)` }}
+                >
+                  {/* Columna del día */}
+                  <div
+                    className={cn(
+                      "p-1 font-semibold text-[9px] flex flex-col items-center justify-center border-r-2 border-gray-300",
+                      isToday && "bg-emerald-500 text-white",
+                      !isToday && isWeekend && "bg-emerald-100 text-emerald-900",
+                      !isToday && !isWeekend && "bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700",
+                    )}
+                  >
+                    <div className="font-bold text-[11px]">{format(day, "d")}</div>
+                    <div className="text-[7px] leading-tight">{format(day, "EEE", { locale: es })}</div>
+                  </div>
+
+                  {/* Columnas de departamentos */}
+                  {cabins.map((cabin) => {
+                    const reserva = getReservationForDayAndDept(day, cabin.name)
+                    const hasAlert = reserva ? needsPaymentAlert(reserva) : false
+
+                    return (
+                      <div
+                        key={cabin.id}
+                        className={cn(
+                          "border-l border-gray-200 min-h-[42px] p-0.5",
+                          isToday && "border-l-2 border-emerald-500",
+                        )}
+                      >
+                        {reserva ? (
+                          <div
+                            onClick={() => setViewingReserva(reserva)}
+                            className={cn(
+                              "h-full rounded p-1 cursor-pointer transition-all active:scale-95 flex flex-col justify-center",
+                              getOrigenColor(reserva.origen),
+                              hasAlert && "ring-1 ring-red-500 border border-red-600",
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium text-white text-[8px] truncate flex-1">
+                                {reserva.nombre.split(" ")[0]}
+                              </span>
+                              {hasAlert && <AlertTriangle className="h-2.5 w-2.5 text-white ml-0.5 flex-shrink-0" />}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-[8px] text-gray-300">
+                            -
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-gray-200 hidden md:block">
           <div className="flex flex-wrap gap-3 justify-center text-xs">
             <div className="flex items-center gap-1">
               <div className="w-4 h-4 rounded border border-gray-300 bg-emerald-300"></div>

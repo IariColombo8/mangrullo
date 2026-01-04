@@ -1,1642 +1,368 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect, useMemo } from "react"
-import { collection, addDoc, updateDoc, deleteDoc, doc, Timestamp, getDocs } from "firebase/firestore"
-import { db } from "@/lib/firebase"
-import type {
-  Reserva,
-  ReservaFormData,
-  Departamento,
-  OrigenReserva,
-  ContactoParticular,
-  PrecioNoche,
-} from "@/types/reserva"
-import { ORIGENES, CONTACTOS_PARTICULARES } from "@/types/reserva"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Textarea } from "@/components/ui/textarea"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import {
-  CalendarIcon,
-  Search,
-  Edit,
-  Trash2,
-  Eye,
-  TrendingUp,
-  DollarSign,
-  Home,
-  ChevronLeft,
-  ChevronRight,
-  Sparkles,
-  AlertTriangle,
-  X,
-  CheckCircle,
-  Clock,
-  Plus,
-} from "lucide-react"
-import {
-  format,
-  startOfMonth,
-  endOfMonth,
-  startOfDay,
-  addMonths,
-  subMonths,
-  isSameDay,
-  isBefore,
-  endOfDay, // Import endOfDay
-} from "date-fns"
-import { es } from "date-fns/locale"
+import { Card, CardContent } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Eye, Edit, Trash2, ChevronLeft, ChevronRight, CalendarIcon, AlertTriangle } from "lucide-react"
+import { format, isBefore, startOfDay } from "date-fns"
+import type { Reserva } from "@/types/reserva"
+import type { Cabin } from "@/types/cabin"
 import { cn } from "@/lib/utils"
+import TimelineView from "./timeline-view"
+import GridView from "./grid-view"
 
-import TimelineView from "./timeline-view" // Imported TimelineView from separate file
-import GridView from "./grid-view" // Imported GridView from separate file
-
-import ComprobanteProfesional from "./ComprobanteProfesional" // Import ComprobanteProfesional
-
-import DashboardMetrics from "./dashboard-metrics"
-
-// Import auth context and next navigation
-import { useAuth } from "@/context/auth-context"
-import { useRouter } from "next/navigation"
+const ITEMS_PER_PAGE = 10
 
 const PAISES = [
-  { code: "AR", name: "Argentina", currency: "pesos" },
-  { code: "UY", name: "Uruguay", currency: "uruguayos" },
-  { code: "BR", name: "Brasil", currency: "dolares" },
-  { code: "CL", name: "Chile", currency: "dolares" },
-  { code: "US", name: "Estados Unidos", currency: "dolares" },
-  { code: "ES", name: "España", currency: "dolares" },
-  { code: "FR", name: "Francia", currency: "dolares" },
-  { code: "OTHER", name: "Otro", currency: "dolares" },
+  { code: "AR", name: "Argentina", currency: "ARS" },
+  { code: "BR", name: "Brasil", currency: "BRL" },
+  { code: "CL", name: "Chile", currency: "CLP" },
+  { code: "UY", name: "Uruguay", currency: "UYU" },
+  { code: "PY", name: "Paraguay", currency: "PYG" },
+  { code: "BO", name: "Bolivia", currency: "BOB" },
+  { code: "PE", name: "Perú", currency: "PEN" },
+  { code: "EC", name: "Ecuador", currency: "USD" },
+  { code: "CO", name: "Colombia", currency: "COP" },
+  { code: "VE", name: "Venezuela", currency: "VES" },
+  { code: "MX", name: "México", currency: "MXN" },
+  { code: "US", name: "Estados Unidos", currency: "USD" },
+  { code: "CA", name: "Canadá", currency: "CAD" },
+  { code: "ES", name: "España", currency: "EUR" },
+  { code: "FR", name: "Francia", currency: "EUR" },
+  { code: "DE", name: "Alemania", currency: "EUR" },
+  { code: "IT", name: "Italia", currency: "EUR" },
+  { code: "GB", name: "Reino Unido", currency: "GBP" },
+  { code: "CN", name: "China", currency: "CNY" },
+  { code: "JP", name: "Japón", currency: "JPY" },
 ]
 
-const toValidDate = (dateValue: any): Date => {
-  if (!dateValue) return new Date()
+const ORIGENES = [
+  { value: "booking", label: "Booking" },
+  { value: "airbnb", label: "Airbnb" },
+  { value: "particular", label: "Particular" },
+]
 
-  // Si ya es una fecha válida
-  if (dateValue instanceof Date) {
-    return isNaN(dateValue.getTime()) ? new Date() : dateValue
-  }
+interface PrecioNoche {
+  pesos?: number
+  dolares?: number
+  reales?: number
+  [key: string]: number | undefined
+}
 
-  // Si es un Timestamp de Firestore
-  if (dateValue.toDate && typeof dateValue.toDate === "function") {
-    try {
-      const converted = dateValue.toDate()
-      return isNaN(converted.getTime()) ? new Date() : converted
-    } catch (e) {
-      console.error("[v0] Error converting Firestore timestamp:", e)
-      return new Date()
-    }
-  }
+interface ReservasViewTabsProps {
+  viewMode: "tabla" | "timeline" | "grid"
+  onViewModeChange: (mode: "tabla" | "timeline" | "grid") => void
+  filteredReservas: Reserva[]
+  cabins: Cabin[]
+  filterMes: Date
+  setViewingReserva: (reserva: Reserva | null) => void
+  openEditDialog: (reserva: Reserva) => void
+  setDeleteReserva: (reserva: Reserva | null) => void
+}
 
-  // Si es un string o número
-  try {
-    const converted = new Date(dateValue)
-    return isNaN(converted.getTime()) ? new Date() : converted
-  } catch (e) {
-    console.error("[v0] Error parsing date:", e)
-    return new Date()
+function calculateNights(checkIn: Date, checkOut: Date): number {
+  const diffTime = Math.abs(checkOut.getTime() - checkIn.getTime())
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+}
+
+function getCurrency(pais: string, origen: string): string {
+  const paisInfo = PAISES.find((p) => p.code === pais)
+  if (!paisInfo) return "pesos"
+
+  switch (paisInfo.currency) {
+    case "USD":
+      return "dolares"
+    case "BRL":
+      return "reales"
+    default:
+      return "pesos"
   }
 }
 
-const formatCurrency = (value: number | undefined | null): string => {
-  if (value === undefined || value === null || isNaN(value)) return "0"
-  return value.toLocaleString()
+function getOrigenColor(origen: string): string {
+  switch (origen) {
+    case "booking":
+      return "bg-gradient-to-r from-blue-600 to-blue-700"
+    case "airbnb":
+      return "bg-gradient-to-r from-pink-600 to-red-600"
+    case "particular":
+      return "bg-gradient-to-r from-purple-600 to-indigo-600"
+    default:
+      return "bg-gray-600"
+  }
 }
 
-const getPrecioNocheValue = (reserva: Reserva): number => {
-  if (!reserva.precioNoche || typeof reserva.precioNoche !== "object") return 0
-  const currency = reserva.moneda || "ARS" // Default to ARS if moneda is not specified
-  return reserva.precioNoche[currency] || 0
+function needsPaymentAlert(reserva: Reserva): boolean {
+  const today = startOfDay(new Date())
+  const checkIn = startOfDay(reserva.fechaInicio as Date)
+  return !reserva.hizoDeposito && isBefore(checkIn, today)
 }
 
-export default function ReservasManager() {
-  const [reservas, setReservas] = useState<Reserva[]>([])
-  const [cabins, setCabins] = useState<{ id: string; name: string }[]>([])
-  const [loading, setLoading] = useState(true)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingReserva, setEditingReserva] = useState<Reserva | null>(null)
-  const [viewingReserva, setViewingReserva] = useState<Reserva | null>(null)
-  const [deleteReserva, setDeleteReserva] = useState<Reserva | null>(null)
-
-  const [searchTerm, setSearchTerm] = useState("")
-  const [filterDepartamento, setFilterDepartamento] = useState<string>("todos")
-  const [filterOrigen, setFilterOrigen] = useState<string>("todos")
-  const [filterPais, setFilterPais] = useState<string>("todos")
-  const [filterDeposito, setFilterDeposito] = useState<string>("todos")
-  const [filterCheckinDesde, setFilterCheckinDesde] = useState<Date | undefined>(undefined)
-  const [filterCheckinHasta, setFilterCheckinHasta] = useState<Date | undefined>(undefined)
-  const [filterCheckoutDesde, setFilterCheckoutDesde] = useState<Date | undefined>(undefined)
-  const [filterCheckoutHasta, setFilterCheckoutHasta] = useState<Date | undefined>(undefined)
-  const [filterMes, setFilterMes] = useState<Date>(new Date())
-
-  const [viewMode, setViewMode] = useState<"tabla" | "timeline" | "grid">("tabla")
+export default function ReservasViewTabs({
+  viewMode,
+  onViewModeChange,
+  filteredReservas,
+  cabins,
+  filterMes,
+  setViewingReserva,
+  openEditDialog,
+  setDeleteReserva,
+}: ReservasViewTabsProps) {
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 15
 
-  const [formData, setFormData] = useState<ReservaFormData>({
-    departamento: "",
-    fechaInicio: new Date(),
-    fechaFin: new Date(),
-    nombre: "",
-    pais: "AR",
-    numero: "",
-    origen: "particular",
-    hizoDeposito: false,
-    precioNoche: { pesos: 0 },
-    precioImpuestos: 0,
-    precioGanancia: 0,
-    precioTotal: 0,
-    moneda: "AR", // Default currency
-    cantidadAdultos: 2,
-    cantidadMenores: 0,
-  })
-
-  // Add auth and navigation hooks
-  const { user, logout } = useAuth()
-  const router = useRouter()
-
-  const handleLogout = async () => {
-    await logout()
-    router.push("/login")
-  }
-
-  const volverPaginaPrincipal = () => {
-    router.push("/")
-  }
-
-  useEffect(() => {
-    loadCabins()
-    loadReservas()
-  }, [])
-
-  const loadCabins = async () => {
-    try {
-      const cabinsRef = collection(db, "cabins")
-      const snapshot = await getDocs(cabinsRef)
-      const cabinsData = snapshot.docs.map((doc) => {
-        const data = doc.data()
-        return {
-          id: doc.id,
-          name: data.name?.es || data.nameEs || `Cabaña ${doc.id}`,
-        }
-      })
-      setCabins(cabinsData)
-      if (cabinsData.length > 0 && !formData.departamento) {
-        setFormData((prev) => ({ ...prev, departamento: cabinsData[0].name }))
-      }
-    } catch (error) {
-      console.error("Error cargando cabañas:", error)
-    }
-  }
-
-  const loadReservas = async () => {
-    setLoading(true)
-    try {
-      const reservasRef = collection(db, "reservas")
-      const snapshot = await getDocs(reservasRef)
-
-      const reservasData = snapshot.docs.map((doc) => {
-        const data = doc.data()
-        return {
-          id: doc.id,
-          ...data,
-          fechaInicio: data.fechaInicio?.toDate ? data.fechaInicio.toDate() : toValidDate(data.fechaInicio),
-          fechaFin: data.fechaFin?.toDate ? data.fechaFin.toDate() : toValidDate(data.fechaFin),
-          fechaCreacion: data.fechaCreacion?.toDate ? data.fechaCreacion.toDate() : toValidDate(data.fechaCreacion),
-          fechaDeposito: data.fechaDeposito?.toDate ? data.fechaDeposito.toDate() : toValidDate(data.fechaDeposito), // Load fechaDeposito
-        } as Reserva
-      })
-
-      reservasData.sort((a, b) => (b.fechaInicio as Date).getTime() - (a.fechaInicio as Date).getTime())
-      setReservas(reservasData)
-    } catch (error) {
-      console.error("Error loading reservas:", error)
-      alert("Error al cargar las reservas: " + (error as Error).message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const checkOverlap = (departamento: Departamento, fechaInicio: Date, fechaFin: Date, excludeId?: string): boolean => {
-    return reservas.some((reserva) => {
-      if (reserva.id === excludeId) return false
-      if (reserva.departamento !== departamento) return false
-
-      const rStart = (reserva.fechaInicio as Date).getTime()
-      const rEnd = (reserva.fechaFin as Date).getTime()
-      const newStart = fechaInicio.getTime()
-      const newEnd = fechaFin.getTime()
-
-      // Check for overlap: new range starts before existing range ends AND new range ends after existing range starts
-      return newStart < rEnd && newEnd > rStart
-    })
-  }
-
-  const cleanDataForFirestore = (data: any) => {
-    const cleaned: any = {}
-    Object.keys(data).forEach((key) => {
-      if (data[key] !== undefined && data[key] !== null) {
-        cleaned[key] = data[key]
-      }
-    })
-    return cleaned
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!formData.nombre || !formData.departamento) {
-      // numero no es obligatorio
-      alert("Por favor completa Nombre y Departamento")
-      return
-    }
-
-    if (formData.fechaFin <= formData.fechaInicio) {
-      alert("La fecha de salida debe ser posterior a la fecha de entrada")
-      return
-    }
-
-    const hasOverlap = checkOverlap(formData.departamento, formData.fechaInicio, formData.fechaFin, editingReserva?.id)
-
-    if (hasOverlap) {
-      alert("Ya existe una reserva para este departamento en las fechas seleccionadas")
-      return
-    }
-
-    try {
-      const reservaData: any = {
-        departamento: formData.departamento,
-        fechaInicio: Timestamp.fromDate(formData.fechaInicio),
-        fechaFin: Timestamp.fromDate(formData.fechaFin),
-        nombre: formData.nombre,
-        pais: formData.pais,
-        numero: formData.numero,
-        origen: formData.origen,
-        hizoDeposito: formData.hizoDeposito,
-        precioNoche: formData.precioNoche,
-        precioImpuestos: formData.precioImpuestos,
-        precioGanancia: formData.precioGanancia,
-        precioTotal: formData.precioTotal,
-        moneda: formData.moneda,
-        fechaCreacion: editingReserva?.fechaCreacion
-          ? Timestamp.fromDate(editingReserva.fechaCreacion as Date)
-          : Timestamp.now(),
-        cantidadAdultos: formData.cantidadAdultos,
-        cantidadMenores: formData.cantidadMenores,
-      }
-
-      if (formData.contactoParticular) {
-        reservaData.contactoParticular = formData.contactoParticular
-      }
-      if (formData.montoDeposito !== undefined && formData.montoDeposito !== null) {
-        reservaData.montoDeposito = formData.montoDeposito
-      }
-      if (formData.notas) {
-        reservaData.notas = formData.notas
-      }
-      if (formData.fechaDeposito) {
-        reservaData.fechaDeposito = Timestamp.fromDate(formData.fechaDeposito)
-      }
-
-      if (editingReserva) {
-        await updateDoc(doc(db, "reservas", editingReserva.id!), cleanDataForFirestore(reservaData))
-      } else {
-        await addDoc(collection(db, "reservas"), cleanDataForFirestore(reservaData))
-      }
-
-      setIsDialogOpen(false)
-      setEditingReserva(null)
-      resetForm()
-      loadReservas()
-    } catch (error) {
-      console.error("Error saving reserva:", error)
-      alert("Error al guardar la reserva: " + (error as Error).message)
-    }
-  }
-
-  const handleDelete = async () => {
-    if (!deleteReserva?.id) return
-
-    try {
-      await deleteDoc(doc(db, "reservas", deleteReserva.id))
-      setDeleteReserva(null)
-      loadReservas()
-    } catch (error) {
-      console.error("Error deleting reserva:", error)
-      alert("Error al eliminar la reserva")
-    }
-  }
-
-  const resetForm = () => {
-    setFormData({
-      departamento: cabins[0]?.name || "",
-      fechaInicio: new Date(),
-      fechaFin: new Date(),
-      nombre: "",
-      pais: "AR",
-      numero: "",
-      origen: "particular",
-      hizoDeposito: false,
-      precioNoche: { pesos: 0 },
-      precioImpuestos: 0,
-      precioGanancia: 0,
-      precioTotal: 0,
-      moneda: "AR", // Reset to default currency
-      cantidadAdultos: 2,
-      cantidadMenores: 0,
-      montoDeposito: 0,
-      fechaDeposito: undefined,
-    })
-  }
-
-  const openEditDialog = (reserva: Reserva) => {
-    setEditingReserva(reserva)
-    setFormData({
-      departamento: reserva.departamento,
-      fechaInicio: reserva.fechaInicio as Date,
-      fechaFin: reserva.fechaFin as Date,
-      nombre: reserva.nombre,
-      pais: reserva.pais,
-      numero: reserva.numero,
-      origen: reserva.origen,
-      contactoParticular: reserva.contactoParticular,
-      hizoDeposito: reserva.hizoDeposito,
-      montoDeposito: reserva.montoDeposito,
-      precioNoche: reserva.precioNoche || { pesos: 0 }, // Ensure it's an object
-      precioImpuestos: reserva.precioImpuestos,
-      precioGanancia: reserva.precioGanancia,
-      precioTotal: reserva.precioTotal,
-      notas: reserva.notas,
-      moneda: reserva.moneda || "AR", // Ensure moneda is set
-      cantidadAdultos: reserva.cantidadAdultos || 2,
-      cantidadMenores: reserva.cantidadMenores || 0,
-      fechaDeposito: reserva.fechaDeposito ? toValidDate(reserva.fechaDeposito) : undefined,
-    })
-    setIsDialogOpen(true)
-  }
-
-  const openNewDialog = () => {
-    setEditingReserva(null)
-    resetForm()
-    setIsDialogOpen(true)
-  }
-
-  const calculateNights = (inicio: Date, fin: Date) => {
-    return Math.ceil((fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24))
-  }
-
-  const getCurrency = (pais: string, origen: OrigenReserva): string => {
-    if (origen === "booking" || origen === "airbnb") return "dolares"
-    const paisData = PAISES.find((p) => p.code === pais)
-    return paisData?.currency || "dolares"
-  }
-
-  const needsPaymentAlert = (reserva: Reserva): boolean => {
-    const today = startOfDay(new Date())
-    const fechaSalida = reserva.fechaFin as Date
-    return !reserva.hizoDeposito && isBefore(fechaSalida, today)
-  }
-
-  const getTodayReservations = () => {
-    const today = startOfDay(new Date())
-    const checkIns = reservas.filter((r) => isSameDay(r.fechaInicio as Date, today))
-    const checkOuts = reservas.filter((r) => isSameDay(r.fechaFin as Date, today))
-    return { checkIns, checkOuts }
-  }
-
-  const { checkIns, checkOuts } = getTodayReservations()
-
-  const filteredReservas = useMemo(() => {
-    return reservas.filter((reserva) => {
-      const matchesSearch =
-        !searchTerm ||
-        (reserva.nombre && reserva.nombre.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (reserva.numero && reserva.numero.includes(searchTerm))
-
-      const matchesDepartamento = filterDepartamento === "todos" || reserva.departamento === filterDepartamento
-      const matchesOrigen = filterOrigen === "todos" || reserva.origen === filterOrigen
-      const matchesPais = filterPais === "todos" || reserva.pais === filterPais
-
-      let matchesDeposito = true
-      if (filterDeposito === "si") {
-        matchesDeposito = reserva.hizoDeposito
-      } else if (filterDeposito === "no") {
-        matchesDeposito = !reserva.hizoDeposito
-      }
-
-      let matchesCheckinDesde = true
-      if (filterCheckinDesde) {
-        matchesCheckinDesde = (reserva.fechaInicio as Date) >= filterCheckinDesde
-      }
-
-      let matchesCheckinHasta = true
-      if (filterCheckinHasta) {
-        matchesCheckinHasta = (reserva.fechaInicio as Date) <= filterCheckinHasta
-      }
-
-      let matchesCheckoutDesde = true
-      if (filterCheckoutDesde) {
-        matchesCheckoutDesde = (reserva.fechaFin as Date) >= filterCheckoutDesde
-      }
-
-      let matchesCheckoutHasta = true
-      if (filterCheckoutHasta) {
-        matchesCheckoutHasta = (reserva.fechaFin as Date) <= filterCheckoutHasta
-      }
-
-      const reservaMonth = (reserva.fechaInicio as Date).getMonth()
-      const reservaYear = (reserva.fechaInicio as Date).getFullYear()
-      const filterMonth = filterMes.getMonth()
-      const filterYear = filterMes.getFullYear()
-      const matchesMes = reservaMonth === filterMonth && reservaYear === filterYear
-
-      return (
-        matchesSearch &&
-        matchesDepartamento &&
-        matchesOrigen &&
-        matchesPais &&
-        matchesDeposito &&
-        matchesCheckinDesde &&
-        matchesCheckinHasta &&
-        matchesCheckoutDesde &&
-        matchesCheckoutHasta &&
-        matchesMes
-      )
-    })
-  }, [
-    reservas,
-    searchTerm,
-    filterDepartamento,
-    filterOrigen,
-    filterPais,
-    filterDeposito,
-    filterCheckinDesde,
-    filterCheckinHasta,
-    filterCheckoutDesde,
-    filterCheckoutHasta,
-    filterMes,
-  ])
-
-  const paginatedReservas = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage
-    return filteredReservas.slice(startIndex, startIndex + itemsPerPage)
-  }, [filteredReservas, currentPage])
-
-  const totalPages = Math.ceil(filteredReservas.length / itemsPerPage)
-
-  const getOrigenColor = (origen: OrigenReserva) => {
-    return ORIGENES.find((o) => o.value === origen)?.color || "bg-gray-500"
-  }
-
-  const clearAllFilters = () => {
-    setSearchTerm("")
-    setFilterDepartamento("todos")
-    setFilterOrigen("todos")
-    setFilterPais("todos")
-    setFilterDeposito("todos")
-    setFilterCheckinDesde(undefined)
-    setFilterCheckinHasta(undefined)
-    setFilterCheckoutDesde(undefined)
-    setFilterCheckoutHasta(undefined)
-    setFilterMes(new Date())
-  }
-
-  const hasActiveFilters =
-    searchTerm ||
-    filterDepartamento !== "todos" ||
-    filterOrigen !== "todos" ||
-    filterPais !== "todos" ||
-    filterDeposito !== "todos" ||
-    filterCheckinDesde ||
-    filterCheckinHasta ||
-    filterCheckoutDesde ||
-    filterCheckoutHasta
-
-  const stats = useMemo(() => {
-    const totalReservas = filteredReservas.length
-    const totalIngresos = filteredReservas.reduce((sum, r) => sum + (r.precioTotal || 0), 0)
-    const reservasPorDepartamento = cabins.map((cabin) => ({
-      dept: cabin.name,
-      count: filteredReservas.filter((r) => r.departamento === cabin.name).length,
-    }))
-    const startOfSelectedMonth = startOfMonth(filterMes)
-    const endOfSelectedMonth = endOfMonth(filterMes)
-    const daysInSelectedMonth =
-      Math.ceil((endOfSelectedMonth.getTime() - startOfSelectedMonth.getTime()) / (1000 * 60 * 60 * 24)) + 1
-
-    const totalDiasPotenciales = cabins.length * daysInSelectedMonth
-    const diasOcupados = filteredReservas.reduce((sum, r) => {
-      const reservaStart = startOfDay(r.fechaInicio as Date)
-      const reservaEnd = endOfDay(r.fechaFin as Date) // Corrected this line
-
-      // Clip reservation days to the selected month
-      const effectiveStart = reservaStart < startOfSelectedMonth ? startOfSelectedMonth : reservaStart
-      const effectiveEnd = reservaEnd > endOfSelectedMonth ? endOfSelectedMonth : reservaEnd
-
-      if (effectiveStart >= effectiveEnd) return sum
-
-      const nights = Math.ceil((effectiveEnd.getTime() - effectiveStart.getTime()) / (1000 * 60 * 60 * 24))
-      return sum + nights
-    }, 0)
-
-    const ocupacionTotal = totalDiasPotenciales > 0 ? ((diasOcupados / totalDiasPotenciales) * 100).toFixed(1) : "0.0"
-
-    return { totalReservas, totalIngresos, reservasPorDepartamento, ocupacionTotal }
-  }, [filteredReservas, cabins, filterMes])
-
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000)
-
-  // Departamentos alquilados hoy (activos ahora)
-  const departamentosAlquiladosHoy = reservas.filter((r) => {
-    return r.fechaInicio <= now && r.fechaFin >= today
-  }).length
-
-  // Próximos check-ins (hoy)
-  const proximosCheckIns = reservas.filter((r) => {
-    return r.fechaInicio >= today && r.fechaInicio < tomorrow
-  }).length
-
-  // Próximos check-outs (hoy)
-  const proximosCheckOuts = reservas.filter((r) => {
-    return r.fechaFin >= today && r.fechaFin < tomorrow
-  }).length
-
-  // Reservas confirmadas futuras
-  const reservasPendientes = reservas.filter((r) => {
-    return r.fechaInicio > now
-  }).length
-
-  // Ingresos del mes actual
-  const currentMonth = now.getMonth()
-  const currentYear = now.getFullYear()
-  const ingresosDelMes = reservas
-    .filter((r) => {
-      const fecha = r.fechaInicio
-      return fecha.getMonth() === currentMonth && fecha.getFullYear() === currentYear
-    })
-    .reduce((sum, r) => sum + (r.precioTotal || 0), 0)
-
-  // Ocupación actual (hoy)
-  const totalDepartamentos = cabins.length
-  const ocupacionHoy = totalDepartamentos > 0 ? Math.round((departamentosAlquiladosHoy / totalDepartamentos) * 100) : 0
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
-        <div className="text-center space-y-4">
-          <div className="relative">
-            <div className="w-16 h-16 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto"></div>
-            <Sparkles className="w-8 h-8 text-emerald-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
-          </div>
-          <p className="text-lg font-semibold text-emerald-900">Cargando reservas...</p>
-        </div>
-      </div>
-    )
-  }
+  const totalPages = Math.ceil(filteredReservas.length / ITEMS_PER_PAGE)
+  const paginatedReservas = filteredReservas.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50">
-      <div className="container mx-auto px-4 py-6 space-y-6">
-        <DashboardMetrics
-          departamentosAlquiladosHoy={departamentosAlquiladosHoy}
-          ocupacionHoy={ocupacionHoy}
-          proximosCheckIns={proximosCheckIns}
-          proximosCheckOuts={proximosCheckOuts}
-          reservasPendientes={reservasPendientes}
-          ingresosDelMes={ingresosDelMes}
-          totalReservas={stats.totalReservas}
-          totalIngresos={stats.totalIngresos}
-          ocupacionTotal={stats.ocupacionTotal}
-          filterMes={filterMes}
-          now={now}
-          formatCurrency={formatCurrency}
-        />
+    <Tabs value={viewMode} onValueChange={(v) => onViewModeChange(v as typeof viewMode)} className="w-full">
+      <TabsList className="grid w-full grid-cols-3 bg-white/80 backdrop-blur-sm border border-emerald-200 h-8">
+        <TabsTrigger
+          value="tabla"
+          className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-[11px] px-1 py-0.5"
+        >
+          Tabla
+        </TabsTrigger>
+        <TabsTrigger
+          value="timeline"
+          className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-[11px] px-1 py-0.5"
+        >
+          Cronograma
+        </TabsTrigger>
+        <TabsTrigger
+          value="grid"
+          className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-[11px] px-1 py-0.5"
+        >
+          Cuadrícula
+        </TabsTrigger>
+      </TabsList>
 
-        {/* Check-ins/Check-outs Today Card */}
-        {(checkIns.length > 0 || checkOuts.length > 0) && (
-          <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200 shadow-lg">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Clock className="h-5 w-5 text-blue-600" />
-                <h3 className="text-lg font-bold text-blue-900">
-                  Hoy - {format(new Date(), "EEEE d 'de' MMMM", { locale: es })}
-                </h3>
-                <Button
-                  onClick={openNewDialog}
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg hidden md:flex"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nueva Reserva
-                </Button>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="bg-white rounded-lg p-4 border border-green-200 shadow-sm">
-                  <div className="flex items-center gap-2 mb-3">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <h4 className="font-semibold text-green-900">Check-ins ({checkIns.length})</h4>
-                  </div>
-                  <div className="space-y-2">
-                    {checkIns.length === 0 ? (
-                      <p className="text-sm text-gray-500">No hay check-ins hoy</p>
+      {viewMode === "tabla" && (
+        <TabsContent value="tabla" className="mt-2">
+          <Card className="border-2 border-emerald-200 shadow-xl bg-gradient-to-br from-white to-emerald-50/20">
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b-2 border-emerald-200">
+                      <TableHead className="font-bold text-emerald-900 text-[10px] py-1 px-1">Depto</TableHead>
+                      <TableHead className="font-bold text-emerald-900 text-[10px] py-1 px-1">Check-in</TableHead>
+                      <TableHead className="font-bold text-emerald-900 text-[10px] py-1 px-1">Check-out</TableHead>
+                      <TableHead className="text-center font-bold text-emerald-900 text-[10px] py-1 px-1">
+                        Noches
+                      </TableHead>
+                      <TableHead className="font-bold text-emerald-900 text-[10px] py-1 px-1">Nombre</TableHead>
+                      <TableHead className="font-bold text-emerald-900 text-[10px] py-1 px-1">País</TableHead>
+                      <TableHead className="font-bold text-emerald-900 text-[10px] py-1 px-1">Teléfono</TableHead>
+                      <TableHead className="font-bold text-emerald-900 text-[10px] py-1 px-1">Origen</TableHead>
+                      <TableHead className="font-bold text-emerald-900 text-[10px] py-1 px-1">Contacto</TableHead>
+                      <TableHead className="text-center font-bold text-emerald-900 text-[10px] py-1 px-1">
+                        Depósito
+                      </TableHead>
+                      <TableHead className="text-right font-bold text-emerald-900 text-[10px] py-1 px-1">
+                        $ Noche
+                      </TableHead>
+                      <TableHead className="text-right font-bold text-emerald-900 text-[10px] py-1 px-1">
+                        $ Total
+                      </TableHead>
+                      <TableHead className="text-center font-bold text-emerald-900 text-[10px] py-1 px-1">
+                        Acciones
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedReservas.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={13} className="text-center py-6 text-gray-500">
+                          <div className="flex flex-col items-center gap-2">
+                            <CalendarIcon className="h-8 w-8 text-gray-300" />
+                            <p className="text-xs font-medium">No se encontraron reservas</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     ) : (
-                      checkIns.map((reserva) => (
-                        <div
-                          key={reserva.id}
-                          className="flex items-center justify-between p-2 bg-green-50 rounded-lg border border-green-200"
-                        >
-                          <div>
-                            <p className="font-semibold text-sm text-gray-900">{reserva.nombre}</p>
-                            <p className="text-xs text-gray-600">{reserva.departamento}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {!reserva.hizoDeposito && (
-                              <AlertTriangle className="h-4 w-4 text-red-500" title="Sin depósito" />
+                      paginatedReservas.map((reserva) => {
+                        const nights = calculateNights(reserva.fechaInicio as Date, reserva.fechaFin as Date)
+                        const currency = getCurrency(reserva.pais, reserva.origen)
+                        const precioNoche =
+                          reserva.precioNoche && typeof reserva.precioNoche === "object"
+                            ? reserva.precioNoche[currency as keyof PrecioNoche] || 0
+                            : 0
+                        const hasAlert = needsPaymentAlert(reserva)
+
+                        return (
+                          <TableRow
+                            key={reserva.id}
+                            className={cn(
+                              "hover:bg-emerald-50/50 transition-colors duration-150 border-b border-emerald-100",
+                              hasAlert && "bg-red-50/50 hover:bg-red-50",
                             )}
-                            <Badge className={cn("text-white text-xs", getOrigenColor(reserva.origen))}>
-                              {ORIGENES.find((o) => o.value === reserva.origen)?.label}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-lg p-4 border border-orange-200 shadow-sm">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Home className="h-4 w-4 text-orange-600" />
-                    <h4 className="font-semibold text-orange-900">Check-outs ({checkOuts.length})</h4>
-                  </div>
-                  <div className="space-y-2">
-                    {checkOuts.length === 0 ? (
-                      <p className="text-sm text-gray-500">No hay check-outs hoy</p>
-                    ) : (
-                      checkOuts.map((reserva) => (
-                        <div
-                          key={reserva.id}
-                          className="flex items-center justify-between p-2 bg-orange-50 rounded-lg border border-orange-200"
-                        >
-                          <div>
-                            <p className="font-semibold text-sm text-gray-900">{reserva.nombre}</p>
-                            <p className="text-xs text-gray-600">{reserva.departamento}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {!reserva.hizoDeposito && (
-                              <AlertTriangle className="h-4 w-4 text-red-500" title="Sin depósito" />
-                            )}
-                            <Badge className={cn("text-white text-xs", getOrigenColor(reserva.origen))}>
-                              {ORIGENES.find((o) => o.value === reserva.origen)?.label}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <Card className="border-emerald-100 shadow-lg bg-white/80 backdrop-blur-sm">
-          <CardContent className="pt-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-emerald-900">Filtros</h3>
-                {hasActiveFilters && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={clearAllFilters}
-                    className="text-red-600 hover:text-red-700 bg-transparent"
-                  >
-                    <X className="h-4 w-4 mr-1" />
-                    Limpiar filtros
-                  </Button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-emerald-900 font-semibold">Mes</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start bg-white hover:bg-emerald-50 border-emerald-200"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
-                        <span className="truncate">{format(filterMes, "MMMM yyyy", { locale: es })}</span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <div className="p-3 space-y-2 bg-white">
-                        <div className="flex items-center justify-between">
-                          <Button variant="outline" size="icon" onClick={() => setFilterMes(subMonths(filterMes, 1))}>
-                            <ChevronLeft className="h-4 w-4" />
-                          </Button>
-                          <span className="font-semibold text-emerald-900">
-                            {format(filterMes, "MMMM yyyy", { locale: es })}
-                          </span>
-                          <Button variant="outline" size="icon" onClick={() => setFilterMes(addMonths(filterMes, 1))}>
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <Button
-                          variant="outline"
-                          className="w-full bg-emerald-50 hover:bg-emerald-100 border-emerald-200"
-                          onClick={() => setFilterMes(new Date())}
-                        >
-                          Mes actual
-                        </Button>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-emerald-900 font-semibold">Departamento</Label>
-                  <Select value={filterDepartamento} onValueChange={setFilterDepartamento}>
-                    <SelectTrigger className="bg-white border-emerald-200 hover:bg-emerald-50">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      {cabins.map((cabin) => (
-                        <SelectItem key={cabin.id} value={cabin.name}>
-                          {cabin.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-emerald-900 font-semibold">Origen</Label>
-                  <Select value={filterOrigen} onValueChange={setFilterOrigen}>
-                    <SelectTrigger className="bg-white border-emerald-200 hover:bg-emerald-50">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      {ORIGENES.map((origen) => (
-                        <SelectItem key={origen.value} value={origen.value}>
-                          {origen.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-emerald-900 font-semibold">País</Label>
-                  <Select value={filterPais} onValueChange={setFilterPais}>
-                    <SelectTrigger className="bg-white border-emerald-200 hover:bg-emerald-50">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      {PAISES.map((pais) => (
-                        <SelectItem key={pais.code} value={pais.code}>
-                          {pais.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-emerald-900 font-semibold">Depósito</Label>
-                  <Select value={filterDeposito} onValueChange={setFilterDeposito}>
-                    <SelectTrigger className="bg-white border-emerald-200 hover:bg-emerald-50">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      <SelectItem value="si">Sí</SelectItem>
-                      <SelectItem value="no">No</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-emerald-900 font-semibold">Check-in desde</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start bg-white hover:bg-emerald-50 border-emerald-200"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
-                        <span className="truncate">
-                          {filterCheckinDesde ? format(filterCheckinDesde, "dd/MM/yyyy") : "Seleccionar..."}
-                        </span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={filterCheckinDesde}
-                        onSelect={setFilterCheckinDesde}
-                        locale={es}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-emerald-900 font-semibold">Check-in hasta</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start bg-white hover:bg-emerald-50 border-emerald-200"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
-                        <span className="truncate">
-                          {filterCheckinHasta ? format(filterCheckinHasta, "dd/MM/yyyy") : "Seleccionar..."}
-                        </span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={filterCheckinHasta}
-                        onSelect={setFilterCheckinHasta}
-                        locale={es}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                <div className="space-y-2 sm:col-span-2 lg:col-span-1">
-                  <Label className="text-emerald-900 font-semibold">Buscar</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-emerald-600" />
-                    <Input
-                      placeholder="Nombre o teléfono..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 bg-white border-emerald-200 focus:border-emerald-400"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Tabs value={viewMode} onValueChange={(value: string) => setViewMode(value as any)}>
-          <TabsList className="grid w-full grid-cols-3 bg-transparent border-b border-emerald-200 mb-4">
-            <TabsTrigger
-              value="tabla"
-              className="data-[state=active]:bg-emerald-50 data-[state=active]:shadow-inner data-[state=active]:border-b-2 data-[state=active]:border-emerald-500 text-emerald-700 hover:bg-emerald-50 transition-all duration-200"
-            >
-              <Table className="h-4 w-4 mr-2" /> Tabla
-            </TabsTrigger>
-            <TabsTrigger
-              value="timeline"
-              className="data-[state=active]:bg-blue-50 data-[state=active]:shadow-inner data-[state=active]:border-b-2 data-[state=active]:border-blue-500 text-blue-700 hover:bg-blue-50 transition-all duration-200"
-            >
-              <TrendingUp className="h-4 w-4 mr-2" /> Cronograma
-            </TabsTrigger>
-            <TabsTrigger
-              value="grid"
-              className="data-[state=active]:bg-purple-50 data-[state=active]:shadow-inner data-[state=active]:border-b-2 data-[state=active]:border-purple-500 text-purple-700 hover:bg-purple-50 transition-all duration-200"
-            >
-              <Home className="h-4 w-4 mr-2" /> Cuadrícula
-            </TabsTrigger>
-          </TabsList>
-
-          {viewMode === "tabla" && (
-            <TabsContent value="tabla" className="space-y-4 mt-0">
-              <Card className="border-emerald-100 shadow-lg bg-white/80 backdrop-blur-sm">
-                <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b-2 border-emerald-200">
-                          <TableHead className="font-bold text-emerald-900">Departamento</TableHead>
-                          <TableHead className="font-bold text-emerald-900">Check-in</TableHead>
-                          <TableHead className="font-bold text-emerald-900">Check-out</TableHead>
-                          <TableHead className="text-center font-bold text-emerald-900">Noches</TableHead>
-                          <TableHead className="font-bold text-emerald-900">Nombre</TableHead>
-                          <TableHead className="font-bold text-emerald-900">País</TableHead>
-                          <TableHead className="font-bold text-emerald-900">Teléfono</TableHead>
-                          <TableHead className="font-bold text-emerald-900">Origen</TableHead>
-                          <TableHead className="font-bold text-emerald-900">Contacto</TableHead>
-                          <TableHead className="text-center font-bold text-emerald-900">Depósito</TableHead>
-                          <TableHead className="text-right font-bold text-emerald-900">$ Noche</TableHead>
-                          <TableHead className="text-right font-bold text-emerald-900">$ Total</TableHead>
-                          <TableHead className="text-center font-bold text-emerald-900">Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {paginatedReservas.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={13} className="text-center py-12 text-gray-500">
-                              <div className="flex flex-col items-center gap-3">
-                                <CalendarIcon className="h-12 w-12 text-gray-300" />
-                                <p className="text-lg font-medium">No se encontraron reservas</p>
+                          >
+                            <TableCell className="py-1 px-1">
+                              <div className="flex items-center gap-0.5">
+                                {hasAlert && (
+                                  <AlertTriangle
+                                    className="h-2.5 w-2.5 text-red-500 flex-shrink-0"
+                                    title="Reserva vencida sin pago"
+                                  />
+                                )}
+                                <Badge
+                                  variant="outline"
+                                  className="font-medium border-emerald-300 text-emerald-700 bg-emerald-50 text-[9px] px-1 py-0 truncate max-w-[70px]"
+                                >
+                                  {reserva.departamento}
+                                </Badge>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-medium text-gray-700 text-[10px] py-1 px-1">
+                              {format(reserva.fechaInicio as Date, "dd/MM/yy")}
+                            </TableCell>
+                            <TableCell className="font-medium text-gray-700 text-[10px] py-1 px-1">
+                              {format(reserva.fechaFin as Date, "dd/MM/yy")}
+                            </TableCell>
+                            <TableCell className="text-center py-1 px-1">
+                              <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold text-[9px] px-1">
+                                {nights}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-medium text-gray-900 text-[10px] py-1 px-1 max-w-[80px] truncate">
+                              {reserva.nombre}
+                            </TableCell>
+                            <TableCell className="text-gray-600 text-[10px] py-1 px-1 max-w-[70px] truncate">
+                              {PAISES.find((p) => p.code === reserva.pais)?.name || reserva.pais}
+                            </TableCell>
+                            <TableCell className="font-mono text-[9px] text-gray-700 py-1 px-1 max-w-[80px] truncate">
+                              {reserva.numero}
+                            </TableCell>
+                            <TableCell className="py-1 px-1">
+                              <Badge
+                                className={cn(
+                                  "text-white font-medium shadow-sm text-[9px] px-1",
+                                  getOrigenColor(reserva.origen),
+                                )}
+                              >
+                                {ORIGENES.find((o) => o.value === reserva.origen)?.label}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-gray-600 text-[10px] py-1 px-1 max-w-[70px] truncate">
+                              {reserva.origen === "particular" && reserva.contactoParticular
+                                ? reserva.contactoParticular
+                                : "-"}
+                            </TableCell>
+                            <TableCell className="text-center py-1 px-1">
+                              {reserva.hizoDeposito ? (
+                                <Badge
+                                  variant="default"
+                                  className="bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-sm text-[9px] px-1"
+                                >
+                                  Sí
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" className="bg-gray-200 text-gray-600 text-[9px] px-1">
+                                  No
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-gray-700 text-[10px] py-1 px-1">
+                              ${precioNoche.toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-emerald-600 text-[10px] py-1 px-1">
+                              ${(reserva.precioTotal || 0).toLocaleString()}
+                            </TableCell>
+                            <TableCell className="py-1 px-1">
+                              <div className="flex items-center justify-center gap-0.5">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setViewingReserva(reserva)}
+                                  title="Ver detalles"
+                                  className="hover:bg-blue-50 hover:text-blue-600 h-6 w-6"
+                                >
+                                  <Eye className="h-2.5 w-2.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openEditDialog(reserva)}
+                                  title="Editar"
+                                  className="hover:bg-emerald-50 hover:text-emerald-600 h-6 w-6"
+                                >
+                                  <Edit className="h-2.5 w-2.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setDeleteReserva(reserva)}
+                                  title="Eliminar"
+                                  className="hover:bg-red-50 text-red-600 hover:text-red-700 h-6 w-6"
+                                >
+                                  <Trash2 className="h-2.5 w-2.5" />
+                                </Button>
                               </div>
                             </TableCell>
                           </TableRow>
-                        ) : (
-                          paginatedReservas.map((reserva) => {
-                            const nights = calculateNights(reserva.fechaInicio as Date, reserva.fechaFin as Date)
-                            const currency = getCurrency(reserva.pais, reserva.origen)
-                            const precioNoche =
-                              reserva.precioNoche && typeof reserva.precioNoche === "object"
-                                ? reserva.precioNoche[currency as keyof PrecioNoche] || 0
-                                : 0
-                            const hasAlert = needsPaymentAlert(reserva)
+                        )
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
 
-                            return (
-                              <TableRow
-                                key={reserva.id}
-                                className={cn(
-                                  "hover:bg-emerald-50/50 transition-colors duration-150 border-b border-emerald-100",
-                                  hasAlert && "bg-red-50/50 hover:bg-red-50",
-                                )}
-                              >
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    {hasAlert && (
-                                      <AlertTriangle
-                                        className="h-4 w-4 text-red-500 flex-shrink-0"
-                                        title="Reserva vencida sin pago"
-                                      />
-                                    )}
-                                    <Badge
-                                      variant="outline"
-                                      className="font-medium border-emerald-300 text-emerald-700 bg-emerald-50"
-                                    >
-                                      {reserva.departamento}
-                                    </Badge>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="font-medium text-gray-700">
-                                  {format(reserva.fechaInicio as Date, "dd/MM/yy")}
-                                </TableCell>
-                                <TableCell className="font-medium text-gray-700">
-                                  {format(reserva.fechaFin as Date, "dd/MM/yy")}
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold">
-                                    {nights}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="font-medium text-gray-900">{reserva.nombre}</TableCell>
-                                <TableCell className="text-gray-600">
-                                  {PAISES.find((p) => p.code === reserva.pais)?.name || reserva.pais}
-                                </TableCell>
-                                <TableCell className="font-mono text-sm text-gray-700">{reserva.numero}</TableCell>
-                                <TableCell>
-                                  <Badge
-                                    className={cn("text-white font-medium shadow-sm", getOrigenColor(reserva.origen))}
-                                  >
-                                    {ORIGENES.find((o) => o.value === reserva.origen)?.label}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-gray-600">
-                                  {reserva.origen === "particular" && reserva.contactoParticular
-                                    ? reserva.contactoParticular
-                                    : "-"}
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  {reserva.hizoDeposito ? (
-                                    <Badge
-                                      variant="default"
-                                      className="bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-sm"
-                                    >
-                                      Sí
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="secondary" className="bg-gray-200 text-gray-600">
-                                      No
-                                    </Badge>
-                                  )}
-                                </TableCell>
-                                <TableCell className="text-right font-semibold text-gray-700">
-                                  ${precioNoche.toLocaleString()}
-                                </TableCell>
-                                <TableCell className="text-right font-bold text-emerald-600 text-lg">
-                                  ${(reserva.precioTotal || 0).toLocaleString()}
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex items-center justify-center gap-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => setViewingReserva(reserva)}
-                                      title="Ver detalles"
-                                      className="hover:bg-blue-50 hover:text-blue-600"
-                                    >
-                                      <Eye className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => openEditDialog(reserva)}
-                                      title="Editar"
-                                      className="hover:bg-emerald-50 hover:text-emerald-600"
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => setDeleteReserva(reserva)}
-                                      title="Eliminar"
-                                      className="hover:bg-red-50 text-red-600 hover:text-red-700"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            )
-                          })
-                        )}
-                      </TableBody>
-                    </Table>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between p-2 border-t border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50 flex-col sm:flex-row gap-1">
+                  <div className="text-[10px] text-gray-600 font-medium">
+                    Mostrando {(currentPage - 1) * ITEMS_PER_PAGE + 1} -{" "}
+                    {Math.min(currentPage * ITEMS_PER_PAGE, filteredReservas.length)} de {filteredReservas.length}{" "}
+                    reservas
                   </div>
-
-                  {totalPages > 1 && (
-                    <div className="flex items-center justify-between p-4 border-t border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50">
-                      <div className="text-sm text-gray-600 font-medium">
-                        Mostrando {(currentPage - 1) * itemsPerPage + 1} -{" "}
-                        {Math.min(currentPage * itemsPerPage, filteredReservas.length)} de {filteredReservas.length}{" "}
-                        reservas
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                          disabled={currentPage === 1}
-                          className="border-emerald-300 hover:bg-emerald-50"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <div className="text-sm font-semibold text-emerald-900 px-3">
-                          Página {currentPage} de {totalPages}
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                          disabled={currentPage === totalPages}
-                          className="border-emerald-300 hover:bg-emerald-50"
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          )}
-
-          {viewMode === "timeline" && (
-            <TabsContent value="timeline" className="mt-0">
-              <TimelineView
-                reservas={filteredReservas}
-                mes={filterMes}
-                cabins={cabins}
-                setViewingReserva={setViewingReserva}
-              />
-            </TabsContent>
-          )}
-
-          {viewMode === "grid" && (
-            <TabsContent value="grid" className="mt-0">
-              <GridView
-                reservas={filteredReservas}
-                mes={filterMes}
-                cabins={cabins}
-                setViewingReserva={setViewingReserva}
-              />
-            </TabsContent>
-          )}
-        </Tabs>
-
-        {/* Dialog for creating/editing reservation */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-emerald-50/30">
-            <DialogHeader>
-              <DialogTitle className="text-xl md:text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                {editingReserva ? "Editar Reserva" : "Nueva Reserva"}
-              </DialogTitle>
-              <DialogDescription className="text-sm md:text-base text-gray-600">
-                {editingReserva
-                  ? "Modifica los datos de la reserva existente"
-                  : "Completa los datos para crear una nueva reserva"}
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
-              {/* Departamento y Fechas */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-emerald-100 shadow-sm">
-                <h3 className="font-semibold text-base md:text-lg text-emerald-900 mb-4 flex items-center gap-2">
-                  <CalendarIcon className="h-4 w-4 md:h-5 md:w-5" />
-                  Fechas y Ubicación
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="departamento" className="text-emerald-900 font-semibold text-sm">
-                      Departamento *
-                    </Label>
-                    <Select
-                      value={formData.departamento}
-                      onValueChange={(value) => setFormData({ ...formData, departamento: value })}
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="border-emerald-300 hover:bg-emerald-50 h-6 px-1"
                     >
-                      <SelectTrigger className="border-emerald-200 focus:border-emerald-400">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {cabins.map((cabin) => (
-                          <SelectItem key={cabin.id} value={cabin.name}>
-                            {cabin.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2 md:col-span-2">
-                    <Label className="text-emerald-900 font-semibold text-sm">Fechas de Estadía *</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-white text-sm"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
-                          <span>
-                            {format(formData.fechaInicio, "dd/MM/yyyy")} → {format(formData.fechaFin, "dd/MM/yyyy")}
-                          </span>
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="range"
-                          selected={{
-                            from: formData.fechaInicio,
-                            to: formData.fechaFin,
-                          }}
-                          onSelect={(range) => {
-                            if (range?.from && range?.to) {
-                              // Solo actualizar cuando ambas fechas estén seleccionadas
-                              setFormData({
-                                ...formData,
-                                fechaInicio: range.from,
-                                fechaFin: range.to,
-                              })
-                              // Cerrar el popover después de seleccionar ambas fechas
-                              document.querySelector('[data-state="open"]')?.querySelector("button")?.click()
-                            } else if (range?.from) {
-                              // Primera fecha seleccionada, actualizar solo inicio
-                              setFormData({
-                                ...formData,
-                                fechaInicio: range.from,
-                                fechaFin: range.from, // Temporalmente igual hasta que seleccione la segunda
-                              })
-                            }
-                          }}
-                          locale={es}
-                          numberOfMonths={2}
-                          disabled={(date) => isBefore(date, startOfDay(new Date()))}
-                          defaultMonth={formData.fechaInicio}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Selecciona la fecha de entrada y luego la fecha de salida
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-gray-600 font-semibold text-sm">Noches</Label>
-                    <div className="flex items-center h-10 px-4 border-2 border-emerald-300 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50">
-                      <span className="text-lg md:text-xl font-bold text-emerald-700">
-                        {calculateNights(formData.fechaInicio, formData.fechaFin)}
-                      </span>
+                      <ChevronLeft className="h-3 w-3" />
+                    </Button>
+                    <div className="text-[10px] font-semibold text-emerald-900 px-1">
+                      Pág {currentPage} de {totalPages}
                     </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Datos del Cliente */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-blue-100 shadow-sm">
-                <h3 className="font-semibold text-base md:text-lg text-blue-900 mb-4">Datos del Cliente</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="nombre" className="text-blue-900 font-semibold text-sm">
-                      Nombre Completo *
-                    </Label>
-                    <Input
-                      id="nombre"
-                      value={formData.nombre}
-                      onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                      placeholder="Juan Pérez"
-                      required
-                      className="border-blue-200 focus:border-blue-400"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="pais" className="text-blue-900 font-semibold text-sm">
-                      País *
-                    </Label>
-                    <Select value={formData.pais} onValueChange={(value) => setFormData({ ...formData, pais: value })}>
-                      <SelectTrigger className="border-blue-200 focus:border-blue-400">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PAISES.map((pais) => (
-                          <SelectItem key={pais.code} value={pais.code}>
-                            {pais.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="numero" className="text-blue-900 font-semibold text-sm">
-                      Teléfono
-                    </Label>
-                    <Input
-                      id="numero"
-                      value={formData.numero}
-                      onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
-                      placeholder="+54 11 1234-5678"
-                      className="border-blue-200 focus:border-blue-400"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="cantidadAdultos" className="text-blue-900 font-semibold text-sm">
-                      Cantidad de Adultos
-                    </Label>
-                    <Input
-                      id="cantidadAdultos"
-                      type="number"
-                      value={formData.cantidadAdultos || 0}
-                      onChange={(e) => setFormData({ ...formData, cantidadAdultos: Number(e.target.value) })}
-                      placeholder="0"
-                      className="border-blue-200 focus:border-blue-400"
-                      min={0}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="cantidadMenores" className="text-blue-900 font-semibold text-sm">
-                      Cantidad de Menores
-                    </Label>
-                    <Input
-                      id="cantidadMenores"
-                      type="number"
-                      value={formData.cantidadMenores || 0}
-                      onChange={(e) => setFormData({ ...formData, cantidadMenores: Number(e.target.value) })}
-                      placeholder="0"
-                      className="border-blue-200 focus:border-blue-400"
-                      min={0}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Origen de la Reserva */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-purple-100 shadow-sm">
-                <h3 className="font-semibold text-base md:text-lg text-purple-900 mb-4">Origen de la Reserva</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="origen" className="text-purple-900 font-semibold text-sm">
-                      Origen *
-                    </Label>
-                    <Select
-                      value={formData.origen}
-                      onValueChange={(value: OrigenReserva) => setFormData({ ...formData, origen: value })}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="border-emerald-300 hover:bg-emerald-50 h-6 px-1"
                     >
-                      <SelectTrigger className="border-purple-200 focus:border-purple-400">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ORIGENES.map((origen) => (
-                          <SelectItem key={origen.value} value={origen.value}>
-                            {origen.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {formData.origen === "particular" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="contactoParticular" className="text-purple-900 font-semibold text-sm">
-                        Contacto
-                      </Label>
-                      <Select
-                        value={formData.contactoParticular || ""}
-                        onValueChange={(value: ContactoParticular) =>
-                          setFormData({ ...formData, contactoParticular: value })
-                        }
-                      >
-                        <SelectTrigger className="border-purple-200 focus:border-purple-400">
-                          <SelectValue placeholder="Seleccionar..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {CONTACTOS_PARTICULARES.map((contacto) => (
-                            <SelectItem key={contacto} value={contacto}>
-                              {contacto}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Precios */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-green-100 shadow-sm">
-                <h3 className="font-semibold text-base md:text-lg text-green-900 mb-4 flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 md:h-5 md:w-5" />
-                  Precios y Pagos
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Currency Selector */}
-                  <div className="space-y-2">
-                    <Label htmlFor="moneda" className="text-green-900 font-semibold text-sm">
-                      Moneda
-                    </Label>
-                    <Select
-                      value={formData.moneda}
-                      onValueChange={(value: string) => {
-                        const currentPrecioNoche = formData.precioNoche || { pesos: 0 }
-                        const existingValue = currentPrecioNoche[value as keyof PrecioNoche] || 0
-                        setFormData({
-                          ...formData,
-                          moneda: value,
-                          precioNoche: { ...currentPrecioNoche, [value]: existingValue }, // Keep existing value if available for the new currency, otherwise 0
-                        })
-                      }}
-                    >
-                      <SelectTrigger className="border-green-200 focus:border-green-400">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PAISES.map((pais) => (
-                          <SelectItem key={pais.code} value={pais.code}>
-                            {pais.name} ({pais.currency})
-                          </SelectItem>
-                        ))}
-                        {/* Add any other relevant currencies if needed */}
-                        <SelectItem value="USD">Dólar Estadounidense (USD)</SelectItem>
-                        <SelectItem value="EUR">Euro (EUR)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="precioNoche" className="text-green-900 font-semibold text-sm">
-                      Precio por Noche ({formData.moneda})
-                    </Label>
-                    <Input
-                      id="precioNoche"
-                      type="number"
-                      value={formData.precioNoche[formData.moneda as keyof PrecioNoche] || 0}
-                      onChange={(e) => {
-                        const currentCurrency = formData.moneda as keyof PrecioNoche
-                        const newPrecioNocheValue = Number(e.target.value)
-                        setFormData({
-                          ...formData,
-                          precioNoche: { ...formData.precioNoche, [currentCurrency]: newPrecioNocheValue },
-                          // Optionally update precioTotal automatically if it's 0 or based on nights
-                          precioTotal:
-                            formData.precioTotal === 0
-                              ? newPrecioNocheValue * calculateNights(formData.fechaInicio, formData.fechaFin)
-                              : formData.precioTotal,
-                        })
-                      }}
-                      placeholder="0"
-                      className="border-green-200 focus:border-green-400"
-                      min={0}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="precioTotal" className="text-green-900 font-semibold text-sm">
-                      Precio Total *
-                    </Label>
-                    <Input
-                      id="precioTotal"
-                      type="number"
-                      value={formData.precioTotal}
-                      onChange={(e) => setFormData({ ...formData, precioTotal: Number(e.target.value) })}
-                      placeholder="0"
-                      required
-                      className="border-green-200 focus:border-green-400"
-                      min={0}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="precioImpuestos" className="text-green-900 font-semibold text-sm">
-                      Impuestos
-                    </Label>
-                    <Input
-                      id="precioImpuestos"
-                      type="number"
-                      value={formData.precioImpuestos}
-                      onChange={(e) => setFormData({ ...formData, precioImpuestos: Number(e.target.value) })}
-                      placeholder="0"
-                      className="border-green-200 focus:border-green-400"
-                      min={0}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="precioGanancia" className="text-green-900 font-semibold text-sm">
-                      Ganancia
-                    </Label>
-                    <Input
-                      id="precioGanancia"
-                      type="number"
-                      value={formData.precioGanancia}
-                      onChange={(e) => setFormData({ ...formData, precioGanancia: Number(e.target.value) })}
-                      placeholder="0"
-                      className="border-green-200 focus:border-green-400"
-                      min={0}
-                    />
+                      <ChevronRight className="h-3 w-3" />
+                    </Button>
                   </div>
                 </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      )}
 
-                <div className="flex items-center space-x-2 pt-4 mt-4 border-t border-green-100">
-                  <Checkbox
-                    id="hizoDeposito"
-                    checked={formData.hizoDeposito}
-                    onCheckedChange={(checked) => setFormData({ ...formData, hizoDeposito: checked as boolean })}
-                    className="border-green-300"
-                  />
-                  <Label htmlFor="hizoDeposito" className="font-semibold cursor-pointer text-green-900 text-sm">
-                    ¿Hizo depósito?
-                  </Label>
-                </div>
+      {viewMode === "timeline" && (
+        <TabsContent value="timeline" className="mt-4">
+          <TimelineView
+            reservas={filteredReservas}
+            mes={filterMes}
+            cabins={cabins}
+            setViewingReserva={setViewingReserva}
+          />
+        </TabsContent>
+      )}
 
-                {formData.hizoDeposito && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="montoDeposito" className="text-green-900 font-semibold text-sm">
-                        Monto del Depósito
-                      </Label>
-                      <Input
-                        id="montoDeposito"
-                        type="number"
-                        value={formData.montoDeposito || 0}
-                        onChange={(e) => setFormData({ ...formData, montoDeposito: Number(e.target.value) })}
-                        placeholder="0"
-                        className="border-green-200 focus:border-green-400"
-                        min={0}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-green-900 font-semibold text-sm">Fecha del Depósito</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="w-full justify-start border-green-200 hover:bg-green-50 bg-white text-sm"
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4 text-green-600" />
-                            {formData.fechaDeposito
-                              ? format(formData.fechaDeposito, "dd/MM/yyyy")
-                              : "Seleccionar fecha"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar
-                            mode="single"
-                            selected={formData.fechaDeposito}
-                            onSelect={(date) => date && setFormData({ ...formData, fechaDeposito: date })}
-                            locale={es}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Notas */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-gray-200 shadow-sm">
-                <Label htmlFor="notas" className="text-gray-900 font-semibold text-sm md:text-base">
-                  Notas
-                </Label>
-                <Textarea
-                  id="notas"
-                  value={formData.notas || ""}
-                  onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
-                  placeholder="Información adicional sobre la reserva..."
-                  rows={3}
-                  className="mt-2 border-gray-300 focus:border-gray-400"
-                />
-              </div>
-
-              <DialogFooter className="gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsDialogOpen(false)}
-                  className="border-gray-300"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg"
-                >
-                  {editingReserva ? "Guardar Cambios" : "Crear Reserva"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Dialog for viewing reservation details */}
-        {viewingReserva && (
-          <Dialog open={!!viewingReserva} onOpenChange={() => setViewingReserva(null)}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <ComprobanteProfesional
-                reserva={viewingReserva}
-                onClose={() => setViewingReserva(null)}
-                onEdit={() => {
-                  const reservaToEdit = viewingReserva
-                  setViewingReserva(null)
-                  openEditDialog(reservaToEdit)
-                }}
-              />
-            </DialogContent>
-          </Dialog>
-        )}
-
-        {/* Dialog for deleting reservation */}
-        <AlertDialog open={!!deleteReserva} onOpenChange={() => setDeleteReserva(null)}>
-          <AlertDialogContent className="bg-gradient-to-br from-white to-red-50/30">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-xl md:text-2xl text-red-700">¿Estás seguro?</AlertDialogTitle>
-              <AlertDialogDescription className="text-sm md:text-base text-gray-600">
-                Esta acción no se puede deshacer. Se eliminará permanentemente la reserva de{" "}
-                <span className="font-semibold text-gray-900">{deleteReserva?.nombre}</span>.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-              <AlertDialogCancel className="border-gray-300 w-full sm:w-auto">Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDelete}
-                className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white w-full sm:w-auto"
-              >
-                Eliminar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-    </div>
+      {viewMode === "grid" && (
+        <TabsContent value="grid" className="mt-4">
+          <GridView reservas={filteredReservas} mes={filterMes} cabins={cabins} setViewingReserva={setViewingReserva} />
+        </TabsContent>
+      )}
+    </Tabs>
   )
 }
