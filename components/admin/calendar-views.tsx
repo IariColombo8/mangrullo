@@ -20,7 +20,7 @@ const DEPARTMENTS = [
 ]
 
 const BOOKING_ORIGINS = {
-  booking: { name: "Booking.com", color: "bg-[#0071C2]", textColor: "text-blue-700", bgLight: "bg-blue-100" },
+  booking: { name: "Booking", color: "bg-[#0071C2]", textColor: "text-blue-700", bgLight: "bg-blue-100" },
   airbnb: { name: "Airbnb", color: "bg-[#FF5A5F]", textColor: "text-pink-700", bgLight: "bg-pink-100" },
   upcn: { name: "UPCN", color: "bg-[#28A745]", textColor: "text-green-700", bgLight: "bg-green-100" },
   particular: { name: "Particular", color: "bg-[#FFA500]", textColor: "text-orange-700", bgLight: "bg-orange-100" },

@@ -19,7 +19,7 @@ const DEPARTMENTS = [
 
 const BOOKING_ORIGINS = {
   booking: {
-    name: "Booking.com",
+    name: "Booking",
     color: "bg-[#0071C2]",
     lightColor: "bg-blue-100",
     textColor: "text-blue-700",

@@ -43,10 +43,10 @@ Esta guía te ayudará a utilizar el panel de administración de El Mangrullo pa
 - En el panel de administración, haz clic en la pestaña "Reservas"
 - Puedes ver las reservas en formato de lista o calendario
 
-### Sincronizar con Booking.com
-1. Haz clic en el botón "Sincronizar con Booking.com"
+### Sincronizar con Booking
+1. Haz clic en el botón "Sincronizar con Booking"
 2. Espera a que se complete la sincronización
-3. Las nuevas reservas de Booking.com aparecerán en la lista
+3. Las nuevas reservas de Booking aparecerán en la lista
 
 ### Gestionar Estado de Reservas
 1. Encuentra la reserva que deseas gestionar

@@ -5,7 +5,7 @@ Este proyecto es una Single Page Application (SPA) desarrollada con React.js (Ne
 ## Características
 
 - ✅ Panel de administrador 100% editable (sin tocar código)
-- ✅ Integración con Booking.com API (calendario y reservas)
+- ✅ Integración con Booking API (calendario y reservas)
 - ✅ Multiidioma (ES/EN/PT)
 - ✅ Hosting en Firebase
 - ✅ Blog de actividades (Termas, Pesca, Chaviyú, + opción "Agregar más")
@@ -14,7 +14,7 @@ Este proyecto es una Single Page Application (SPA) desarrollada con React.js (Ne
 
 - **Frontend**: React + Next.js + Tailwind CSS
 - **Backend**: Firebase (Auth, Firestore, Storage)
-- **Booking.com**: API oficial
+- **Booking**: API oficial
 - **CMS**: Panel admin custom con CRUD para todo
 - **Deploy**: Firebase Hosting
 

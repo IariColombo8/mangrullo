@@ -55,7 +55,7 @@ export interface ReservaFormData extends Omit<Reserva, "id" | "fechaInicio" | "f
 export const DEPARTAMENTOS: Departamento[] = ["Los Horneros", "Las Calandrias", "Los Tordos", "Los Zorzales"]
 
 export const ORIGENES: { value: OrigenReserva; label: string; color: string }[] = [
-  { value: "booking", label: "Booking.com", color: "bg-blue-500" },
+  { value: "booking", label: "Booking", color: "bg-blue-500" },
   { value: "airbnb", label: "Airbnb", color: "bg-pink-500" },
   { value: "upcn", label: "UPCN", color: "bg-green-500" },
   { value: "particular", label: "Particular", color: "bg-orange-500" },

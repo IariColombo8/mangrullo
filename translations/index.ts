@@ -21,7 +21,7 @@ const translations = {
       perNight: "por noche",
       details: "Ver Detalles",
       bookNow: "Reservar Ahora",
-      bookOnBooking: "Reservar en Booking.com",
+      bookOnBooking: "Reservar en Booking",
       amenities: {
         wifi: "WiFi STARLINK",
         ac: "Aire Acondicionado",
@@ -175,7 +175,7 @@ const translations = {
       },
       bookings: {
         title: "Gestión de Reservas",
-        syncWithBooking: "Sincronizar con Booking.com",
+        syncWithBooking: "Sincronizar con Booking",
         syncing: "Sincronizando...",
         tabs: {
           list: "Lista",
@@ -194,7 +194,7 @@ const translations = {
           cancelled: "Cancelada",
         },
         syncSuccess: "Sincronización exitosa",
-        syncSuccessMessage: "Las reservas se han sincronizado correctamente con Booking.com.",
+        syncSuccessMessage: "Las reservas se han sincronizado correctamente con Booking.",
         statusChanged: "Estado cambiado",
         statusChangedMessage: "El estado de la reserva ha sido cambiado a '{{status}}'.",
         noBookings: "No hay reservas para esta fecha.",
@@ -309,7 +309,7 @@ const translations = {
       perNight: "per night",
       details: "View Details",
       bookNow: "Book Now",
-      bookOnBooking: "Book on Booking.com",
+      bookOnBooking: "Book on Booking",
       amenities: {
         wifi: "STARLINK WiFi",
         ac: "Air Conditioning",
@@ -463,7 +463,7 @@ const translations = {
       },
       bookings: {
         title: "Bookings Management",
-        syncWithBooking: "Sync with Booking.com",
+        syncWithBooking: "Sync with Booking",
         syncing: "Syncing...",
         tabs: {
           list: "List",
@@ -482,7 +482,7 @@ const translations = {
           cancelled: "Cancelled",
         },
         syncSuccess: "Sync successful",
-        syncSuccessMessage: "Bookings have been successfully synchronized with Booking.com.",
+        syncSuccessMessage: "Bookings have been successfully synchronized with Booking.",
         statusChanged: "Status changed",
         statusChangedMessage: "The booking status has been changed to '{{status}}'.",
         noBookings: "No bookings for this date.",
@@ -597,7 +597,7 @@ const translations = {
       perNight: "por noite",
       details: "Ver Detalhes",
       bookNow: "Reservar Agora",
-      bookOnBooking: "Reservar no Booking.com",
+      bookOnBooking: "Reservar no Booking",
       amenities: {
         wifi: "WiFi STARLINK",
         ac: "Ar Condicionado",
@@ -751,7 +751,7 @@ const translations = {
       },
       bookings: {
         title: "Gestão de Reservas",
-        syncWithBooking: "Sincronizar com Booking.com",
+        syncWithBooking: "Sincronizar com Booking",
         syncing: "Sincronizando...",
         tabs: {
           list: "Lista",
@@ -770,7 +770,7 @@ const translations = {
           cancelled: "Cancelada",
         },
         syncSuccess: "Sincronização bem-sucedida",
-        syncSuccessMessage: "As reservas foram sincronizadas com sucesso com o Booking.com.",
+        syncSuccessMessage: "As reservas foram sincronizadas com sucesso com o Booking.",
         statusChanged: "Status alterado",
         statusChangedMessage: "O status da reserva foi alterado para '{{status}}'.",
         noBookings: "Não há reservas para esta data.",

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 
-// This is a placeholder for Booking.com API integration
+// This is a placeholder for Booking API integration
 // In a real app, you would implement actual API calls
 
 type Booking = {
@@ -51,7 +51,7 @@ export function useBookingApi() {
           guests: 2,
           status: "confirmed",
           total: 600,
-          source: "booking.com",
+          source: "Booking",
         },
         {
           id: "B002",
@@ -83,7 +83,7 @@ export function useBookingApi() {
           guests: 6,
           status: "pending",
           total: 800,
-          source: "booking.com",
+          source: "Booking",
         },
       ]
 
@@ -96,7 +96,7 @@ export function useBookingApi() {
     }
   }
 
-  // Simulate syncing with Booking.com
+  // Simulate syncing with Booking
   const syncWithBooking = async () => {
     setLoading(true)
     setError(null)
@@ -104,14 +104,14 @@ export function useBookingApi() {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 2000))
 
-      // In a real app, this would update the bookings from Booking.com API
+      // In a real app, this would update the bookings from Booking API
       await fetchBookings()
 
       return { success: true, message: "Sync completed successfully" }
     } catch (err) {
-      setError("Failed to sync with Booking.com")
+      setError("Failed to sync with Booking")
       console.error(err)
-      return { success: false, message: "Failed to sync with Booking.com" }
+      return { success: false, message: "Failed to sync with Booking" }
     } finally {
       setLoading(false)
     }

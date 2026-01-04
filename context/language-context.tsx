@@ -24,7 +24,7 @@ const translations: Record<string, string> = {
   // Cabins
   "cabins.title": "Nuestros Departamentos",
   "cabins.subtitle": "Espacios cómodos y bien equipados para tu estadía",
-  "cabins.bookOnBooking": "Reservar en Booking.com",
+  "cabins.bookOnBooking": "Reservar en Booking",
   "cabins.viewDetails": "Ver Detalles",
   "cabins.details": "Detalles",
   "cabins.perNight": "por noche",
