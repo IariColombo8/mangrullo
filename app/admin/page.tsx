@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/auth-context"
 import { LanguageProvider } from "@/context/language-context"
-import ReservasManager from "@/components/admin/reservas-manager"
+import ReservasManager, { type ReservasManagerRef } from "@/components/admin/reservas-manager"
 import CabinsManager from "@/components/admin/cabins-manager"
 import TestimonialsManager from "@/components/admin/testimonials-manager"
 import ActivitiesManager from "@/components/admin/activities-manager"
@@ -26,6 +26,7 @@ export default function AdminPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("reservas")
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const reservasManagerRef = useRef<ReservasManagerRef>(null)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -82,7 +83,12 @@ export default function AdminPage() {
               <Button
                 size="sm"
                 className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg"
-                onClick={() => setActiveTab("reservas")}
+                onClick={() => {
+                  setActiveTab("reservas")
+                  setTimeout(() => {
+                    reservasManagerRef.current?.openNewDialog()
+                  }, 100)
+                }}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Nueva Reserva</span>
@@ -137,7 +143,7 @@ export default function AdminPage() {
 
         <main className="container py-6 px-4">
           {activeTab === "cabins" && <CabinsManager />}
-          {activeTab === "reservas" && <ReservasManager />}
+          {activeTab === "reservas" && <ReservasManager ref={reservasManagerRef} />}
           {activeTab === "guests" && <GuestsDatabaseManager />}
           {activeTab === "testimonials" && <TestimonialsManager />}
           {activeTab === "activities" && <ActivitiesManager />}

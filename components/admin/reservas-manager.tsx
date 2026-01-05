@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, forwardRef, useImperativeHandle } from "react"
 import { collection, addDoc, updateDoc, deleteDoc, doc, Timestamp, getDocs } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import type {
@@ -117,7 +117,11 @@ const getPrecioNocheValue = (reserva: Reserva): number => {
   return reserva.precioNoche[currency] || 0
 }
 
-export default function ReservasManager() {
+export interface ReservasManagerRef {
+  openNewDialog: () => void
+}
+
+const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
   const [reservas, setReservas] = useState<Reserva[]>([])
   const [cabins, setCabins] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
@@ -390,6 +394,10 @@ export default function ReservasManager() {
     setIsDialogOpen(true)
   }
 
+  useImperativeHandle(ref, () => ({
+    openNewDialog,
+  }))
+
   const calculateNights = (inicio: Date, fin: Date) => {
     return Math.ceil((fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24))
   }
@@ -614,13 +622,6 @@ export default function ReservasManager() {
               <h3 className="text-lg font-bold text-blue-900">
                 Hoy - {format(new Date(), "EEEE d 'de' MMMM", { locale: es })}
               </h3>
-              <Button
-                onClick={openNewDialog}
-                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg hidden md:flex"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Nueva Reserva
-              </Button>
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
@@ -691,6 +692,34 @@ export default function ReservasManager() {
           </CardContent>
         </Card>
       )}
+
+      {/* Desktop/Tablet Header */}
+      <div className="hidden md:flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Reservas</h2>
+          <p className="text-muted-foreground">Gestiona todas las reservas del hotel</p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={openNewDialog}
+            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Nueva Reserva
+          </Button>
+        </div>
+      </div>
+
+      <div className="md:hidden flex justify-end mb-4">
+        <Button
+          onClick={openNewDialog}
+          size="sm"
+          className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Nueva Reserva
+        </Button>
+      </div>
 
       <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-emerald-200 shadow-lg">
         <div className="space-y-3">
@@ -1361,4 +1390,8 @@ export default function ReservasManager() {
       </AlertDialog>
     </div>
   )
-}
+})
+
+ReservasManager.displayName = "ReservasManager"
+
+export default ReservasManager
