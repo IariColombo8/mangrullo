@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Edit, Trash2, ChevronLeft, ChevronRight, CalendarIcon, AlertTriangle } from "lucide-react"
+import { Eye, Edit, Trash2, ChevronLeft, ChevronRight, Calendar, AlertTriangle, Phone, User, MapPin } from "lucide-react"
 import { format, isBefore, startOfDay } from "date-fns"
 import type { Reserva } from "@/types/reserva"
 import type { Cabin } from "@/types/cabin"
@@ -118,22 +118,22 @@ export default function ReservasViewTabs({
 
   return (
     <Tabs value={viewMode} onValueChange={(v) => onViewModeChange(v as typeof viewMode)} className="w-full">
-      <TabsList className="grid w-full grid-cols-3 bg-white/80 backdrop-blur-sm border border-emerald-200 h-8">
+      <TabsList className="grid w-full grid-cols-3 bg-white/80 backdrop-blur-sm border border-emerald-200 h-9 sm:h-10">
         <TabsTrigger
           value="tabla"
-          className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-[11px] px-1 py-0.5"
+          className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs sm:text-sm px-2 py-1"
         >
           Tabla
         </TabsTrigger>
         <TabsTrigger
           value="timeline"
-          className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-[11px] px-1 py-0.5"
+          className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs sm:text-sm px-2 py-1"
         >
           Cronograma
         </TabsTrigger>
         <TabsTrigger
           value="grid"
-          className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-[11px] px-1 py-0.5"
+          className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs sm:text-sm px-2 py-1"
         >
           Cuadrícula
         </TabsTrigger>
@@ -143,31 +143,32 @@ export default function ReservasViewTabs({
         <TabsContent value="tabla" className="mt-2">
           <Card className="border-2 border-emerald-200 shadow-xl bg-gradient-to-br from-white to-emerald-50/20">
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
+              {/* Vista Desktop - Tabla */}
+              <div className="hidden lg:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b-2 border-emerald-200">
-                      <TableHead className="font-bold text-emerald-900 text-[10px] py-1 px-1">Depto</TableHead>
-                      <TableHead className="font-bold text-emerald-900 text-[10px] py-1 px-1">Check-in</TableHead>
-                      <TableHead className="font-bold text-emerald-900 text-[10px] py-1 px-1">Check-out</TableHead>
-                      <TableHead className="text-center font-bold text-emerald-900 text-[10px] py-1 px-1">
+                      <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">Depto</TableHead>
+                      <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">Check-in</TableHead>
+                      <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">Check-out</TableHead>
+                      <TableHead className="text-center font-bold text-emerald-900 text-xs py-2 px-2">
                         Noches
                       </TableHead>
-                      <TableHead className="font-bold text-emerald-900 text-[10px] py-1 px-1">Nombre</TableHead>
-                      <TableHead className="font-bold text-emerald-900 text-[10px] py-1 px-1">País</TableHead>
-                      <TableHead className="font-bold text-emerald-900 text-[10px] py-1 px-1">Teléfono</TableHead>
-                      <TableHead className="font-bold text-emerald-900 text-[10px] py-1 px-1">Origen</TableHead>
-                      <TableHead className="font-bold text-emerald-900 text-[10px] py-1 px-1">Contacto</TableHead>
-                      <TableHead className="text-center font-bold text-emerald-900 text-[10px] py-1 px-1">
+                      <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">Nombre</TableHead>
+                      <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">País</TableHead>
+                      <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">Teléfono</TableHead>
+                      <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">Origen</TableHead>
+                      <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">Contacto</TableHead>
+                      <TableHead className="text-center font-bold text-emerald-900 text-xs py-2 px-2">
                         Depósito
                       </TableHead>
-                      <TableHead className="text-right font-bold text-emerald-900 text-[10px] py-1 px-1">
+                      <TableHead className="text-right font-bold text-emerald-900 text-xs py-2 px-2">
                         $ Noche
                       </TableHead>
-                      <TableHead className="text-right font-bold text-emerald-900 text-[10px] py-1 px-1">
+                      <TableHead className="text-right font-bold text-emerald-900 text-xs py-2 px-2">
                         $ Total
                       </TableHead>
-                      <TableHead className="text-center font-bold text-emerald-900 text-[10px] py-1 px-1">
+                      <TableHead className="text-center font-bold text-emerald-900 text-xs py-2 px-2">
                         Acciones
                       </TableHead>
                     </TableRow>
@@ -175,10 +176,10 @@ export default function ReservasViewTabs({
                   <TableBody>
                     {paginatedReservas.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={13} className="text-center py-6 text-gray-500">
+                        <TableCell colSpan={13} className="text-center py-8 text-gray-500">
                           <div className="flex flex-col items-center gap-2">
-                            <CalendarIcon className="h-8 w-8 text-gray-300" />
-                            <p className="text-xs font-medium">No se encontraron reservas</p>
+                            <Calendar className="h-12 w-12 text-gray-300" />
+                            <p className="text-sm font-medium">No se encontraron reservas</p>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -200,105 +201,105 @@ export default function ReservasViewTabs({
                               hasAlert && "bg-red-50/50 hover:bg-red-50",
                             )}
                           >
-                            <TableCell className="py-1 px-1">
-                              <div className="flex items-center gap-0.5">
+                            <TableCell className="py-2 px-2">
+                              <div className="flex items-center gap-1">
                                 {hasAlert && (
                                   <AlertTriangle
-                                    className="h-2.5 w-2.5 text-red-500 flex-shrink-0"
+                                    className="h-3 w-3 text-red-500 flex-shrink-0"
                                     title="Reserva vencida sin pago"
                                   />
                                 )}
                                 <Badge
                                   variant="outline"
-                                  className="font-medium border-emerald-300 text-emerald-700 bg-emerald-50 text-[9px] px-1 py-0 truncate max-w-[70px]"
+                                  className="font-medium border-emerald-300 text-emerald-700 bg-emerald-50 text-xs px-2 py-0.5"
                                 >
                                   {reserva.departamento}
                                 </Badge>
                               </div>
                             </TableCell>
-                            <TableCell className="font-medium text-gray-700 text-[10px] py-1 px-1">
+                            <TableCell className="font-medium text-gray-700 text-xs py-2 px-2">
                               {format(reserva.fechaInicio as Date, "dd/MM/yy")}
                             </TableCell>
-                            <TableCell className="font-medium text-gray-700 text-[10px] py-1 px-1">
+                            <TableCell className="font-medium text-gray-700 text-xs py-2 px-2">
                               {format(reserva.fechaFin as Date, "dd/MM/yy")}
                             </TableCell>
-                            <TableCell className="text-center py-1 px-1">
-                              <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold text-[9px] px-1">
+                            <TableCell className="text-center py-2 px-2">
+                              <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold text-xs px-2">
                                 {nights}
                               </Badge>
                             </TableCell>
-                            <TableCell className="font-medium text-gray-900 text-[10px] py-1 px-1 max-w-[80px] truncate">
+                            <TableCell className="font-medium text-gray-900 text-xs py-2 px-2">
                               {reserva.nombre}
                             </TableCell>
-                            <TableCell className="text-gray-600 text-[10px] py-1 px-1 max-w-[70px] truncate">
+                            <TableCell className="text-gray-600 text-xs py-2 px-2">
                               {PAISES.find((p) => p.code === reserva.pais)?.name || reserva.pais}
                             </TableCell>
-                            <TableCell className="font-mono text-[9px] text-gray-700 py-1 px-1 max-w-[80px] truncate">
+                            <TableCell className="font-mono text-xs text-gray-700 py-2 px-2">
                               {reserva.numero}
                             </TableCell>
-                            <TableCell className="py-1 px-1">
+                            <TableCell className="py-2 px-2">
                               <Badge
                                 className={cn(
-                                  "text-white font-medium shadow-sm text-[9px] px-1",
+                                  "text-white font-medium shadow-sm text-xs px-2",
                                   getOrigenColor(reserva.origen),
                                 )}
                               >
                                 {ORIGENES.find((o) => o.value === reserva.origen)?.label}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-gray-600 text-[10px] py-1 px-1 max-w-[70px] truncate">
+                            <TableCell className="text-gray-600 text-xs py-2 px-2">
                               {reserva.origen === "particular" && reserva.contactoParticular
                                 ? reserva.contactoParticular
                                 : "-"}
                             </TableCell>
-                            <TableCell className="text-center py-1 px-1">
+                            <TableCell className="text-center py-2 px-2">
                               {reserva.hizoDeposito ? (
                                 <Badge
                                   variant="default"
-                                  className="bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-sm text-[9px] px-1"
+                                  className="bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-sm text-xs px-2"
                                 >
                                   Sí
                                 </Badge>
                               ) : (
-                                <Badge variant="secondary" className="bg-gray-200 text-gray-600 text-[9px] px-1">
+                                <Badge variant="secondary" className="bg-gray-200 text-gray-600 text-xs px-2">
                                   No
                                 </Badge>
                               )}
                             </TableCell>
-                            <TableCell className="text-right font-semibold text-gray-700 text-[10px] py-1 px-1">
+                            <TableCell className="text-right font-semibold text-gray-700 text-xs py-2 px-2">
                               ${precioNoche.toLocaleString()}
                             </TableCell>
-                            <TableCell className="text-right font-bold text-emerald-600 text-[10px] py-1 px-1">
+                            <TableCell className="text-right font-bold text-emerald-600 text-xs py-2 px-2">
                               ${(reserva.precioTotal || 0).toLocaleString()}
                             </TableCell>
-                            <TableCell className="py-1 px-1">
-                              <div className="flex items-center justify-center gap-0.5">
+                            <TableCell className="py-2 px-2">
+                              <div className="flex items-center justify-center gap-1">
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => setViewingReserva(reserva)}
                                   title="Ver detalles"
-                                  className="hover:bg-blue-50 hover:text-blue-600 h-6 w-6"
+                                  className="hover:bg-blue-50 hover:text-blue-600 h-8 w-8"
                                 >
-                                  <Eye className="h-2.5 w-2.5" />
+                                  <Eye className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => openEditDialog(reserva)}
                                   title="Editar"
-                                  className="hover:bg-emerald-50 hover:text-emerald-600 h-6 w-6"
+                                  className="hover:bg-emerald-50 hover:text-emerald-600 h-8 w-8"
                                 >
-                                  <Edit className="h-2.5 w-2.5" />
+                                  <Edit className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => setDeleteReserva(reserva)}
                                   title="Eliminar"
-                                  className="hover:bg-red-50 text-red-600 hover:text-red-700 h-6 w-6"
+                                  className="hover:bg-red-50 text-red-600 hover:text-red-700 h-8 w-8"
                                 >
-                                  <Trash2 className="h-2.5 w-2.5" />
+                                  <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
                             </TableCell>
@@ -310,24 +311,183 @@ export default function ReservasViewTabs({
                 </Table>
               </div>
 
+              {/* Vista Mobile - Cards */}
+              <div className="lg:hidden divide-y divide-emerald-100">
+                {paginatedReservas.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="flex flex-col items-center gap-2">
+                      <Calendar className="h-12 w-12 text-gray-300" />
+                      <p className="text-sm font-medium">No se encontraron reservas</p>
+                    </div>
+                  </div>
+                ) : (
+                  paginatedReservas.map((reserva) => {
+                    const nights = calculateNights(reserva.fechaInicio as Date, reserva.fechaFin as Date)
+                    const currency = getCurrency(reserva.pais, reserva.origen)
+                    const precioNoche =
+                      reserva.precioNoche && typeof reserva.precioNoche === "object"
+                        ? reserva.precioNoche[currency as keyof PrecioNoche] || 0
+                        : 0
+                    const hasAlert = needsPaymentAlert(reserva)
+
+                    return (
+                      <div
+                        key={reserva.id}
+                        className={cn(
+                          "p-4 hover:bg-emerald-50/50 transition-colors",
+                          hasAlert && "bg-red-50/50"
+                        )}
+                      >
+                        {/* Header */}
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            {hasAlert && (
+                              <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                            )}
+                            <Badge
+                              variant="outline"
+                              className="font-bold border-emerald-300 text-emerald-700 bg-emerald-50 text-sm px-2 py-1"
+                            >
+                              {reserva.departamento}
+                            </Badge>
+                          </div>
+                          <Badge
+                            className={cn(
+                              "text-white font-medium shadow-sm text-xs",
+                              getOrigenColor(reserva.origen),
+                            )}
+                          >
+                            {ORIGENES.find((o) => o.value === reserva.origen)?.label}
+                          </Badge>
+                        </div>
+
+                        {/* Fechas y Noches */}
+                        <div className="grid grid-cols-2 gap-2 mb-3 bg-gradient-to-r from-emerald-50 to-teal-50 p-3 rounded-lg">
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Check-in</div>
+                            <div className="font-semibold text-sm text-gray-900">
+                              {format(reserva.fechaInicio as Date, "dd/MM/yy")}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Check-out</div>
+                            <div className="font-semibold text-sm text-gray-900">
+                              {format(reserva.fechaFin as Date, "dd/MM/yy")}
+                            </div>
+                          </div>
+                          <div className="col-span-2 flex items-center justify-center pt-2 border-t border-emerald-200">
+                            <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold">
+                              {nights} {nights === 1 ? "noche" : "noches"}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        {/* Información del Cliente */}
+                        <div className="space-y-2 mb-3">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-gray-400" />
+                            <span className="font-medium text-sm text-gray-900">{reserva.nombre}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm text-gray-600">
+                              {PAISES.find((p) => p.code === reserva.pais)?.name || reserva.pais}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Phone className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm font-mono text-gray-600">{reserva.numero}</span>
+                          </div>
+                          {reserva.origen === "particular" && reserva.contactoParticular && (
+                            <div className="text-sm text-gray-600 pl-6">
+                              Contacto: {reserva.contactoParticular}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Precios y Depósito */}
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                          <div className="bg-gray-50 p-2 rounded">
+                            <div className="text-xs text-gray-500 mb-1">Por noche</div>
+                            <div className="font-semibold text-sm text-gray-700">
+                              ${precioNoche.toLocaleString()}
+                            </div>
+                          </div>
+                          <div className="bg-emerald-50 p-2 rounded">
+                            <div className="text-xs text-emerald-600 mb-1">Total</div>
+                            <div className="font-bold text-sm text-emerald-600">
+                              ${(reserva.precioTotal || 0).toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mb-3">
+                          <div className="text-xs text-gray-500 mb-1">Depósito</div>
+                          {reserva.hizoDeposito ? (
+                            <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-sm">
+                              Pagado
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="bg-gray-200 text-gray-600">
+                              Pendiente
+                            </Badge>
+                          )}
+                        </div>
+
+                        {/* Acciones */}
+                        <div className="flex gap-2 pt-3 border-t border-emerald-100">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setViewingReserva(reserva)}
+                            className="flex-1 hover:bg-blue-50 hover:text-blue-600 border-blue-200"
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Ver
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditDialog(reserva)}
+                            className="flex-1 hover:bg-emerald-50 hover:text-emerald-600 border-emerald-200"
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Editar
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDeleteReserva(reserva)}
+                            className="hover:bg-red-50 text-red-600 hover:text-red-700 border-red-200"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+
+              {/* Paginación */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between p-2 border-t border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50 flex-col sm:flex-row gap-1">
-                  <div className="text-[10px] text-gray-600 font-medium">
+                <div className="flex items-center justify-between p-3 border-t border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50 flex-col sm:flex-row gap-2">
+                  <div className="text-xs sm:text-sm text-gray-600 font-medium">
                     Mostrando {(currentPage - 1) * ITEMS_PER_PAGE + 1} -{" "}
                     {Math.min(currentPage * ITEMS_PER_PAGE, filteredReservas.length)} de {filteredReservas.length}{" "}
                     reservas
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
-                      className="border-emerald-300 hover:bg-emerald-50 h-6 px-1"
+                      className="border-emerald-300 hover:bg-emerald-50 h-8 px-3"
                     >
-                      <ChevronLeft className="h-3 w-3" />
+                      <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <div className="text-[10px] font-semibold text-emerald-900 px-1">
+                    <div className="text-xs sm:text-sm font-semibold text-emerald-900 px-2">
                       Pág {currentPage} de {totalPages}
                     </div>
                     <Button
@@ -335,9 +495,9 @@ export default function ReservasViewTabs({
                       size="sm"
                       onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                       disabled={currentPage === totalPages}
-                      className="border-emerald-300 hover:bg-emerald-50 h-6 px-1"
+                      className="border-emerald-300 hover:bg-emerald-50 h-8 px-3"
                     >
-                      <ChevronRight className="h-3 w-3" />
+                      <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>

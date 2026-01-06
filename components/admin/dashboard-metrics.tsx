@@ -1,7 +1,8 @@
 "use client"
 
 import { Card, CardContent } from "@/components/ui/card"
-import { Home, TrendingUp, DollarSign, Calendar, LogIn, LogOut, Users, Clock, CheckCircle2 } from "lucide-react"
+import { Home, TrendingUp, DollarSign, Calendar, LogIn, LogOut, Users, Clock, CheckCircle2, ChevronRight } from "lucide-react"
+import { useState } from "react"
 
 interface DashboardMetricsProps {
   departamentosAlquiladosHoy: number
@@ -32,6 +33,8 @@ export default function DashboardMetrics({
   now,
   formatCurrency,
 }: DashboardMetricsProps) {
+  const [showAll, setShowAll] = useState(false)
+
   // Calcular promedio de ingresos por reserva
   const promedioIngresos = totalReservas > 0 ? Math.round(totalIngresos / totalReservas) : 0
   
@@ -43,174 +46,211 @@ export default function DashboardMetrics({
   const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
   const mesFormateado = `${meses[filterMes.getMonth()]} ${filterMes.getFullYear()}`
 
+  const allMetrics = [
+    {
+      icon: Home,
+      value: departamentosAlquiladosHoy,
+      label: "Alquilados Hoy",
+      gradient: "from-emerald-500 to-emerald-600",
+      textColor: "text-emerald-100",
+      iconBg: "bg-white/20"
+    },
+    {
+      icon: DollarSign,
+      value: `$${formatCurrency(totalIngresos)}`,
+      label: "Ingresos",
+      subtitle: "Total del mes",
+      gradient: "from-emerald-500 to-emerald-600",
+      textColor: "text-emerald-100",
+      iconBg: "bg-white/20",
+      isLarge: true
+    },
+    {
+      icon: TrendingUp,
+      value: `${ocupacionHoy}%`,
+      label: "Ocupación Hoy",
+      gradient: "from-blue-500 to-blue-600",
+      textColor: "text-blue-100",
+      iconBg: "bg-white/20"
+    },
+    {
+      icon: LogIn,
+      value: proximosCheckIns,
+      label: "Check-ins Hoy",
+      gradient: "from-purple-500 to-purple-600",
+      textColor: "text-purple-100",
+      iconBg: "bg-white/20"
+    },
+    {
+      icon: LogOut,
+      value: proximosCheckOuts,
+      label: "Check-outs Hoy",
+      gradient: "from-orange-500 to-orange-600",
+      textColor: "text-orange-100",
+      iconBg: "bg-white/20"
+    },
+    {
+      icon: Calendar,
+      value: reservasPendientes,
+      label: "Reservas Futuras",
+      gradient: "from-teal-500 to-teal-600",
+      textColor: "text-teal-100",
+      iconBg: "bg-white/20"
+    },
+    {
+      icon: CheckCircle2,
+      value: totalReservas,
+      label: "Reservas",
+      subtitle: mesFormateado,
+      gradient: "from-indigo-500 to-indigo-600",
+      textColor: "text-indigo-100",
+      iconBg: "bg-white/20",
+      isLarge: true
+    },
+    {
+      icon: TrendingUp,
+      value: `${ocupacionTotal}%`,
+      label: "Ocupación",
+      subtitle: "Del mes completo",
+      gradient: "from-violet-500 to-violet-600",
+      textColor: "text-violet-100",
+      iconBg: "bg-white/20",
+      isLarge: true
+    },
+    {
+      icon: Users,
+      value: `$${formatCurrency(promedioIngresos)}`,
+      label: "Promedio",
+      subtitle: "Por reserva",
+      gradient: "from-amber-500 to-amber-600",
+      textColor: "text-amber-100",
+      iconBg: "bg-white/20",
+      isLarge: true
+    },
+    {
+      icon: Calendar,
+      value: `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}`,
+      label: "Hoy",
+      subtitle: `${diasRestantesMes} días quedan`,
+      gradient: "from-rose-500 to-rose-600",
+      textColor: "text-rose-100",
+      iconBg: "bg-white/20",
+      isLarge: true
+    }
+  ]
+
+  const visibleMetrics = showAll ? allMetrics : allMetrics.slice(0, 2)
+
   return (
     <div className="space-y-4">
-      {/* Métricas principales - más compactas */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
-        {/* Alquilados Hoy */}
-        <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
-          <CardContent className="pt-4 pb-4 px-3">
-            <div className="flex flex-col items-center text-center">
-              <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm mb-1.5">
-                <Home className="h-5 w-5 md:h-6 md:w-6 text-white" />
-              </div>
-              <p className="text-2xl md:text-3xl font-bold text-white">{departamentosAlquiladosHoy}</p>
-              <p className="text-xs font-medium text-emerald-100 mt-0.5">Alquilados Hoy</p>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Desktop - Mostrar todas las métricas */}
+      <div className="hidden lg:grid lg:grid-cols-5 gap-3 md:gap-4">
+        {allMetrics.map((metric, index) => {
+          const Icon = metric.icon
+          
+          if (metric.isLarge) {
+            return (
+              <Card key={index} className={`bg-gradient-to-br ${metric.gradient} border-0 shadow-lg hover:shadow-xl transition-all duration-200`}>
+                <CardContent className="pt-5 pb-5 px-4">
+                  <div className="flex items-start justify-between">
+                    <div className="text-white">
+                      <p className={`text-xs font-medium ${metric.textColor} uppercase tracking-wide`}>{metric.label}</p>
+                      <p className="text-3xl md:text-4xl font-bold mt-2 truncate">{metric.value}</p>
+                      {metric.subtitle && (
+                        <p className={`text-xs ${metric.textColor}/80 mt-1.5 flex items-center gap-1`}>
+                          <Icon className="h-3 w-3" />
+                          {metric.subtitle}
+                        </p>
+                      )}
+                    </div>
+                    <div className={`p-2.5 ${metric.iconBg} rounded-xl backdrop-blur-sm`}>
+                      <Icon className="h-6 w-6 md:h-7 md:w-7 text-white" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          }
 
-        {/* Ocupación Hoy */}
-        <Card className="bg-gradient-to-br from-blue-500 to-blue-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
-          <CardContent className="pt-4 pb-4 px-3">
-            <div className="flex flex-col items-center text-center">
-              <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm mb-1.5">
-                <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-white" />
-              </div>
-              <p className="text-2xl md:text-3xl font-bold text-white">{ocupacionHoy}%</p>
-              <p className="text-xs font-medium text-blue-100 mt-0.5">Ocupación Hoy</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Check-ins Hoy */}
-        <Card className="bg-gradient-to-br from-purple-500 to-purple-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
-          <CardContent className="pt-4 pb-4 px-3">
-            <div className="flex flex-col items-center text-center">
-              <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm mb-1.5">
-                <LogIn className="h-5 w-5 md:h-6 md:w-6 text-white" />
-              </div>
-              <p className="text-2xl md:text-3xl font-bold text-white">{proximosCheckIns}</p>
-              <p className="text-xs font-medium text-purple-100 mt-0.5">Check-ins Hoy</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Check-outs Hoy */}
-        <Card className="bg-gradient-to-br from-orange-500 to-orange-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
-          <CardContent className="pt-4 pb-4 px-3">
-            <div className="flex flex-col items-center text-center">
-              <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm mb-1.5">
-                <LogOut className="h-5 w-5 md:h-6 md:w-6 text-white" />
-              </div>
-              <p className="text-2xl md:text-3xl font-bold text-white">{proximosCheckOuts}</p>
-              <p className="text-xs font-medium text-orange-100 mt-0.5">Check-outs Hoy</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Reservas Futuras */}
-        <Card className="bg-gradient-to-br from-teal-500 to-teal-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
-          <CardContent className="pt-4 pb-4 px-3">
-            <div className="flex flex-col items-center text-center">
-              <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm mb-1.5">
-                <Calendar className="h-5 w-5 md:h-6 md:w-6 text-white" />
-              </div>
-              <p className="text-2xl md:text-3xl font-bold text-white">{reservasPendientes}</p>
-              <p className="text-xs font-medium text-teal-100 mt-0.5">Reservas Futuras</p>
-            </div>
-          </CardContent>
-        </Card>
+          return (
+            <Card key={index} className={`bg-gradient-to-br ${metric.gradient} border-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105`}>
+              <CardContent className="pt-4 pb-4 px-3">
+                <div className="flex flex-col items-center text-center">
+                  <div className={`p-2 ${metric.iconBg} rounded-xl backdrop-blur-sm mb-1.5`}>
+                    <Icon className="h-5 w-5 md:h-6 md:w-6 text-white" />
+                  </div>
+                  <p className="text-2xl md:text-3xl font-bold text-white">{metric.value}</p>
+                  <p className={`text-xs font-medium ${metric.textColor} mt-0.5`}>{metric.label}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
 
-      {/* Métricas del mes seleccionado - más detalladas */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
-        {/* Total Reservas del Mes */}
-        <Card className="bg-gradient-to-br from-indigo-500 to-indigo-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200">
-          <CardContent className="pt-5 pb-5 px-4">
-            <div className="flex items-start justify-between">
-              <div className="text-white">
-                <p className="text-xs font-medium text-indigo-100 uppercase tracking-wide">Reservas</p>
-                <p className="text-3xl md:text-4xl font-bold mt-2">{totalReservas}</p>
-                <p className="text-xs text-indigo-100/80 mt-1.5 flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  {mesFormateado}
-                </p>
-              </div>
-              <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-sm">
-                <CheckCircle2 className="h-6 w-6 md:h-7 md:w-7 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Mobile - Mostrar 2 métricas + botón expandir */}
+      <div className="lg:hidden space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          {visibleMetrics.map((metric, index) => {
+            const Icon = metric.icon
+            
+            if (metric.isLarge) {
+              return (
+                <Card key={index} className={`bg-gradient-to-br ${metric.gradient} border-0 shadow-lg`}>
+                  <CardContent className="pt-4 pb-4 px-3">
+                    <div className="flex items-start justify-between">
+                      <div className="text-white">
+                        <p className={`text-xs font-medium ${metric.textColor} uppercase tracking-wide`}>{metric.label}</p>
+                        <p className="text-2xl font-bold mt-1 truncate">{metric.value}</p>
+                        {metric.subtitle && (
+                          <p className={`text-xs ${metric.textColor}/80 mt-1 flex items-center gap-1`}>
+                            <Icon className="h-3 w-3" />
+                            {metric.subtitle}
+                          </p>
+                        )}
+                      </div>
+                      <div className={`p-2 ${metric.iconBg} rounded-xl backdrop-blur-sm`}>
+                        <Icon className="h-5 w-5 text-white" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            }
 
-        {/* Ingresos Totales del Mes */}
-        <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200">
-          <CardContent className="pt-5 pb-5 px-4">
-            <div className="flex items-start justify-between">
-              <div className="text-white">
-                <p className="text-xs font-medium text-emerald-100 uppercase tracking-wide">Ingresos</p>
-                <p className="text-2xl md:text-3xl font-bold mt-2 truncate">${formatCurrency(totalIngresos)}</p>
-                <p className="text-xs text-emerald-100/80 mt-1.5 flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" />
-                  Total del mes
-                </p>
-              </div>
-              <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-sm">
-                <DollarSign className="h-6 w-6 md:h-7 md:w-7 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            return (
+              <Card key={index} className={`bg-gradient-to-br ${metric.gradient} border-0 shadow-lg`}>
+                <CardContent className="pt-4 pb-4 px-3">
+                  <div className="flex flex-col items-center text-center">
+                    <div className={`p-2 ${metric.iconBg} rounded-xl backdrop-blur-sm mb-1.5`}>
+                      <Icon className="h-5 w-5 text-white" />
+                    </div>
+                    <p className="text-2xl font-bold text-white">{metric.value}</p>
+                    <p className={`text-xs font-medium ${metric.textColor} mt-0.5`}>{metric.label}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
 
-        {/* Ocupación del Mes */}
-        <Card className="bg-gradient-to-br from-violet-500 to-violet-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200">
-          <CardContent className="pt-5 pb-5 px-4">
-            <div className="flex items-start justify-between">
-              <div className="text-white">
-                <p className="text-xs font-medium text-violet-100 uppercase tracking-wide">Ocupación</p>
-                <p className="text-3xl md:text-4xl font-bold mt-2">{ocupacionTotal}%</p>
-                <p className="text-xs text-violet-100/80 mt-1.5 flex items-center gap-1">
-                  <Home className="h-3 w-3" />
-                  Del mes completo
-                </p>
-              </div>
-              <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-sm">
-                <TrendingUp className="h-6 w-6 md:h-7 md:w-7 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Promedio por Reserva */}
-        <Card className="bg-gradient-to-br from-amber-500 to-amber-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200">
-          <CardContent className="pt-5 pb-5 px-4">
-            <div className="flex items-start justify-between">
-              <div className="text-white">
-                <p className="text-xs font-medium text-amber-100 uppercase tracking-wide">Promedio</p>
-                <p className="text-2xl md:text-3xl font-bold mt-2 truncate">${formatCurrency(promedioIngresos)}</p>
-                <p className="text-xs text-amber-100/80 mt-1.5 flex items-center gap-1">
-                  <DollarSign className="h-3 w-3" />
-                  Por reserva
-                </p>
-              </div>
-              <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-sm">
-                <Users className="h-6 w-6 md:h-7 md:w-7 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Fecha Actual y Días Restantes */}
-        <Card className="bg-gradient-to-br from-rose-500 to-rose-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200">
-          <CardContent className="pt-5 pb-5 px-4">
-            <div className="flex items-start justify-between">
-              <div className="text-white">
-                <p className="text-xs font-medium text-rose-100 uppercase tracking-wide">Hoy</p>
-                <p className="text-3xl md:text-4xl font-bold mt-2">
-                  {String(now.getDate()).padStart(2, '0')}/{String(now.getMonth() + 1).padStart(2, '0')}
-                </p>
-                <p className="text-xs text-rose-100/80 mt-1.5 flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {diasRestantesMes} días quedan
-                </p>
-              </div>
-              <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-sm">
-                <Calendar className="h-6 w-6 md:h-7 md:w-7 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Botón para expandir/colapsar */}
+        <button
+          onClick={() => setShowAll(!showAll)}
+          className="w-full py-3 px-4 bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 font-medium"
+        >
+          {showAll ? (
+            <>
+              <span>Ver menos</span>
+              <ChevronRight className="h-5 w-5 rotate-90 transition-transform" />
+            </>
+          ) : (
+            <>
+              <span>Ver todas las métricas ({allMetrics.length - 2} más)</span>
+              <ChevronRight className="h-5 w-5 -rotate-90 transition-transform" />
+            </>
+          )}
+        </button>
       </div>
     </div>
   )
