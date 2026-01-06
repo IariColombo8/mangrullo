@@ -131,6 +131,9 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
   const [viewingReserva, setViewingReserva] = useState<Reserva | null>(null)
   const [deleteReserva, setDeleteReserva] = useState<Reserva | null>(null)
 
+  const [checkinPopoverOpen, setCheckinPopoverOpen] = useState(false)
+  const [checkoutPopoverOpen, setCheckoutPopoverOpen] = useState(false)
+
   const [searchTerm, setSearchTerm] = useState("")
   const [filterDepartamento, setFilterDepartamento] = useState<string>("todos")
   const [filterOrigen, setFilterOrigen] = useState<string>("todos")
@@ -973,56 +976,62 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                   </Select>
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
-                  <Label className="text-emerald-900 font-semibold text-sm">Fechas de Estadía *</Label>
-                  <Popover>
+                {/* Fecha de Entrada */}
+                <div className="space-y-2">
+                  <Label className="text-emerald-900 font-semibold text-sm">Fecha de Entrada *</Label>
+                  <Popover open={checkinPopoverOpen} onOpenChange={setCheckinPopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
-                        className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-white text-sm"
+                        className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent text-sm"
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
-                        <span>
-                          {format(formData.fechaInicio, "dd/MM/yyyy")} → {format(formData.fechaFin, "dd/MM/yyyy")}
-                        </span>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.fechaInicio ? format(formData.fechaInicio, "dd/MM/yyyy") : "Selecciona"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
-                        mode="range"
-                        selected={{
-                          from: formData.fechaInicio,
-                          to: formData.fechaFin,
-                        }}
-                        onSelect={(range) => {
-                          if (range?.from && range?.to) {
-                            // Solo actualizar cuando ambas fechas estén seleccionadas
-                            setFormData({
-                              ...formData,
-                              fechaInicio: range.from,
-                              fechaFin: range.to,
-                            })
-                            // Cerrar el popover después de seleccionar ambas fechas
-                            document.querySelector('[data-state="open"]')?.querySelector("button")?.click()
-                          } else if (range?.from) {
-                            // Primera fecha seleccionada, actualizar solo inicio
-                            setFormData({
-                              ...formData,
-                              fechaInicio: range.from,
-                              fechaFin: range.from, // Temporalmente igual hasta que seleccione la segunda
-                            })
+                        mode="single"
+                        selected={formData.fechaInicio}
+                        onSelect={(date) => {
+                          if (date) {
+                            setFormData({ ...formData, fechaInicio: date })
+                            setCheckinPopoverOpen(false)
                           }
                         }}
                         locale={es}
-                        numberOfMonths={2}
-                        disabled={(date) => isBefore(date, startOfDay(new Date()))}
-                        defaultMonth={formData.fechaInicio}
                       />
                     </PopoverContent>
                   </Popover>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Selecciona la fecha de entrada y luego la fecha de salida
-                  </p>
+                </div>
+
+                {/* Fecha de Salida */}
+                <div className="space-y-2">
+                  <Label className="text-emerald-900 font-semibold text-sm">Fecha de Salida *</Label>
+                  <Popover open={checkoutPopoverOpen} onOpenChange={setCheckoutPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent text-sm"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.fechaFin ? format(formData.fechaFin, "dd/MM/yyyy") : "Selecciona"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.fechaFin}
+                        onSelect={(date) => {
+                          if (date) {
+                            setFormData({ ...formData, fechaFin: date })
+                            setCheckoutPopoverOpen(false)
+                          }
+                        }}
+                        locale={es}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <div className="space-y-2">
@@ -1377,6 +1386,9 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
       {viewingReserva && (
         <Dialog open={!!viewingReserva} onOpenChange={() => setViewingReserva(null)}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="sr-only">Detalles de la Reserva</DialogTitle>
+            </DialogHeader>
             <ComprobanteProfesional
               reserva={viewingReserva}
               onClose={() => setViewingReserva(null)}
@@ -1389,7 +1401,6 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
           </DialogContent>
         </Dialog>
       )}
-
       {/* Dialog for deleting reservation */}
       <AlertDialog open={!!deleteReserva} onOpenChange={() => setDeleteReserva(null)}>
         <AlertDialogContent className="bg-gradient-to-br from-white to-red-50/30">
