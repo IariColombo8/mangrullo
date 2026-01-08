@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, startOfDay, isBefore } from "date-fns"
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, startOfDay, isBefore, addDays } from "date-fns"
 import { es } from "date-fns/locale"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -56,8 +56,39 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
       if (r.departamento !== departamento) return false
       const inicio = startOfDay(r.fechaInicio as Date)
       const fin = startOfDay(r.fechaFin as Date)
+      // CORRECCIÓN 1: Esta lógica ya era correcta - pinta desde inicio hasta (fin-1)
+      // Esto funciona correctamente para reservas que cruzan meses
       return dayStart >= inicio && dayStart < fin
     })
+  }
+
+  // CORRECCIÓN 2: Nueva función para determinar si es el primer día VISIBLE de una reserva en este mes
+  const isFirstVisibleDay = (day: Date, reserva: Reserva) => {
+    const dayStart = startOfDay(day)
+    const reservaInicio = startOfDay(reserva.fechaInicio as Date)
+    
+    // Si el día es el inicio real de la reserva, es el primer día
+    if (isSameDay(dayStart, reservaInicio)) return true
+    
+    // Si la reserva empezó antes del mes, y este día es el primer día del mes, es el primer día visible
+    if (reservaInicio < startOfMonthDate && isSameDay(dayStart, startOfMonthDate)) return true
+    
+    return false
+  }
+
+  // CORRECCIÓN 3: Nueva función para determinar si es el último día VISIBLE de una reserva en este mes
+  const isLastVisibleDay = (day: Date, reserva: Reserva) => {
+    const dayStart = startOfDay(day)
+    const reservaFin = startOfDay(reserva.fechaFin as Date)
+    const lastPaintedDay = addDays(reservaFin, -1) // El último día que se pinta es fin-1
+    
+    // Si el día es el último día pintado real de la reserva, es el último día
+    if (isSameDay(dayStart, lastPaintedDay)) return true
+    
+    // Si la reserva termina después del mes, y este día es el último del mes, es el último día visible
+    if (reservaFin > endOfMonthDate && isSameDay(dayStart, endOfMonthDate)) return true
+    
+    return false
   }
 
   const getCalendarWeeks = () => {
@@ -157,6 +188,10 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
                           const hasAlert = primaryReservation ? needsPaymentAlert(primaryReservation) : false
                           const isCheckIn = primaryReservation && isSameDay(primaryReservation.fechaInicio as Date, day)
                           const isCheckOut = primaryReservation && isSameDay(primaryReservation.fechaFin as Date, day)
+                          
+                          // CORRECCIÓN 4: Determinar si es primer o último día visible de la reserva
+                          const isFirstDay = primaryReservation ? isFirstVisibleDay(day, primaryReservation) : false
+                          const isLastDay = primaryReservation ? isLastVisibleDay(day, primaryReservation) : false
 
                           return (
                             <div
@@ -172,6 +207,9 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
                                 !primaryReservation && "hover:bg-gray-50",
                                 isCheckIn && "border-l-2 border-l-green-600",
                                 isCheckOut && "border-r-2 border-r-orange-600",
+                                // CORRECCIÓN 5: Agregar bordes oscuros para separar visualmente las reservas
+                                primaryReservation && isFirstDay && "border-l-[3px] border-l-gray-900",
+                                primaryReservation && isLastDay && "border-r-[3px] border-r-gray-900",
                               )}
                               onClick={() => primaryReservation && setViewingReserva(primaryReservation)}
                               title={
