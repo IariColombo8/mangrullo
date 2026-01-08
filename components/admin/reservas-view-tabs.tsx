@@ -32,7 +32,9 @@ import type { Reserva } from "@/types/reserva"
 import type { Cabin } from "@/types/cabin"
 import { cn } from "@/lib/utils"
 import TimelineView from "./timeline-view"
+import TimelineViewCancelados from "./timeline-view-cancelados"
 import GridView from "./grid-view"
+import Calendar from "@/components/ui/calendar"
 
 const ITEMS_PER_PAGE = 10
 
@@ -213,16 +215,13 @@ export default function ReservasViewTabs({
                 <Label className="text-emerald-900 font-semibold text-sm">Mes</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent"
-                    >
+                    <div className="w-full flex items-center justify-start border border-emerald-200 hover:bg-emerald-50 bg-transparent rounded-md px-3 py-2 cursor-pointer">
                       <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
                       {format(filterMes, "MMMM yyyy", { locale: es })}
-                    </Button>
+                    </div>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarIcon
+                    <Calendar
                       mode="single"
                       selected={filterMes}
                       onSelect={(date) => date && setFilterMes(date)}
@@ -628,7 +627,7 @@ export default function ReservasViewTabs({
                         <div className="mb-3">
                           <div className="text-xs text-gray-500 mb-1">Depósito</div>
                           {reserva.hizoDeposito ? (
-                            <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-sm">
+                            <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-black shadow-sm">
                               Pagado
                             </Badge>
                           ) : (
@@ -719,6 +718,7 @@ export default function ReservasViewTabs({
             cabins={cabins}
             setViewingReserva={setViewingReserva}
           />
+          <TimelineViewCancelados reservas={filteredReservas} mes={filterMes} setViewingReserva={setViewingReserva} />
         </TabsContent>
       )}
 

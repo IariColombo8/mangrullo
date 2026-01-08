@@ -13,7 +13,7 @@ import type {
   ContactoParticular,
   PrecioNoche,
 } from "@/types/reserva"
-import { ORIGENES, CONTACTOS_PARTICULARES } from "@/types/reserva"
+import { ORIGENES, CONTACTOS_PARTICULARES } from "@/types/reserva" // Updated import for ORIGENES
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -76,6 +76,14 @@ const PAISES = [
   { code: "ES", name: "España", currency: "dolares" },
   { code: "FR", name: "Francia", currency: "dolares" },
   { code: "OTHER", name: "Otro", currency: "dolares" },
+]
+
+const ESTADOS_RESERVA = [
+  { value: "activa", label: "Activa", color: "bg-gradient-to-r from-emerald-600 to-teal-600" },
+  { value: "confirmada", label: "Confirmada", color: "bg-gradient-to-r from-blue-600 to-indigo-600" },
+  { value: "cancelada", label: "Cancelada", color: "bg-gradient-to-r from-red-600 to-pink-600" },
+  { value: "no_presentado", label: "No Presentado", color: "bg-gradient-to-r from-orange-600 to-yellow-600" },
+  { value: "pagado", label: "Pagada", color: "bg-gradient-to-r from-green-600 to-black-600" },
 ]
 
 const toValidDate = (dateValue: any): Date => {
@@ -163,9 +171,10 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
     precioImpuestos: 0,
     precioGanancia: 0,
     precioTotal: 0,
-    moneda: "AR", // Default currency
+    moneda: "AR",
     cantidadAdultos: 2,
     cantidadMenores: 0,
+    estado: "activa",
   })
 
   // Add auth and navigation hooks
@@ -221,6 +230,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
           fechaFin: data.fechaFin?.toDate ? data.fechaFin.toDate() : toValidDate(data.fechaFin),
           fechaCreacion: data.fechaCreacion?.toDate ? data.fechaCreacion.toDate() : toValidDate(data.fechaCreacion),
           fechaDeposito: data.fechaDeposito?.toDate ? data.fechaDeposito.toDate() : toValidDate(data.fechaDeposito), // Load fechaDeposito
+          estado: data.estado || "activa", // Load estado
         } as Reserva
       })
 
@@ -238,6 +248,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
     return reservas.some((reserva) => {
       if (reserva.id === excludeId) return false
       if (reserva.departamento !== departamento) return false
+      if (reserva.estado === "cancelada" || reserva.estado === "no_presentado") return false
 
       const rStart = (reserva.fechaInicio as Date).getTime()
       const rEnd = (reserva.fechaFin as Date).getTime()
@@ -295,11 +306,12 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
         precioGanancia: formData.precioGanancia,
         precioTotal: formData.precioTotal,
         moneda: formData.moneda,
+        estado: formData.estado || "activa",
         fechaCreacion: editingReserva?.fechaCreacion
           ? Timestamp.fromDate(editingReserva.fechaCreacion as Date)
           : Timestamp.now(),
-        cantidadAdultos: formData.cantidadAdultos,
-        cantidadMenores: formData.cantidadMenores,
+        cantidadAdultos: formData.cantidadAdultos || 2,
+        cantidadMenores: formData.cantidadMenores || 0,
       }
 
       if (formData.contactoParticular) {
@@ -363,6 +375,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
       cantidadMenores: 0,
       montoDeposito: 0,
       fechaDeposito: undefined,
+      estado: "activa",
     })
   }
 
@@ -388,6 +401,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
       cantidadAdultos: reserva.cantidadAdultos || 2,
       cantidadMenores: reserva.cantidadMenores || 0,
       fechaDeposito: reserva.fechaDeposito ? toValidDate(reserva.fechaDeposito) : undefined,
+      estado: reserva.estado || "activa",
     })
     setIsDialogOpen(true)
   }
@@ -518,8 +532,9 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
     filterFechaHasta
 
   const stats = useMemo(() => {
+    const reservasActivas = filteredReservas.filter((r) => r.estado !== "cancelada" && r.estado !== "no_presentado")
     const totalReservas = filteredReservas.length
-    const totalIngresos = filteredReservas.reduce((sum, r) => sum + (r.precioTotal || 0), 0)
+    const totalIngresos = reservasActivas.reduce((sum, r) => sum + (r.precioTotal || 0), 0)
     const reservasPorDepartamento = cabins.map((cabin) => ({
       dept: cabin.name,
       count: filteredReservas.filter((r) => r.departamento === cabin.name).length,
@@ -530,7 +545,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
       Math.ceil((endOfSelectedMonth.getTime() - startOfSelectedMonth.getTime()) / (1000 * 60 * 60 * 24)) + 1
 
     const totalDiasPotenciales = cabins.length * daysInSelectedMonth
-    const diasOcupados = filteredReservas.reduce((sum, r) => {
+    const diasOcupados = reservasActivas.reduce((sum, r) => {
       const reservaStart = startOfDay(r.fechaInicio as Date)
       const reservaEnd = endOfDay(r.fechaFin as Date) // Corrected this line
 
@@ -578,6 +593,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
   const currentYear = now.getFullYear()
   const ingresosDelMes = reservas
     .filter((r) => {
+      if (r.estado === "cancelada" || r.estado === "no_presentado") return false
       const fecha = r.fechaInicio
       return fecha.getMonth() === currentMonth && fecha.getFullYear() === currentYear
     })
@@ -1540,12 +1556,43 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
               />
             </div>
 
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-amber-200 shadow-sm">
+              <h3 className="font-semibold text-base md:text-lg text-amber-900 mb-4">Estado de la Reserva</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {ESTADOS_RESERVA.map((estado) => (
+                  <button
+                    key={estado.value}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, estado: estado.value })}
+                    className={cn(
+                      "p-3 rounded-lg border-2 transition-all text-sm font-medium",
+                      formData.estado === estado.value
+                        ? `${estado.color} text-Black border-green shadow-md`
+                        : "bg-white-100 border-gray-200 text-gray-700 hover:border-amber-300",
+                    )}
+                  >
+                    {estado.label}
+                  </button>
+                ))}
+              </div>
+              {(formData.estado === "cancelada" || formData.estado === "no_presentado") && (
+                <p className="mt-3 text-sm text-amber-700 bg-amber-50 p-2 rounded">
+                  Esta reserva aparecerá en la sección de "Canceladas / No presentados" del cronograma.
+                </p>
+              )}
+              {formData.estado === "pagado" && (
+                <p className="mt-3 text-sm text-green-700 bg-green-50 p-2 rounded">
+                  El comprobante mostrará que esta reserva está PAGADA.
+                </p>
+              )}
+            </div>
+
             <DialogFooter className="gap-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsDialogOpen(false)}
-                className="border-gray-300"
+                className="border-green-300"
               >
                 Cancelar
               </Button>

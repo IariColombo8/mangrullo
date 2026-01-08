@@ -59,8 +59,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
   const endOfMonthDate = endOfMonth(mes)
   const daysInMonth = eachDayOfInterval({ start: startOfMonthDate, end: endOfMonthDate })
 
-  // We just use them directly
-  const monthReservations = reservas
+  const monthReservations = reservas.filter((r) => r.estado !== "cancelada" && r.estado !== "no_presentado")
 
   const needsPaymentAlert = (reserva: Reserva): boolean => {
     const today = startOfDay(new Date())

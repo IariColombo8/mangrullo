@@ -120,8 +120,15 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({ reserva
           </h2>
         </div>
 
+        {reserva.estado === "pagado" && (
+          <div className="mt-3 bg-green-100 border-2 border-green-500 rounded-lg p-3 flex items-center justify-center gap-2">
+            <CheckCircle2 className="h-6 w-6 text-green-600" />
+            <span className="text-green-700 font-bold text-lg uppercase tracking-wide">PAGADO</span>
+          </div>
+        )}
+
         {/* Datos del huésped */}
-        <div className="grid grid-cols-2 gap-4 mb-3">
+        <div className="grid grid-cols-2 gap-4 mb-3 mt-3">
           <div>
             <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">Nombre del huésped:</label>
             <div className="border-b-2 border-gray-400 py-1.5 mt-1">
@@ -219,7 +226,9 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({ reserva
 
             {/* Cantidad de personas */}
             <div>
-              <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">Cantidad de personas:</label>
+              <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">
+                Cantidad de personas:
+              </label>
               <div className="border-b border-gray-400 py-1 mt-1">
                 <p className="text-gray-900 text-sm">
                   {reserva.cantidadAdultos || 0} Adultos, {reserva.cantidadMenores || 0} Menores
