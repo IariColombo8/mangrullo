@@ -1,7 +1,17 @@
 "use client"
 
 import type React from "react"
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, startOfDay, isBefore, addDays } from "date-fns"
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameDay,
+  startOfDay,
+  isBefore,
+  addDays,
+  parse,
+} from "date-fns"
 import { es } from "date-fns/locale"
 import { Card, CardContent } from "@/components/ui/card"
 import { Home, AlertTriangle } from "lucide-react"
@@ -16,9 +26,32 @@ interface TimelineViewProps {
   setViewingReserva: (reserva: Reserva) => void
 }
 
-const parseDate = (date: Date | string): Date => {
-  if (date instanceof Date) return date
-  return new Date(date)
+const parseDate = (date: Date | string | number): Date => {
+  if (date instanceof Date && !isNaN(date.getTime())) {
+    return date
+  }
+  if (typeof date === "number") {
+    return new Date(date)
+  }
+  if (typeof date === "string") {
+    let parsed = new Date(date)
+    if (!isNaN(parsed.getTime())) {
+      return parsed
+    }
+    try {
+      parsed = parse(date, "dd/MM/yyyy", new Date())
+      if (!isNaN(parsed.getTime())) {
+        return parsed
+      }
+    } catch (e) {}
+    try {
+      parsed = parse(date, "yyyy-MM-dd", new Date())
+      if (!isNaN(parsed.getTime())) {
+        return parsed
+      }
+    } catch (e) {}
+  }
+  return new Date()
 }
 
 const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setViewingReserva }) => {
@@ -26,23 +59,8 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
   const endOfMonthDate = endOfMonth(mes)
   const daysInMonth = eachDayOfInterval({ start: startOfMonthDate, end: endOfMonthDate })
 
-  const getMonthReservations = () => {
-    const monthStart = startOfDay(startOfMonthDate)
-    const monthEnd = startOfDay(endOfMonthDate)
-
-    const filtered = reservas.filter((r) => {
-      const inicio = startOfDay(parseDate(r.fechaInicio))
-      const fin = startOfDay(parseDate(r.fechaFin))
-
-      // Una reserva debe aparecer si alguno de sus días pintados (inicio hasta fin-1)
-      // cae dentro del mes
-      return inicio <= monthEnd && fin > monthStart
-    })
-
-    return filtered
-  }
-
-  const monthReservations = getMonthReservations()
+  // We just use them directly
+  const monthReservations = reservas
 
   const needsPaymentAlert = (reserva: Reserva): boolean => {
     const today = startOfDay(new Date())
@@ -65,7 +83,6 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
         if (r.departamento !== departamento) return false
         const inicio = startOfDay(parseDate(r.fechaInicio))
         const fin = startOfDay(parseDate(r.fechaFin))
-        // El día de salida NO se incluye
         return dayStart >= inicio && dayStart < fin
       }) || null
     )
@@ -160,16 +177,13 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
                       const reservaStartDate = startOfDay(parseDate(reserva.fechaInicio))
                       const reservaEndDate = startOfDay(parseDate(reserva.fechaFin))
 
-                      // Calcular el rango visible en este mes
                       const effectiveStart = reservaStartDate < startOfMonthDate ? startOfMonthDate : reservaStartDate
-                      // El último día pintado es fechaFin - 1 (no se pinta el día de salida)
                       const lastPaintedDay = addDays(reservaEndDate, -1)
                       const effectiveEnd = lastPaintedDay > endOfMonthDate ? endOfMonthDate : lastPaintedDay
 
                       const startDayIndex = daysInMonth.findIndex((day) => isSameDay(day, effectiveStart))
                       const endDayIndex = daysInMonth.findIndex((day) => isSameDay(day, effectiveEnd))
 
-                      // Si no hay días visibles en este mes, no renderizar
                       if (startDayIndex === -1 || endDayIndex === -1 || endDayIndex < startDayIndex) return null
 
                       const visibleStartDay = startDayIndex
@@ -205,7 +219,6 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
                           onClick={() => setViewingReserva(reserva)}
                           title={`${reserva.nombre} - ${reserva.origen} - ${totalNights} noches${!isRealStart ? " (continúa desde mes anterior)" : ""}${!isRealEnd ? " (continúa en mes siguiente)" : ""}`}
                         >
-                          {/* Indicador de continuación desde mes anterior */}
                           {!isRealStart && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-yellow-400/80" />}
 
                           <div className="flex items-center justify-between w-full">
@@ -213,7 +226,6 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
                             {hasAlert && <AlertTriangle className="h-3 w-3 ml-1 flex-shrink-0" />}
                           </div>
 
-                          {/* Indicador de continuación a mes siguiente */}
                           {!isRealEnd && <div className="absolute right-0 top-0 bottom-0 w-1.5 bg-yellow-400/80" />}
                         </div>
                       )
@@ -224,10 +236,9 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
           </div>
         </div>
 
-        {/* Vista Mobile - Horizontal invertida (días en vertical, departamentos en horizontal) */}
+        {/* Vista Mobile */}
         <div className="md:hidden overflow-x-auto">
           <div className="min-w-full">
-            {/* Encabezado con departamentos */}
             <div
               className="grid gap-0 border-b-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-teal-50 sticky top-0 z-20"
               style={{ gridTemplateColumns: `50px repeat(${cabins.length}, 1fr)` }}
@@ -245,7 +256,6 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
               ))}
             </div>
 
-            {/* Filas de días */}
             {daysInMonth.map((day) => {
               const isToday = isSameDay(day, new Date())
               const isWeekend = day.getDay() === 0 || day.getDay() === 6
@@ -256,7 +266,6 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
                   className="grid gap-0 border-b border-gray-200 hover:bg-gray-50/50 transition-colors"
                   style={{ gridTemplateColumns: `50px repeat(${cabins.length}, 1fr)` }}
                 >
-                  {/* Columna del día */}
                   <div
                     className={cn(
                       "p-1 font-semibold text-[9px] flex flex-col items-center justify-center border-r-2 border-gray-300",
@@ -269,7 +278,6 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
                     <div className="text-[7px] leading-tight">{format(day, "EEE", { locale: es })}</div>
                   </div>
 
-                  {/* Columnas de departamentos */}
                   {cabins.map((cabin) => {
                     const reserva = getReservationForDayAndDept(day, cabin.name)
                     const hasAlert = reserva ? needsPaymentAlert(reserva) : false

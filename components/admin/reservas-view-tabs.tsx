@@ -6,8 +6,28 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Edit, Trash2, ChevronLeft, ChevronRight, Calendar, AlertTriangle, Phone, User, MapPin } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Calendar as CalendarIcon } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  Eye,
+  Edit,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  AlertTriangle,
+  Phone,
+  User,
+  MapPin,
+  Search,
+  Filter,
+  X,
+} from "lucide-react"
 import { format, isBefore, startOfDay } from "date-fns"
+import { es } from "date-fns/locale"
 import type { Reserva } from "@/types/reserva"
 import type { Cabin } from "@/types/cabin"
 import { cn } from "@/lib/utils"
@@ -61,6 +81,18 @@ interface ReservasViewTabsProps {
   setViewingReserva: (reserva: Reserva | null) => void
   openEditDialog: (reserva: Reserva) => void
   setDeleteReserva: (reserva: Reserva | null) => void
+  // Filter props
+  filterDepartamento: string
+  setFilterDepartamento: (value: string) => void
+  filterOrigen: string
+  setFilterOrigen: (value: string) => void
+  filterDeposito: string
+  setFilterDeposito: (value: string) => void
+  searchQuery: string
+  setSearchQuery: (value: string) => void
+  setFilterMes: (date: Date) => void
+  hasActiveFilters: boolean
+  clearAllFilters: () => void
 }
 
 function calculateNights(checkIn: Date, checkOut: Date): number {
@@ -110,34 +142,224 @@ export default function ReservasViewTabs({
   setViewingReserva,
   openEditDialog,
   setDeleteReserva,
+  filterDepartamento,
+  setFilterDepartamento,
+  filterOrigen,
+  setFilterOrigen,
+  filterDeposito,
+  setFilterDeposito,
+  searchQuery,
+  setSearchQuery,
+  setFilterMes,
+  hasActiveFilters,
+  clearAllFilters,
 }: ReservasViewTabsProps) {
   const [currentPage, setCurrentPage] = useState(1)
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
 
   const totalPages = Math.ceil(filteredReservas.length / ITEMS_PER_PAGE)
   const paginatedReservas = filteredReservas.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
 
   return (
     <Tabs value={viewMode} onValueChange={(v) => onViewModeChange(v as typeof viewMode)} className="w-full">
-      <TabsList className="grid w-full grid-cols-3 bg-white/80 backdrop-blur-sm border border-emerald-200 h-9 sm:h-10">
-        <TabsTrigger
-          value="tabla"
-          className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs sm:text-sm px-2 py-1"
-        >
-          Tabla
-        </TabsTrigger>
-        <TabsTrigger
-          value="timeline"
-          className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs sm:text-sm px-2 py-1"
-        >
-          Cronograma
-        </TabsTrigger>
-        <TabsTrigger
-          value="grid"
-          className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs sm:text-sm px-2 py-1"
-        >
-          Cuadrícula
-        </TabsTrigger>
-      </TabsList>
+      <div className="flex items-center gap-2 mb-2">
+        <TabsList className="grid flex-1 grid-cols-3 bg-white/80 backdrop-blur-sm border border-emerald-200 h-9 sm:h-10">
+          <TabsTrigger
+            value="tabla"
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs sm:text-sm px-2 py-1"
+          >
+            Tabla
+          </TabsTrigger>
+          <TabsTrigger
+            value="timeline"
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs sm:text-sm px-2 py-1"
+          >
+            Cronograma
+          </TabsTrigger>
+          <TabsTrigger
+            value="grid"
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs sm:text-sm px-2 py-1"
+          >
+            Cuadrícula
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Mobile filter button */}
+        <Dialog open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+          <DialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="md:hidden border-emerald-200 hover:bg-emerald-50 relative h-9 w-9 bg-transparent"
+            >
+              <Filter className="h-4 w-4" />
+              {hasActiveFilters && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 bg-emerald-600 text-white text-[10px] rounded-full flex items-center justify-center">
+                  !
+                </span>
+              )}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-[95vw] max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Filter className="h-5 w-5 text-emerald-600" />
+                Filtros
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {/* Mes */}
+              <div className="space-y-2">
+                <Label className="text-emerald-900 font-semibold text-sm">Mes</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
+                      {format(filterMes, "MMMM yyyy", { locale: es })}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarIcon
+                      mode="single"
+                      selected={filterMes}
+                      onSelect={(date) => date && setFilterMes(date)}
+                      locale={es}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Departamento */}
+              <div className="space-y-2">
+                <Label className="text-emerald-900 font-semibold text-sm">Departamento</Label>
+                <Select value={filterDepartamento} onValueChange={setFilterDepartamento}>
+                  <SelectTrigger className="border-emerald-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    {cabins.map((cabin) => (
+                      <SelectItem key={cabin.id} value={cabin.name}>
+                        {cabin.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Origen */}
+              <div className="space-y-2">
+                <Label className="text-emerald-900 font-semibold text-sm">Origen</Label>
+                <Select value={filterOrigen} onValueChange={setFilterOrigen}>
+                  <SelectTrigger className="border-emerald-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    {ORIGENES.map((origen) => (
+                      <SelectItem key={origen.value} value={origen.value}>
+                        {origen.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Depósito */}
+              <div className="space-y-2">
+                <Label className="text-emerald-900 font-semibold text-sm">Depósito</Label>
+                <Select value={filterDeposito} onValueChange={setFilterDeposito}>
+                  <SelectTrigger className="border-emerald-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="si">Sí</SelectItem>
+                    <SelectItem value="no">No</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Buscar */}
+              <div className="space-y-2">
+                <Label className="text-emerald-900 font-semibold text-sm">Buscar</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Nombre o teléfono..."
+                    className="pl-9 border-emerald-200"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                {hasActiveFilters && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      clearAllFilters()
+                      setMobileFiltersOpen(false)
+                    }}
+                    className="flex-1 border-red-200 text-red-600 hover:bg-red-50"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Limpiar
+                  </Button>
+                )}
+                <Button
+                  onClick={() => setMobileFiltersOpen(false)}
+                  className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white"
+                >
+                  Aplicar
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Active filters badges (mobile) */}
+      {hasActiveFilters && (
+        <div className="md:hidden flex flex-wrap gap-1.5 mb-2">
+          {filterDepartamento !== "todos" && (
+            <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">
+              {filterDepartamento}
+              <button onClick={() => setFilterDepartamento("todos")} className="ml-1">
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {filterOrigen !== "todos" && (
+            <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">
+              {ORIGENES.find((o) => o.value === filterOrigen)?.label}
+              <button onClick={() => setFilterOrigen("todos")} className="ml-1">
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {filterDeposito !== "todos" && (
+            <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">
+              Depósito: {filterDeposito === "si" ? "Sí" : "No"}
+              <button onClick={() => setFilterDeposito("todos")} className="ml-1">
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {searchQuery && (
+            <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">
+              "{searchQuery}"
+              <button onClick={() => setSearchQuery("")} className="ml-1">
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+        </div>
+      )}
 
       {viewMode === "tabla" && (
         <TabsContent value="tabla" className="mt-2">
@@ -151,9 +373,7 @@ export default function ReservasViewTabs({
                       <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">Depto</TableHead>
                       <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">Check-in</TableHead>
                       <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">Check-out</TableHead>
-                      <TableHead className="text-center font-bold text-emerald-900 text-xs py-2 px-2">
-                        Noches
-                      </TableHead>
+                      <TableHead className="text-center font-bold text-emerald-900 text-xs py-2 px-2">Noches</TableHead>
                       <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">Nombre</TableHead>
                       <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">País</TableHead>
                       <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">Teléfono</TableHead>
@@ -162,12 +382,8 @@ export default function ReservasViewTabs({
                       <TableHead className="text-center font-bold text-emerald-900 text-xs py-2 px-2">
                         Depósito
                       </TableHead>
-                      <TableHead className="text-right font-bold text-emerald-900 text-xs py-2 px-2">
-                        $ Noche
-                      </TableHead>
-                      <TableHead className="text-right font-bold text-emerald-900 text-xs py-2 px-2">
-                        $ Total
-                      </TableHead>
+                      <TableHead className="text-right font-bold text-emerald-900 text-xs py-2 px-2">$ Noche</TableHead>
+                      <TableHead className="text-right font-bold text-emerald-900 text-xs py-2 px-2">$ Total</TableHead>
                       <TableHead className="text-center font-bold text-emerald-900 text-xs py-2 px-2">
                         Acciones
                       </TableHead>
@@ -178,7 +394,7 @@ export default function ReservasViewTabs({
                       <TableRow>
                         <TableCell colSpan={13} className="text-center py-8 text-gray-500">
                           <div className="flex flex-col items-center gap-2">
-                            <Calendar className="h-12 w-12 text-gray-300" />
+                            <CalendarIcon className="h-12 w-12 text-gray-300" />
                             <p className="text-sm font-medium">No se encontraron reservas</p>
                           </div>
                         </TableCell>
@@ -316,7 +532,7 @@ export default function ReservasViewTabs({
                 {paginatedReservas.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <div className="flex flex-col items-center gap-2">
-                      <Calendar className="h-12 w-12 text-gray-300" />
+                      <CalendarIcon className="h-12 w-12 text-gray-300" />
                       <p className="text-sm font-medium">No se encontraron reservas</p>
                     </div>
                   </div>
@@ -333,17 +549,12 @@ export default function ReservasViewTabs({
                     return (
                       <div
                         key={reserva.id}
-                        className={cn(
-                          "p-4 hover:bg-emerald-50/50 transition-colors",
-                          hasAlert && "bg-red-50/50"
-                        )}
+                        className={cn("p-4 hover:bg-emerald-50/50 transition-colors", hasAlert && "bg-red-50/50")}
                       >
                         {/* Header */}
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-2">
-                            {hasAlert && (
-                              <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />
-                            )}
+                            {hasAlert && <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />}
                             <Badge
                               variant="outline"
                               className="font-bold border-emerald-300 text-emerald-700 bg-emerald-50 text-sm px-2 py-1"
@@ -352,10 +563,7 @@ export default function ReservasViewTabs({
                             </Badge>
                           </div>
                           <Badge
-                            className={cn(
-                              "text-white font-medium shadow-sm text-xs",
-                              getOrigenColor(reserva.origen),
-                            )}
+                            className={cn("text-white font-medium shadow-sm text-xs", getOrigenColor(reserva.origen))}
                           >
                             {ORIGENES.find((o) => o.value === reserva.origen)?.label}
                           </Badge>
@@ -399,9 +607,7 @@ export default function ReservasViewTabs({
                             <span className="text-sm font-mono text-gray-600">{reserva.numero}</span>
                           </div>
                           {reserva.origen === "particular" && reserva.contactoParticular && (
-                            <div className="text-sm text-gray-600 pl-6">
-                              Contacto: {reserva.contactoParticular}
-                            </div>
+                            <div className="text-sm text-gray-600 pl-6">Contacto: {reserva.contactoParticular}</div>
                           )}
                         </div>
 
@@ -409,9 +615,7 @@ export default function ReservasViewTabs({
                         <div className="grid grid-cols-2 gap-2 mb-3">
                           <div className="bg-gray-50 p-2 rounded">
                             <div className="text-xs text-gray-500 mb-1">Por noche</div>
-                            <div className="font-semibold text-sm text-gray-700">
-                              ${precioNoche.toLocaleString()}
-                            </div>
+                            <div className="font-semibold text-sm text-gray-700">${precioNoche.toLocaleString()}</div>
                           </div>
                           <div className="bg-emerald-50 p-2 rounded">
                             <div className="text-xs text-emerald-600 mb-1">Total</div>
@@ -508,7 +712,7 @@ export default function ReservasViewTabs({
       )}
 
       {viewMode === "timeline" && (
-        <TabsContent value="timeline" className="mt-4">
+        <TabsContent value="timeline" className="mt-2">
           <TimelineView
             reservas={filteredReservas}
             mes={filterMes}
@@ -519,7 +723,7 @@ export default function ReservasViewTabs({
       )}
 
       {viewMode === "grid" && (
-        <TabsContent value="grid" className="mt-4">
+        <TabsContent value="grid" className="mt-2">
           <GridView reservas={filteredReservas} mes={filterMes} cabins={cabins} setViewingReserva={setViewingReserva} />
         </TabsContent>
       )}

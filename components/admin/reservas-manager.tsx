@@ -455,11 +455,12 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
         matchesCheckinHasta = (reserva.fechaInicio as Date) <= endOfDay(filterFechaHasta)
       }
 
-      const reservaMonth = (reserva.fechaInicio as Date).getMonth()
-      const reservaYear = (reserva.fechaInicio as Date).getFullYear()
-      const filterMonth = filterMes.getMonth()
-      const filterYear = filterMes.getFullYear()
-      const matchesMes = reservaMonth === filterMonth && reservaYear === filterYear
+      const filterMonthStart = startOfMonth(filterMes)
+      const filterMonthEnd = endOfMonth(filterMes)
+      const reservaInicio = reserva.fechaInicio as Date
+      const reservaFin = reserva.fechaFin as Date
+      // Una reserva debe aparecer si alguno de sus días cae dentro del mes seleccionado
+      const matchesMes = reservaInicio <= filterMonthEnd && reservaFin > filterMonthStart
 
       return (
         matchesSearch &&
@@ -616,7 +617,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
         now={now}
         formatCurrency={formatCurrency}
       />
-    
+
       {/* Check-ins/Check-outs Today Card */}
       {(checkIns.length > 0 || checkOuts.length > 0) && (
         <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200 shadow-lg">
@@ -729,10 +730,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
       <div className="md:hidden">
         <Dialog>
           <DialogTrigger asChild>
-            <Button
-              variant="outline"
-              className="w-full border-emerald-200 hover:bg-emerald-50 relative"
-            >
+            <Button variant="outline" className="w-full border-emerald-200 hover:bg-emerald-50 relative bg-transparent">
               <Search className="h-4 w-4 mr-2" />
               Filtros
               {hasActiveFilters && (
@@ -756,7 +754,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full justify-start border-emerald-200 hover:bg-emerald-50"
+                      className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
                       {format(filterMes, "MMMM yyyy", { locale: es })}
@@ -849,7 +847,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full justify-start border-emerald-200 hover:bg-emerald-50"
+                      className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
                       {filterFechaDesde ? format(filterFechaDesde, "dd/MM/yyyy") : "Seleccionar..."}
@@ -873,7 +871,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full justify-start border-emerald-200 hover:bg-emerald-50"
+                      className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
                       {filterFechaHasta ? format(filterFechaHasta, "dd/MM/yyyy") : "Seleccionar..."}
@@ -908,7 +906,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                 <Button
                   variant="outline"
                   onClick={clearAllFilters}
-                  className="w-full border-red-200 text-red-600 hover:bg-red-50"
+                  className="w-full border-red-200 text-red-600 hover:bg-red-50 bg-transparent"
                 >
                   Limpiar filtros
                 </Button>
@@ -920,7 +918,176 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
 
       {/* Desktop Filters */}
       <div className="hidden md:block bg-white/80 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-emerald-200 shadow-lg">
-        {/* ... resto del código de filtros desktop que ya tienes ... */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Mes */}
+          <div className="space-y-2">
+            <Label htmlFor="filterMes" className="text-emerald-900 font-semibold text-sm">
+              Mes
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
+                  {format(filterMes, "MMMM yyyy", { locale: es })}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={filterMes}
+                  onSelect={(date) => date && setFilterMes(date)}
+                  locale={es}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Departamento */}
+          <div className="space-y-2">
+            <Label className="text-emerald-900 font-semibold text-sm">Departamento</Label>
+            <Select value={filterDepartamento} onValueChange={setFilterDepartamento}>
+              <SelectTrigger className="border-emerald-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                {cabins.map((cabin) => (
+                  <SelectItem key={cabin.id} value={cabin.name}>
+                    {cabin.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Origen */}
+          <div className="space-y-2">
+            <Label className="text-emerald-900 font-semibold text-sm">Origen</Label>
+            <Select value={filterOrigen} onValueChange={setFilterOrigen}>
+              <SelectTrigger className="border-emerald-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                {ORIGENES.map((origen) => (
+                  <SelectItem key={origen.value} value={origen.value}>
+                    {origen.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* País */}
+          <div className="space-y-2">
+            <Label className="text-emerald-900 font-semibold text-sm">País</Label>
+            <Select value={filterPais} onValueChange={setFilterPais}>
+              <SelectTrigger className="border-emerald-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                {PAISES.map((pais) => (
+                  <SelectItem key={pais.code} value={pais.code}>
+                    {pais.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Depósito */}
+          <div className="space-y-2">
+            <Label className="text-emerald-900 font-semibold text-sm">Depósito</Label>
+            <Select value={filterDeposito} onValueChange={setFilterDeposito}>
+              <SelectTrigger className="border-emerald-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="si">Sí</SelectItem>
+                <SelectItem value="no">No</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Check-in desde */}
+          <div className="space-y-2">
+            <Label className="text-emerald-900 font-semibold text-sm">Check-in desde</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
+                  {filterFechaDesde ? format(filterFechaDesde, "dd/MM/yyyy") : "Seleccionar..."}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={filterFechaDesde || undefined}
+                  onSelect={(date) => setFilterFechaDesde(date || null)}
+                  locale={es}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Check-in hasta */}
+          <div className="space-y-2">
+            <Label className="text-emerald-900 font-semibold text-sm">Check-in hasta</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
+                  {filterFechaHasta ? format(filterFechaHasta, "dd/MM/yyyy") : "Seleccionar..."}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={filterFechaHasta || undefined}
+                  onSelect={(date) => setFilterFechaHasta(date || null)}
+                  locale={es}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Buscar */}
+          <div className="space-y-2 lg:col-span-1">
+            <Label className="text-emerald-900 font-semibold text-sm">Buscar</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Nombre o teléfono..."
+                className="pl-9 border-emerald-200"
+              />
+            </div>
+          </div>
+        </div>
+
+        {hasActiveFilters && (
+          <div className="mt-6 flex justify-end">
+            <Button
+              variant="outline"
+              onClick={clearAllFilters}
+              className="border-red-200 text-red-600 hover:bg-red-50 bg-transparent"
+            >
+              Limpiar filtros
+            </Button>
+          </div>
+        )}
       </div>
 
       <ReservasViewTabs
@@ -932,6 +1099,17 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
         setViewingReserva={setViewingReserva}
         openEditDialog={openEditDialog}
         setDeleteReserva={setDeleteReserva}
+        filterDepartamento={filterDepartamento}
+        setFilterDepartamento={setFilterDepartamento}
+        filterOrigen={filterOrigen}
+        setFilterOrigen={setFilterOrigen}
+        filterDeposito={filterDeposito}
+        setFilterDeposito={setFilterDeposito}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        setFilterMes={setFilterMes}
+        hasActiveFilters={hasActiveFilters}
+        clearAllFilters={clearAllFilters}
       />
 
       {/* Dialog for creating/editing reservation */}

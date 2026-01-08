@@ -138,7 +138,7 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
           </h3>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-2 gap-4">
           {cabins.map((cabin) => {
             const deptReservations = monthReservations.filter((r) => r.departamento === cabin.name)
 
