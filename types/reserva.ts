@@ -11,6 +11,14 @@ export interface PrecioNoche {
   dolares?: number
 }
 
+export interface DepartamentoDetalle {
+  departamento: Departamento
+  cantidadAdultos: number
+  cantidadMenores: number
+  precioNoche: PrecioNoche
+  precioTotal: number
+}
+
 export interface Reserva {
   id?: string
   // Identificación
@@ -31,6 +39,8 @@ export interface Reserva {
   origen: OrigenReserva
   contactoParticular?: ContactoParticular
 
+  numeroReservaBooking?: string
+
   // Pagos
   hizoDeposito: boolean
   montoDeposito?: number
@@ -48,6 +58,9 @@ export interface Reserva {
 
   estado?: EstadoReserva
   moneda?: string
+
+  esReservaMultiple?: boolean
+  departamentos?: DepartamentoDetalle[]
 }
 
 export interface ReservaFormData extends Omit<Reserva, "id" | "fechaInicio" | "fechaFin" | "fechaCreacion"> {

@@ -77,7 +77,7 @@ export default function TodayTimeline() {
       upcn: "bg-green-500",
       particular: "bg-orange-500",
     }
-    return colors[origen as keyof typeof colors] || "bg-gray-500"
+    return colors[origen as keyof typeof colors] || "bg-black-500"
   }
 
   const getOrigenLabel = (origen: string) => {

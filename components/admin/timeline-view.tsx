@@ -79,7 +79,11 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
     const dayStart = startOfDay(day)
     return (
       monthReservations.find((r) => {
-        if (r.departamento !== departamento) return false
+        const matchesDept =
+          r.departamento === departamento ||
+          (r.departamentos && r.departamentos.some((d) => d.departamento === departamento))
+        if (!matchesDept) return false
+
         const inicio = startOfDay(parseDate(r.fechaInicio))
         const fin = startOfDay(parseDate(r.fechaFin))
         return dayStart >= inicio && dayStart < fin
@@ -171,7 +175,12 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
                   })}
 
                   {monthReservations
-                    .filter((r) => r.departamento === cabin.name)
+                    .filter((r) => {
+                      return (
+                        r.departamento === cabin.name ||
+                        (r.departamentos && r.departamentos.some((d) => d.departamento === cabin.name))
+                      )
+                    })
                     .map((reserva, idx) => {
                       const reservaStartDate = startOfDay(parseDate(reserva.fechaInicio))
                       const reservaEndDate = startOfDay(parseDate(reserva.fechaFin))

@@ -32,7 +32,7 @@ const BOOKING_ORIGINS = {
   },
   upcn: {
     name: "UPCN (Gremio)",
-    color: "bg-[#28A745]",
+    color: "bg-[#2E9E3D]",
     lightColor: "bg-green-100",
     textColor: "text-green-700",
   },

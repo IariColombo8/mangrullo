@@ -165,34 +165,63 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({ reserva
           </div>
         </div>
 
+        {reserva.numeroReservaBooking && reserva.origen === "booking" && (
+          <div className="mb-3">
+            <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">
+              Número de Reserva Booking:
+            </label>
+            <div className="border-b-2 border-gray-400 py-1.5 mt-1">
+              <p className="text-gray-900 font-medium text-base">{reserva.numeroReservaBooking}</p>
+            </div>
+          </div>
+        )}
+
         {/* Grid de 2 columnas */}
         <div className="grid grid-cols-2 gap-4 mb-3">
           {/* Columna izquierda */}
           <div className="bg-gray-50 p-4 rounded-lg border border-gray-300 space-y-3">
-            {/* Departamentos en 2 columnas */}
             <div>
               <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide mb-2 block">
-                Departamento/s:
+                {reserva.esReservaMultiple ? `Departamentos (${reserva.departamentos?.length}):` : "Departamento/s:"}
               </label>
-              <div className="grid grid-cols-2 gap-2">
-                {DEPARTAMENTOS.map((dept) => {
-                  const isSelected = reserva.departamento?.trim() === dept.trim()
+              {reserva.esReservaMultiple && reserva.departamentos ? (
+                // Multi-cabin display
+                <div className="space-y-2">
+                  {reserva.departamentos.map((dept) => {
+                    const isSelected = dept.departamento
 
-                  return (
-                    <div key={dept} className="flex items-center gap-2">
-                      <div
-                        className={cn(
-                          "w-5 h-5 border-2 border-gray-700 flex items-center justify-center rounded-sm flex-shrink-0",
-                          isSelected && "bg-gray-900",
-                        )}
-                      >
-                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                    return (
+                      <div key={dept.departamento} className="flex items-center gap-2 border-b border-gray-200 pb-2">
+                        <div className="w-5 h-5 border-2 border-gray-700 flex items-center justify-center rounded-sm flex-shrink-0 bg-gray-900">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                        </div>
+                        <span className="text-gray-700 text-sm font-medium">{dept.departamento}</span>
                       </div>
-                      <span className="text-gray-700 text-sm">{dept}</span>
-                    </div>
-                  )
-                })}
-              </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                // Single cabin display
+                <div className="grid grid-cols-2 gap-2">
+                  {DEPARTAMENTOS.map((dept) => {
+                    const isSelected = reserva.departamento?.trim() === dept.trim()
+
+                    return (
+                      <div key={dept} className="flex items-center gap-2">
+                        <div
+                          className={cn(
+                            "w-5 h-5 border-2 border-gray-700 flex items-center justify-center rounded-sm flex-shrink-0",
+                            isSelected && "bg-gray-900",
+                          )}
+                        >
+                          {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                        </div>
+                        <span className="text-gray-700 text-sm">{dept}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Fechas en una fila */}
@@ -224,17 +253,34 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({ reserva
               </div>
             </div>
 
-            {/* Cantidad de personas */}
-            <div>
-              <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">
-                Cantidad de personas:
-              </label>
-              <div className="border-b border-gray-400 py-1 mt-1">
-                <p className="text-gray-900 text-sm">
-                  {reserva.cantidadAdultos || 0} Adultos, {reserva.cantidadMenores || 0} Menores
-                </p>
+            {reserva.esReservaMultiple && reserva.departamentos ? (
+              // Display per-cabin guest counts
+              <div>
+                <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide mb-2 block">
+                  Cantidad de personas por departamento:
+                </label>
+                <div className="space-y-1">
+                  {reserva.departamentos.map((dept) => (
+                    <div key={dept.departamento} className="text-sm">
+                      <span className="font-medium">{dept.departamento}:</span> {dept.cantidadAdultos} Adultos,{" "}
+                      {dept.cantidadMenores} Menores
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              // Display total guest count for single cabin
+              <div>
+                <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">
+                  Cantidad de personas:
+                </label>
+                <div className="border-b border-gray-400 py-1 mt-1">
+                  <p className="text-gray-900 text-sm">
+                    {reserva.cantidadAdultos || 0} Adultos, {reserva.cantidadMenores || 0} Menores
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Observaciones dentro del mismo recuadro */}
             {reserva.notas && reserva.notas.trim() !== "" && (
@@ -255,21 +301,57 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({ reserva
               <p className="text-sm text-gray-600 font-medium">Moneda: {nombreMoneda}</p>
             </div>
 
-            <div>
-              <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">Precio por noche:</label>
-              <div className="border-b border-gray-400 py-1 mt-1">
-                <p className="text-gray-900 text-base font-semibold">
-                  {simboloMoneda} {formatCurrency(precioNocheMostrar)}
-                </p>
+            {reserva.esReservaMultiple && reserva.departamentos ? (
+              // Multi-cabin pricing display
+              <div className="space-y-3">
+                <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide block">
+                  Precios por departamento:
+                </label>
+                {reserva.departamentos.map((dept) => {
+                  const precioNoche = dept.precioNoche[monedaReserva] || 0
+                  return (
+                    <div key={dept.departamento} className="border-b border-gray-300 pb-2">
+                      <p className="text-sm font-medium text-gray-700 mb-1">{dept.departamento}</p>
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-600">Precio por noche:</span>
+                        <span className="font-semibold text-gray-900">
+                          {simboloMoneda} {formatCurrency(precioNoche)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm mt-1">
+                        <span className="text-gray-600">Total ({noches} noches):</span>
+                        <span className="font-bold text-gray-900">
+                          {simboloMoneda} {formatCurrency(dept.precioTotal)}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-            </div>
+            ) : (
+              // Single cabin pricing display
+              <>
+                <div>
+                  <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">
+                    Precio por noche:
+                  </label>
+                  <div className="border-b border-gray-400 py-1 mt-1">
+                    <p className="text-gray-900 text-base font-semibold">
+                      {simboloMoneda} {formatCurrency(precioNocheMostrar)}
+                    </p>
+                  </div>
+                </div>
 
-            <div>
-              <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">Cantidad de noches:</label>
-              <div className="border-b border-gray-400 py-1 mt-1">
-                <p className="text-gray-900 font-bold text-base">{noches}</p>
-              </div>
-            </div>
+                <div>
+                  <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">
+                    Cantidad de noches:
+                  </label>
+                  <div className="border-b border-gray-400 py-1 mt-1">
+                    <p className="text-gray-900 font-bold text-base">{noches}</p>
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className="pt-2 border-t-2 border-gray-400">
               <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">Subtotal:</label>

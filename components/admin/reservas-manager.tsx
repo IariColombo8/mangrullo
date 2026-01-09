@@ -12,8 +12,9 @@ import type {
   OrigenReserva,
   ContactoParticular,
   PrecioNoche,
+  DepartamentoDetalle,
 } from "@/types/reserva"
-import { ORIGENES, CONTACTOS_PARTICULARES } from "@/types/reserva" // Updated import for ORIGENES
+import { ORIGENES, CONTACTOS_PARTICULARES } from "@/types/reserva"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -44,27 +45,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { CalendarIcon, Search, DollarSign, Home, Sparkles, AlertTriangle, CheckCircle, Clock, Plus } from "lucide-react"
-import {
-  format,
-  startOfMonth,
-  endOfMonth,
-  startOfDay,
-  isSameDay,
-  isBefore,
-  endOfDay, // Import endOfDay
-} from "date-fns"
+import { format, startOfMonth, endOfMonth, startOfDay, isSameDay, isBefore, endOfDay } from "date-fns"
 import { es } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 
-import ComprobanteProfesional from "./ComprobanteProfesional" // Import ComprobanteProfesional
+import ComprobanteProfesional from "./ComprobanteProfesional"
 
 import DashboardMetrics from "./dashboard-metrics"
 
-// Import auth context and next navigation
 import { useAuth } from "@/context/auth-context"
 import { useRouter } from "next/navigation"
 
-// Imported new component for tabbed view
 import ReservasViewTabs from "./reservas-view-tabs"
 
 const PAISES = [
@@ -89,12 +80,10 @@ const ESTADOS_RESERVA = [
 const toValidDate = (dateValue: any): Date => {
   if (!dateValue) return new Date()
 
-  // Si ya es una fecha válida
   if (dateValue instanceof Date) {
     return isNaN(dateValue.getTime()) ? new Date() : dateValue
   }
 
-  // Si es un Timestamp de Firestore
   if (dateValue.toDate && typeof dateValue.toDate === "function") {
     try {
       const converted = dateValue.toDate()
@@ -105,7 +94,6 @@ const toValidDate = (dateValue: any): Date => {
     }
   }
 
-  // Si es un string o número
   try {
     const converted = new Date(dateValue)
     return isNaN(converted.getTime()) ? new Date() : converted
@@ -122,7 +110,7 @@ const formatCurrency = (value: number | undefined | null): string => {
 
 const getPrecioNocheValue = (reserva: Reserva): number => {
   if (!reserva.precioNoche || typeof reserva.precioNoche !== "object") return 0
-  const currency = reserva.moneda || "ARS" // Default to ARS if moneda is not specified
+  const currency = reserva.moneda || "ARS"
   return reserva.precioNoche[currency] || 0
 }
 
@@ -149,14 +137,17 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
   const [filterDeposito, setFilterDeposito] = useState<string>("todos")
   const [filterMes, setFilterMes] = useState<Date>(new Date())
 
-  // Renamed filter variables and added search query state
-  const [filterFechaDesde, setFilterFechaDesde] = useState<Date | null>(null)
-  const [filterFechaHasta, setFilterFechaHasta] = useState<Date | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+
+  const [filterNumeroReservaBooking, setFilterNumeroReservaBooking] = useState("")
 
   const [viewMode, setViewMode] = useState<"tabla" | "timeline" | "grid">("tabla")
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 15
+
+  const [esReservaMultiple, setEsReservaMultiple] = useState(false)
+  const [departamentosSeleccionados, setDepartamentosSeleccionados] = useState<string[]>([])
+  const [departamentosDetalles, setDepartamentosDetalles] = useState<Map<string, DepartamentoDetalle>>(new Map())
 
   const [formData, setFormData] = useState<ReservaFormData>({
     departamento: "",
@@ -175,6 +166,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
     cantidadAdultos: 2,
     cantidadMenores: 0,
     estado: "activa",
+    numeroReservaBooking: "",
   })
 
   // Add auth and navigation hooks
@@ -247,7 +239,6 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
   const checkOverlap = (departamento: Departamento, fechaInicio: Date, fechaFin: Date, excludeId?: string): boolean => {
     return reservas.some((reserva) => {
       if (reserva.id === excludeId) return false
-      if (reserva.departamento !== departamento) return false
       if (reserva.estado === "cancelada" || reserva.estado === "no_presentado") return false
 
       const rStart = (reserva.fechaInicio as Date).getTime()
@@ -256,7 +247,14 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
       const newEnd = fechaFin.getTime()
 
       // Check for overlap: new range starts before existing range ends AND new range ends after existing range starts
-      return newStart < rEnd && newEnd > rStart
+      const hasOverlap = newStart < rEnd && newEnd > rStart
+
+      // Check if this reservation uses the same departamento
+      if (reserva.esReservaMultiple && reserva.departamentos) {
+        return hasOverlap && reserva.departamentos.some((d) => d.departamento === departamento)
+      } else {
+        return hasOverlap && reserva.departamento === departamento
+      }
     })
   }
 
@@ -273,10 +271,30 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.nombre || !formData.departamento) {
-      // numero no es obligatorio
-      alert("Por favor completa Nombre y Departamento")
-      return
+    if (esReservaMultiple) {
+      if (departamentosSeleccionados.length < 2 || departamentosSeleccionados.length > 4) {
+        alert("Debe seleccionar entre 2 y 4 departamentos para una reserva múltiple")
+        return
+      }
+
+      if (!formData.nombre) {
+        alert("Por favor completa el Nombre del huésped")
+        return
+      }
+
+      // Validate each cabin has details
+      for (const dept of departamentosSeleccionados) {
+        const detalle = departamentosDetalles.get(dept)
+        if (!detalle) {
+          alert(`Falta completar los detalles del departamento ${dept}`)
+          return
+        }
+      }
+    } else {
+      if (!formData.nombre || !formData.departamento) {
+        alert("Por favor completa Nombre y Departamento")
+        return
+      }
     }
 
     if (formData.fechaFin <= formData.fechaInicio) {
@@ -284,16 +302,18 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
       return
     }
 
-    const hasOverlap = checkOverlap(formData.departamento, formData.fechaInicio, formData.fechaFin, editingReserva?.id)
+    const departamentosAValidar = esReservaMultiple ? departamentosSeleccionados : [formData.departamento]
 
-    if (hasOverlap) {
-      alert("Ya existe una reserva para este departamento en las fechas seleccionadas")
-      return
+    for (const dept of departamentosAValidar) {
+      const hasOverlap = checkOverlap(dept, formData.fechaInicio, formData.fechaFin, editingReserva?.id)
+      if (hasOverlap) {
+        alert(`Ya existe una reserva para ${dept} en las fechas seleccionadas`)
+        return
+      }
     }
 
     try {
       const reservaData: any = {
-        departamento: formData.departamento,
         fechaInicio: Timestamp.fromDate(formData.fechaInicio),
         fechaFin: Timestamp.fromDate(formData.fechaFin),
         nombre: formData.nombre,
@@ -301,17 +321,46 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
         numero: formData.numero,
         origen: formData.origen,
         hizoDeposito: formData.hizoDeposito,
-        precioNoche: formData.precioNoche,
-        precioImpuestos: formData.precioImpuestos,
-        precioGanancia: formData.precioGanancia,
-        precioTotal: formData.precioTotal,
         moneda: formData.moneda,
         estado: formData.estado || "activa",
         fechaCreacion: editingReserva?.fechaCreacion
           ? Timestamp.fromDate(editingReserva.fechaCreacion as Date)
           : Timestamp.now(),
-        cantidadAdultos: formData.cantidadAdultos || 2,
-        cantidadMenores: formData.cantidadMenores || 0,
+      }
+
+      if (esReservaMultiple) {
+        reservaData.esReservaMultiple = true
+        reservaData.departamento = departamentosSeleccionados[0] // First cabin as primary
+        reservaData.departamentos = departamentosSeleccionados.map((dept) => {
+          const detalle = departamentosDetalles.get(dept)!
+          return {
+            departamento: dept,
+            cantidadAdultos: detalle.cantidadAdultos,
+            cantidadMenores: detalle.cantidadMenores,
+            precioNoche: detalle.precioNoche,
+            precioTotal: detalle.precioTotal,
+          }
+        })
+
+        // Calculate total price from all cabins
+        const totalGeneral = Array.from(departamentosDetalles.values()).reduce((sum, d) => sum + d.precioTotal, 0)
+        reservaData.precioTotal = totalGeneral
+        reservaData.precioNoche = { [formData.moneda || "AR"]: 0 } // Not applicable for multi
+        reservaData.precioImpuestos = 0
+        reservaData.precioGanancia = 0
+      } else {
+        reservaData.esReservaMultiple = false
+        reservaData.departamento = formData.departamento
+        reservaData.precioNoche = formData.precioNoche
+        reservaData.precioImpuestos = formData.precioImpuestos
+        reservaData.precioGanancia = formData.precioGanancia
+        reservaData.precioTotal = formData.precioTotal
+        reservaData.cantidadAdultos = formData.cantidadAdultos || 2
+        reservaData.cantidadMenores = formData.cantidadMenores || 0
+      }
+
+      if (formData.origen === "booking" && formData.numeroReservaBooking) {
+        reservaData.numeroReservaBooking = formData.numeroReservaBooking
       }
 
       if (formData.contactoParticular) {
@@ -376,11 +425,30 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
       montoDeposito: 0,
       fechaDeposito: undefined,
       estado: "activa",
+      numeroReservaBooking: "",
     })
+    setEsReservaMultiple(false)
+    setDepartamentosSeleccionados([])
+    setDepartamentosDetalles(new Map())
   }
 
   const openEditDialog = (reserva: Reserva) => {
     setEditingReserva(reserva)
+
+    if (reserva.esReservaMultiple && reserva.departamentos) {
+      setEsReservaMultiple(true)
+      setDepartamentosSeleccionados(reserva.departamentos.map((d) => d.departamento))
+      const newMap = new Map<string, DepartamentoDetalle>()
+      reserva.departamentos.forEach((d) => {
+        newMap.set(d.departamento, d)
+      })
+      setDepartamentosDetalles(newMap)
+    } else {
+      setEsReservaMultiple(false)
+      setDepartamentosSeleccionados([])
+      setDepartamentosDetalles(new Map())
+    }
+
     setFormData({
       departamento: reserva.departamento,
       fechaInicio: reserva.fechaInicio as Date,
@@ -402,6 +470,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
       cantidadMenores: reserva.cantidadMenores || 0,
       fechaDeposito: reserva.fechaDeposito ? toValidDate(reserva.fechaDeposito) : undefined,
       estado: reserva.estado || "activa",
+      numeroReservaBooking: reserva.numeroReservaBooking || "",
     })
     setIsDialogOpen(true)
   }
@@ -448,7 +517,15 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
         (reserva.nombre && reserva.nombre.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (reserva.numero && reserva.numero.includes(searchQuery))
 
-      const matchesDepartamento = filterDepartamento === "todos" || reserva.departamento === filterDepartamento
+      let matchesDepartamento = true
+      if (filterDepartamento !== "todos") {
+        if (reserva.esReservaMultiple && reserva.departamentos) {
+          matchesDepartamento = reserva.departamentos.some((d) => d.departamento === filterDepartamento)
+        } else {
+          matchesDepartamento = reserva.departamento === filterDepartamento
+        }
+      }
+
       const matchesOrigen = filterOrigen === "todos" || reserva.origen === filterOrigen
       const matchesPais = filterPais === "todos" || reserva.pais === filterPais
 
@@ -459,15 +536,10 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
         matchesDeposito = !reserva.hizoDeposito
       }
 
-      let matchesCheckinDesde = true
-      if (filterFechaDesde) {
-        matchesCheckinDesde = (reserva.fechaInicio as Date) >= startOfDay(filterFechaDesde)
-      }
-
-      let matchesCheckinHasta = true
-      if (filterFechaHasta) {
-        matchesCheckinHasta = (reserva.fechaInicio as Date) <= endOfDay(filterFechaHasta)
-      }
+      const matchesNumeroReservaBooking =
+        !filterNumeroReservaBooking ||
+        (reserva.numeroReservaBooking &&
+          reserva.numeroReservaBooking.toLowerCase().includes(filterNumeroReservaBooking.toLowerCase()))
 
       const filterMonthStart = startOfMonth(filterMes)
       const filterMonthEnd = endOfMonth(filterMes)
@@ -482,8 +554,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
         matchesOrigen &&
         matchesPais &&
         matchesDeposito &&
-        matchesCheckinDesde &&
-        matchesCheckinHasta &&
+        matchesNumeroReservaBooking &&
         matchesMes
       )
     })
@@ -494,8 +565,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
     filterOrigen,
     filterPais,
     filterDeposito,
-    filterFechaDesde,
-    filterFechaHasta,
+    filterNumeroReservaBooking, // Include the new filter
     filterMes,
   ])
 
@@ -516,9 +586,8 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
     setFilterOrigen("todos")
     setFilterPais("todos")
     setFilterDeposito("todos")
-    setFilterFechaDesde(null)
-    setFilterFechaHasta(null)
-    setFilterMes(new Date())
+    // Removed check-in date filters
+    setFilterNumeroReservaBooking("") // Clear booking number filter
     setSearchQuery("")
   }
 
@@ -528,8 +597,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
     filterOrigen !== "todos" ||
     filterPais !== "todos" ||
     filterDeposito !== "todos" ||
-    filterFechaDesde ||
-    filterFechaHasta
+    filterNumeroReservaBooking !== "" // Check for active booking number filter
 
   const stats = useMemo(() => {
     const reservasActivas = filteredReservas.filter((r) => r.estado !== "cancelada" && r.estado !== "no_presentado")
@@ -537,7 +605,13 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
     const totalIngresos = reservasActivas.reduce((sum, r) => sum + (r.precioTotal || 0), 0)
     const reservasPorDepartamento = cabins.map((cabin) => ({
       dept: cabin.name,
-      count: filteredReservas.filter((r) => r.departamento === cabin.name).length,
+      count: filteredReservas.filter((r) => {
+        // Handle multi-cabin reservations for stats
+        if (r.esReservaMultiple && r.departamentos) {
+          return r.departamentos.some((d) => d.departamento === cabin.name)
+        }
+        return r.departamento === cabin.name
+      }).length,
     }))
     const startOfSelectedMonth = startOfMonth(filterMes)
     const endOfSelectedMonth = endOfMonth(filterMes)
@@ -583,7 +657,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
     return r.fechaFin >= today && r.fechaFin < tomorrow
   }).length
 
-  // Reservas confirmadas futuras
+  // Reservas pendientes (futuras)
   const reservasPendientes = reservas.filter((r) => {
     return r.fechaInicio > now
   }).length
@@ -856,6 +930,17 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                 </Select>
               </div>
 
+              {/* Booking Number */}
+              <div className="space-y-2">
+                <Label className="text-emerald-900 font-semibold text-sm">Nro. Reserva Booking</Label>
+                <Input
+                  value={filterNumeroReservaBooking}
+                  onChange={(e) => setFilterNumeroReservaBooking(e.target.value)}
+                  placeholder="Booking ID..."
+                  className="border-emerald-200"
+                />
+              </div>
+
               {/* Check-in desde */}
               <div className="space-y-2">
                 <Label className="text-emerald-900 font-semibold text-sm">Check-in desde</Label>
@@ -866,14 +951,16 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                       className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
-                      {filterFechaDesde ? format(filterFechaDesde, "dd/MM/yyyy") : "Seleccionar..."}
+                      {/* Removed filterFechaDesde usage */}
+                      {filterMes ? format(filterMes, "dd/MM/yyyy") : "Seleccionar..."}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={filterFechaDesde || undefined}
-                      onSelect={(date) => setFilterFechaDesde(date || null)}
+                      // Use filterMes for calendar selection
+                      selected={filterMes}
+                      onSelect={(date) => date && setFilterMes(date)}
                       locale={es}
                     />
                   </PopoverContent>
@@ -890,14 +977,16 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                       className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
-                      {filterFechaHasta ? format(filterFechaHasta, "dd/MM/yyyy") : "Seleccionar..."}
+                      {/* Removed filterFechaHasta usage */}
+                      {filterMes ? format(filterMes, "dd/MM/yyyy") : "Seleccionar..."}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={filterFechaHasta || undefined}
-                      onSelect={(date) => setFilterFechaHasta(date || null)}
+                      // Use filterMes for calendar selection
+                      selected={filterMes}
+                      onSelect={(date) => date && setFilterMes(date)}
                       locale={es}
                     />
                   </PopoverContent>
@@ -1030,6 +1119,17 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
             </Select>
           </div>
 
+          {/* Booking Number */}
+          <div className="space-y-2">
+            <Label className="text-emerald-900 font-semibold text-sm">Nro. Reserva Booking</Label>
+            <Input
+              value={filterNumeroReservaBooking}
+              onChange={(e) => setFilterNumeroReservaBooking(e.target.value)}
+              placeholder="Booking ID..."
+              className="border-emerald-200"
+            />
+          </div>
+
           {/* Check-in desde */}
           <div className="space-y-2">
             <Label className="text-emerald-900 font-semibold text-sm">Check-in desde</Label>
@@ -1040,14 +1140,16 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                   className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent"
                 >
                   <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
-                  {filterFechaDesde ? format(filterFechaDesde, "dd/MM/yyyy") : "Seleccionar..."}
+                  {/* Removed filterFechaDesde usage */}
+                  {filterMes ? format(filterMes, "dd/MM/yyyy") : "Seleccionar..."}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
-                  selected={filterFechaDesde || undefined}
-                  onSelect={(date) => setFilterFechaDesde(date || null)}
+                  // Use filterMes for calendar selection
+                  selected={filterMes}
+                  onSelect={(date) => date && setFilterMes(date)}
                   locale={es}
                 />
               </PopoverContent>
@@ -1064,14 +1166,16 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                   className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent"
                 >
                   <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
-                  {filterFechaHasta ? format(filterFechaHasta, "dd/MM/yyyy") : "Seleccionar..."}
+                  {/* Removed filterFechaHasta usage */}
+                  {filterMes ? format(filterMes, "dd/MM/yyyy") : "Seleccionar..."}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
-                  selected={filterFechaHasta || undefined}
-                  onSelect={(date) => setFilterFechaHasta(date || null)}
+                  // Use filterMes for calendar selection
+                  selected={filterMes}
+                  onSelect={(date) => date && setFilterMes(date)}
                   locale={es}
                 />
               </PopoverContent>
@@ -1126,6 +1230,8 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
         setFilterMes={setFilterMes}
         hasActiveFilters={hasActiveFilters}
         clearAllFilters={clearAllFilters}
+        filterNumeroReservaBooking={filterNumeroReservaBooking} // Pass booking number filter
+        setFilterNumeroReservaBooking={setFilterNumeroReservaBooking} // Pass setter for booking number filter
       />
 
       {/* Dialog for creating/editing reservation */}
@@ -1148,95 +1254,331 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                 <CalendarIcon className="h-4 w-4 md:h-5 md:w-5" />
                 Fechas y Ubicación
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="departamento" className="text-emerald-900 font-semibold text-sm">
-                    Departamento *
+
+              {/* Toggle for single/multi-cabin booking */}
+              {!editingReserva && ( // Only show for new reservations
+                <div className="mb-4">
+                  <Label htmlFor="esReservaMultiple" className="font-semibold text-sm text-emerald-900">
+                    Reserva Múltiple
                   </Label>
-                  <Select
-                    value={formData.departamento}
-                    onValueChange={(value) => setFormData({ ...formData, departamento: value })}
-                  >
-                    <SelectTrigger className="border-emerald-200 focus:border-emerald-400">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {cabins.map((cabin) => (
-                        <SelectItem key={cabin.id} value={cabin.name}>
-                          {cabin.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Checkbox
+                    id="esReservaMultiple"
+                    checked={esReservaMultiple}
+                    onCheckedChange={(checked) => {
+                      setEsReservaMultiple(checked as boolean)
+                      // Clear selected departments and details when toggling
+                      setDepartamentosSeleccionados([])
+                      setDepartamentosDetalles(new Map())
+                      // Reset dates when toggling to avoid issues with previous selections
+                      if (!(checked as boolean)) {
+                        setFormData((prev) => ({ ...prev, fechaInicio: new Date(), fechaFin: new Date() }))
+                      }
+                    }}
+                    className="ml-2 border-emerald-300"
+                  />
                 </div>
+              )}
 
-                {/* Fecha de Entrada */}
-                <div className="space-y-2">
-                  <Label className="text-emerald-900 font-semibold text-sm">Fecha de Entrada *</Label>
-                  <Popover open={checkinPopoverOpen} onOpenChange={setCheckinPopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent text-sm"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.fechaInicio ? format(formData.fechaInicio, "dd/MM/yyyy") : "Selecciona"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={formData.fechaInicio}
-                        onSelect={(date) => {
-                          if (date) {
-                            setFormData({ ...formData, fechaInicio: date })
-                            setCheckinPopoverOpen(false)
-                          }
-                        }}
-                        locale={es}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+              {esReservaMultiple ? (
+                // Multi-cabin selection UI
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pb-4 border-b border-emerald-200">
+                    {/* Fecha de Entrada */}
+                    <div className="space-y-2">
+                      <Label className="text-emerald-900 font-semibold text-sm">Fecha de Entrada *</Label>
+                      <Popover open={checkinPopoverOpen} onOpenChange={setCheckinPopoverOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent text-sm"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {formData.fechaInicio ? format(formData.fechaInicio, "dd/MM/yyyy") : "Selecciona"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={formData.fechaInicio}
+                            onSelect={(date) => {
+                              if (date) {
+                                setFormData({ ...formData, fechaInicio: date })
+                                setCheckinPopoverOpen(false)
+                              }
+                            }}
+                            locale={es}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
 
-                {/* Fecha de Salida */}
-                <div className="space-y-2">
-                  <Label className="text-emerald-900 font-semibold text-sm">Fecha de Salida *</Label>
-                  <Popover open={checkoutPopoverOpen} onOpenChange={setCheckoutPopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent text-sm"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.fechaFin ? format(formData.fechaFin, "dd/MM/yyyy") : "Selecciona"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={formData.fechaFin}
-                        onSelect={(date) => {
-                          if (date) {
-                            setFormData({ ...formData, fechaFin: date })
-                            setCheckoutPopoverOpen(false)
-                          }
-                        }}
-                        locale={es}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+                    {/* Fecha de Salida */}
+                    <div className="space-y-2">
+                      <Label className="text-emerald-900 font-semibold text-sm">Fecha de Salida *</Label>
+                      <Popover open={checkoutPopoverOpen} onOpenChange={setCheckoutPopoverOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent text-sm"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {formData.fechaFin ? format(formData.fechaFin, "dd/MM/yyyy") : "Selecciona"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={formData.fechaFin}
+                            onSelect={(date) => {
+                              if (date) {
+                                setFormData({ ...formData, fechaFin: date })
+                                setCheckoutPopoverOpen(false)
+                              }
+                            }}
+                            locale={es}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label className="text-gray-600 font-semibold text-sm">Noches</Label>
-                  <div className="flex items-center h-10 px-4 border-2 border-emerald-300 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50">
-                    <span className="text-lg md:text-xl font-bold text-emerald-700">
-                      {calculateNights(formData.fechaInicio, formData.fechaFin)}
-                    </span>
+                  <div className="space-y-2">
+                    <Label className="text-emerald-900 font-semibold text-sm">
+                      Selecciona Departamentos ({departamentosSeleccionados.length}/4) *
+                    </Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 border border-emerald-200 rounded-lg bg-white/50">
+                      {cabins.map((cabin) => {
+                        const isSelected = departamentosSeleccionados.includes(cabin.name)
+                        const isDisabled = !isSelected && departamentosSeleccionados.length >= 4
+
+                        return (
+                          <div
+                            key={cabin.id}
+                            className={cn(
+                              "flex items-center space-x-2 p-2 rounded-md transition-colors",
+                              isDisabled && "opacity-50 cursor-not-allowed",
+                              !isDisabled && "hover:bg-emerald-50",
+                            )}
+                          >
+                            <Checkbox
+                              id={`cabin-${cabin.id}`}
+                              checked={isSelected}
+                              disabled={isDisabled}
+                              onCheckedChange={(checked) => {
+                                if (isDisabled) return
+                                if (checked) {
+                                  setDepartamentosSeleccionados([...departamentosSeleccionados, cabin.name])
+                                } else {
+                                  setDepartamentosSeleccionados(
+                                    departamentosSeleccionados.filter((d) => d !== cabin.name),
+                                  )
+                                  const newDetalles = new Map(departamentosDetalles)
+                                  newDetalles.delete(cabin.name)
+                                  setDepartamentosDetalles(newDetalles)
+                                }
+                              }}
+                              className="border-emerald-300"
+                            />
+                            <Label
+                              htmlFor={`cabin-${cabin.id}`}
+                              className={cn("text-sm font-medium cursor-pointer", isDisabled && "cursor-not-allowed")}
+                            >
+                              {cabin.name}
+                            </Label>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {departamentosSeleccionados.map((dept) => {
+                      const detalle = departamentosDetalles.get(dept) || {
+                        departamento: dept,
+                        cantidadAdultos: 1,
+                        cantidadMenores: 0,
+                        precioNoche: { [formData.moneda || "AR"]: 0 },
+                        precioTotal: 0,
+                      }
+                      return (
+                        <div
+                          key={dept}
+                          className="border border-emerald-200 p-4 rounded-lg bg-white/50 backdrop-blur-sm"
+                        >
+                          <h4 className="font-semibold text-base text-emerald-900 mb-3 flex items-center gap-2">
+                            {dept}
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-sm text-emerald-800">Adultos</Label>
+                              <Input
+                                type="number"
+                                value={detalle.cantidadAdultos}
+                                onChange={(e) => {
+                                  const newDetalles = new Map(departamentosDetalles)
+                                  newDetalles.set(dept, { ...detalle, cantidadAdultos: Number(e.target.value) })
+                                  setDepartamentosDetalles(newDetalles)
+                                }}
+                                min={1}
+                                className="border-emerald-300 focus:border-emerald-400 text-sm h-9"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-sm text-emerald-800">Menores</Label>
+                              <Input
+                                type="number"
+                                value={detalle.cantidadMenores}
+                                onChange={(e) => {
+                                  const newDetalles = new Map(departamentosDetalles)
+                                  newDetalles.set(dept, { ...detalle, cantidadMenores: Number(e.target.value) })
+                                  setDepartamentosDetalles(newDetalles)
+                                }}
+                                min={0}
+                                className="border-emerald-300 focus:border-emerald-400 text-sm h-9"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-sm text-emerald-800">Precio por Noche ({formData.moneda})</Label>
+                              <Input
+                                type="number"
+                                value={detalle.precioNoche[formData.moneda as keyof PrecioNoche] || 0}
+                                onChange={(e) => {
+                                  const currentCurrency = formData.moneda as keyof PrecioNoche
+                                  const newDetalles = new Map(departamentosDetalles)
+                                  const updatedDetalle = {
+                                    ...detalle,
+                                    precioNoche: { ...detalle.precioNoche, [currentCurrency]: Number(e.target.value) },
+                                  }
+                                  updatedDetalle.precioTotal =
+                                    (Number(e.target.value) || 0) *
+                                    calculateNights(formData.fechaInicio, formData.fechaFin)
+                                  newDetalles.set(dept, updatedDetalle)
+                                  setDepartamentosDetalles(newDetalles)
+                                }}
+                                min={0}
+                                className="border-emerald-300 focus:border-emerald-400 text-sm h-9"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-sm text-emerald-800">Precio Total</Label>
+                              <Input
+                                type="number"
+                                value={detalle.precioTotal}
+                                readOnly
+                                className="border-emerald-300 focus:border-emerald-400 text-sm h-9 bg-gray-100"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
-              </div>
+              ) : (
+                // Single cabin booking UI
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="departamento" className="text-emerald-900 font-semibold text-sm">
+                      Departamento *
+                    </Label>
+                    <Select
+                      value={formData.departamento}
+                      onValueChange={(value) => {
+                        setFormData({ ...formData, departamento: value })
+                        // Reset details if switching departments
+                        const selectedCabin = cabins.find((c) => c.name === value)
+                        if (selectedCabin) {
+                          setFormData((prev) => ({
+                            ...prev,
+                            precioNoche: { [prev.moneda]: 0 },
+                            precioTotal: 0,
+                            cantidadAdultos: 2,
+                            cantidadMenores: 0,
+                          }))
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="border-emerald-200 focus:border-emerald-400">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cabins.map((cabin) => (
+                          <SelectItem key={cabin.id} value={cabin.name}>
+                            {cabin.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Fecha de Entrada */}
+                  <div className="space-y-2">
+                    <Label className="text-emerald-900 font-semibold text-sm">Fecha de Entrada *</Label>
+                    <Popover open={checkinPopoverOpen} onOpenChange={setCheckinPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent text-sm"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {formData.fechaInicio ? format(formData.fechaInicio, "dd/MM/yyyy") : "Selecciona"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={formData.fechaInicio}
+                          onSelect={(date) => {
+                            if (date) {
+                              setFormData({ ...formData, fechaInicio: date })
+                              setCheckinPopoverOpen(false)
+                            }
+                          }}
+                          locale={es}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  {/* Fecha de Salida */}
+                  <div className="space-y-2">
+                    <Label className="text-emerald-900 font-semibold text-sm">Fecha de Salida *</Label>
+                    <Popover open={checkoutPopoverOpen} onOpenChange={setCheckoutPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start border-emerald-200 hover:bg-emerald-50 bg-transparent text-sm"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {formData.fechaFin ? format(formData.fechaFin, "dd/MM/yyyy") : "Selecciona"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={formData.fechaFin}
+                          onSelect={(date) => {
+                            if (date) {
+                              setFormData({ ...formData, fechaFin: date })
+                              setCheckoutPopoverOpen(false)
+                            }
+                          }}
+                          locale={es}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-gray-600 font-semibold text-sm">Noches</Label>
+                    <div className="flex items-center h-10 px-4 border-2 border-emerald-300 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50">
+                      <span className="text-lg md:text-xl font-bold text-emerald-700">
+                        {calculateNights(formData.fechaInicio, formData.fechaFin)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Datos del Cliente */}
@@ -1288,35 +1630,39 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="cantidadAdultos" className="text-blue-900 font-semibold text-sm">
-                    Cantidad de Adultos
-                  </Label>
-                  <Input
-                    id="cantidadAdultos"
-                    type="number"
-                    value={formData.cantidadAdultos || 0}
-                    onChange={(e) => setFormData({ ...formData, cantidadAdultos: Number(e.target.value) })}
-                    placeholder="0"
-                    className="border-blue-200 focus:border-blue-400"
-                    min={0}
-                  />
-                </div>
+                {!esReservaMultiple && ( // Only show for single cabin booking
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="cantidadAdultos" className="text-blue-900 font-semibold text-sm">
+                        Cantidad de Adultos
+                      </Label>
+                      <Input
+                        id="cantidadAdultos"
+                        type="number"
+                        value={formData.cantidadAdultos || 0}
+                        onChange={(e) => setFormData({ ...formData, cantidadAdultos: Number(e.target.value) })}
+                        placeholder="0"
+                        className="border-blue-200 focus:border-blue-400"
+                        min={0}
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="cantidadMenores" className="text-blue-900 font-semibold text-sm">
-                    Cantidad de Menores
-                  </Label>
-                  <Input
-                    id="cantidadMenores"
-                    type="number"
-                    value={formData.cantidadMenores || 0}
-                    onChange={(e) => setFormData({ ...formData, cantidadMenores: Number(e.target.value) })}
-                    placeholder="0"
-                    className="border-blue-200 focus:border-blue-400"
-                    min={0}
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cantidadMenores" className="text-blue-900 font-semibold text-sm">
+                        Cantidad de Menores
+                      </Label>
+                      <Input
+                        id="cantidadMenores"
+                        type="number"
+                        value={formData.cantidadMenores || 0}
+                        onChange={(e) => setFormData({ ...formData, cantidadMenores: Number(e.target.value) })}
+                        placeholder="0"
+                        className="border-blue-200 focus:border-blue-400"
+                        min={0}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1369,6 +1715,22 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                     </Select>
                   </div>
                 )}
+
+                {/* Booking number input */}
+                {formData.origen === "booking" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="numeroReservaBooking" className="text-purple-900 font-semibold text-sm">
+                      Nro. Reserva Booking
+                    </Label>
+                    <Input
+                      id="numeroReservaBooking"
+                      value={formData.numeroReservaBooking}
+                      onChange={(e) => setFormData({ ...formData, numeroReservaBooking: e.target.value })}
+                      placeholder="Ej: 1234567890"
+                      className="border-purple-200 focus:border-purple-400"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1389,10 +1751,38 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                     onValueChange={(value: string) => {
                       const currentPrecioNoche = formData.precioNoche || { pesos: 0 }
                       const existingValue = currentPrecioNoche[value as keyof PrecioNoche] || 0
-                      setFormData({
-                        ...formData,
-                        moneda: value,
-                        precioNoche: { ...currentPrecioNoche, [value]: existingValue }, // Keep existing value if available for the new currency, otherwise 0
+
+                      // Update form data and potentially pricing details
+                      setFormData((prev) => {
+                        const newFormData = { ...prev, moneda: value }
+                        if (esReservaMultiple) {
+                          // For multi-cabin, update prices in departamentosDetalles
+                          const updatedDetalles = new Map<string, DepartamentoDetalle>()
+                          departamentosDetalles.forEach((detalle, dept) => {
+                            const currentPrecio = detalle.precioNoche[value as keyof PrecioNoche] || 0
+                            updatedDetalles.set(dept, {
+                              ...detalle,
+                              precioNoche: { ...detalle.precioNoche, [value]: currentPrecio },
+                              precioTotal: currentPrecio * calculateNights(prev.fechaInicio, prev.fechaFin),
+                            })
+                          })
+                          setDepartamentosDetalles(updatedDetalles)
+                          // Recalculate total price for the form
+                          const totalGeneral = Array.from(updatedDetalles.values()).reduce(
+                            (sum, d) => sum + d.precioTotal,
+                            0,
+                          )
+                          newFormData.precioTotal = totalGeneral
+                        } else {
+                          // For single cabin, update current price entry
+                          newFormData.precioNoche = { ...currentPrecioNoche, [value]: existingValue }
+                          // Optionally update precioTotal automatically if it's 0 or based on nights
+                          newFormData.precioTotal =
+                            prev.precioTotal === 0
+                              ? existingValue * calculateNights(prev.fechaInicio, prev.fechaFin)
+                              : prev.precioTotal
+                        }
+                        return newFormData
                       })
                     }}
                   >
@@ -1412,78 +1802,99 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="precioNoche" className="text-green-900 font-semibold text-sm">
-                    Precio por Noche ({formData.moneda})
-                  </Label>
-                  <Input
-                    id="precioNoche"
-                    type="number"
-                    value={formData.precioNoche[formData.moneda as keyof PrecioNoche] || 0}
-                    onChange={(e) => {
-                      const currentCurrency = formData.moneda as keyof PrecioNoche
-                      const newPrecioNocheValue = Number(e.target.value)
-                      setFormData({
-                        ...formData,
-                        precioNoche: { ...formData.precioNoche, [currentCurrency]: newPrecioNocheValue },
-                        // Optionally update precioTotal automatically if it's 0 or based on nights
-                        precioTotal:
-                          formData.precioTotal === 0
-                            ? newPrecioNocheValue * calculateNights(formData.fechaInicio, formData.fechaFin)
-                            : formData.precioTotal,
-                      })
-                    }}
-                    placeholder="0"
-                    className="border-green-200 focus:border-green-400"
-                    min={0}
-                  />
-                </div>
+                {!esReservaMultiple ? ( // Show price inputs only for single cabin booking
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="precioNoche" className="text-green-900 font-semibold text-sm">
+                        Precio por Noche ({formData.moneda})
+                      </Label>
+                      <Input
+                        id="precioNoche"
+                        type="number"
+                        value={formData.precioNoche[formData.moneda as keyof PrecioNoche] || 0}
+                        onChange={(e) => {
+                          const currentCurrency = formData.moneda as keyof PrecioNoche
+                          const newPrecioNocheValue = Number(e.target.value)
+                          setFormData({
+                            ...formData,
+                            precioNoche: { ...formData.precioNoche, [currentCurrency]: newPrecioNocheValue },
+                            // Optionally update precioTotal automatically if it's 0 or based on nights
+                            precioTotal:
+                              formData.precioTotal === 0
+                                ? newPrecioNocheValue * calculateNights(formData.fechaInicio, formData.fechaFin)
+                                : formData.precioTotal,
+                          })
+                        }}
+                        placeholder="0"
+                        className="border-green-200 focus:border-green-400"
+                        min={0}
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="precioTotal" className="text-green-900 font-semibold text-sm">
-                    Precio Total *
-                  </Label>
-                  <Input
-                    id="precioTotal"
-                    type="number"
-                    value={formData.precioTotal}
-                    onChange={(e) => setFormData({ ...formData, precioTotal: Number(e.target.value) })}
-                    placeholder="0"
-                    required
-                    className="border-green-200 focus:border-green-400"
-                    min={0}
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="precioTotal" className="text-green-900 font-semibold text-sm">
+                        Precio Total *
+                      </Label>
+                      <Input
+                        id="precioTotal"
+                        type="number"
+                        value={formData.precioTotal}
+                        onChange={(e) => setFormData({ ...formData, precioTotal: Number(e.target.value) })}
+                        placeholder="0"
+                        required
+                        className="border-green-200 focus:border-green-400"
+                        min={0}
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="precioImpuestos" className="text-green-900 font-semibold text-sm">
-                    Impuestos
-                  </Label>
-                  <Input
-                    id="precioImpuestos"
-                    type="number"
-                    value={formData.precioImpuestos}
-                    onChange={(e) => setFormData({ ...formData, precioImpuestos: Number(e.target.value) })}
-                    placeholder="0"
-                    className="border-green-200 focus:border-green-400"
-                    min={0}
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="precioImpuestos" className="text-green-900 font-semibold text-sm">
+                        Impuestos
+                      </Label>
+                      <Input
+                        id="precioImpuestos"
+                        type="number"
+                        value={formData.precioImpuestos}
+                        onChange={(e) => setFormData({ ...formData, precioImpuestos: Number(e.target.value) })}
+                        placeholder="0"
+                        className="border-green-200 focus:border-green-400"
+                        min={0}
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="precioGanancia" className="text-green-900 font-semibold text-sm">
-                    Ganancia
-                  </Label>
-                  <Input
-                    id="precioGanancia"
-                    type="number"
-                    value={formData.precioGanancia}
-                    onChange={(e) => setFormData({ ...formData, precioGanancia: Number(e.target.value) })}
-                    placeholder="0"
-                    className="border-green-200 focus:border-green-400"
-                    min={0}
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="precioGanancia" className="text-green-900 font-semibold text-sm">
+                        Ganancia
+                      </Label>
+                      <Input
+                        id="precioGanancia"
+                        type="number"
+                        value={formData.precioGanancia}
+                        onChange={(e) => setFormData({ ...formData, precioGanancia: Number(e.target.value) })}
+                        placeholder="0"
+                        className="border-green-200 focus:border-green-400"
+                        min={0}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  // Display total price for multi-cabin booking
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="precioTotal" className="text-green-900 font-semibold text-sm">
+                      Precio Total de la Reserva Múltiple *
+                    </Label>
+                    <Input
+                      id="precioTotal"
+                      type="number"
+                      value={formData.precioTotal}
+                      onChange={(e) => setFormData({ ...formData, precioTotal: Number(e.target.value) })}
+                      placeholder="0"
+                      required
+                      className="border-green-200 focus:border-green-400"
+                      min={0}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center space-x-2 pt-4 mt-4 border-t border-green-100">

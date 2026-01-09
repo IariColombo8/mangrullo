@@ -34,7 +34,7 @@ import { cn } from "@/lib/utils"
 import TimelineView from "./timeline-view"
 import TimelineViewCancelados from "./timeline-view-cancelados"
 import GridView from "./grid-view"
-import Calendar from "@/components/ui/calendar"
+import { Calendar } from "@/components/ui/calendar"
 
 const ITEMS_PER_PAGE = 10
 
@@ -159,8 +159,65 @@ export default function ReservasViewTabs({
   const [currentPage, setCurrentPage] = useState(1)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
 
-  const totalPages = Math.ceil(filteredReservas.length / ITEMS_PER_PAGE)
-  const paginatedReservas = filteredReservas.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+  interface ExpandedReserva {
+    reserva: Reserva
+    departamento: string
+    adultos: number
+    menores: number
+    precioNoche: number
+    precioTotal: number
+    uniqueKey: string
+    esMultiple: boolean
+    departamentosTexto?: string // Texto para mostrar "alquiló X departamentos: ..."
+  }
+
+  const expandedReservas: ExpandedReserva[] = []
+  filteredReservas.forEach((reserva) => {
+    if (reserva.esMultiple && reserva.departamentos && reserva.departamentos.length > 0) {
+      // Si es múltiple, crear una fila por cada departamento
+      const departamentosTexto = `alquiló ${reserva.departamentos.length} departamentos: ${reserva.departamentos.map((d) => d.nombre).join(", ")}`
+      reserva.departamentos.forEach((depto, index) => {
+        const currency = getCurrency(reserva.pais, reserva.origen)
+        const precioNoche =
+          depto.precioNoche && typeof depto.precioNoche === "object"
+            ? depto.precioNoche[currency as keyof PrecioNoche] || 0
+            : 0
+
+        expandedReservas.push({
+          reserva,
+          departamento: depto.nombre,
+          adultos: depto.adultos,
+          menores: depto.menores,
+          precioNoche,
+          precioTotal: depto.precioTotal || 0,
+          uniqueKey: `${reserva.id}-${depto.nombre}-${index}`,
+          esMultiple: true,
+          departamentosTexto: index === 0 ? departamentosTexto : undefined, // Solo en la primera fila
+        })
+      })
+    } else {
+      // Si no es múltiple, mantener como está
+      const currency = getCurrency(reserva.pais, reserva.origen)
+      const precioNoche =
+        reserva.precioNoche && typeof reserva.precioNoche === "object"
+          ? reserva.precioNoche[currency as keyof PrecioNoche] || 0
+          : 0
+
+      expandedReservas.push({
+        reserva,
+        departamento: reserva.departamento,
+        adultos: reserva.adultos,
+        menores: reserva.menores,
+        precioNoche,
+        precioTotal: reserva.precioTotal || 0,
+        uniqueKey: reserva.id,
+        esMultiple: false,
+      })
+    }
+  })
+
+  const totalPages = Math.ceil(expandedReservas.length / ITEMS_PER_PAGE)
+  const paginatedReservas = expandedReservas.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
 
   return (
     <Tabs value={viewMode} onValueChange={(v) => onViewModeChange(v as typeof viewMode)} className="w-full">
@@ -373,7 +430,7 @@ export default function ReservasViewTabs({
                       <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">Check-in</TableHead>
                       <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">Check-out</TableHead>
                       <TableHead className="text-center font-bold text-emerald-900 text-xs py-2 px-2">Noches</TableHead>
-                      <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">Nombre</TableHead>
+                      <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">Huéspedes</TableHead>
                       <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">País</TableHead>
                       <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">Teléfono</TableHead>
                       <TableHead className="font-bold text-emerald-900 text-xs py-2 px-2">Origen</TableHead>
@@ -399,18 +456,16 @@ export default function ReservasViewTabs({
                         </TableCell>
                       </TableRow>
                     ) : (
-                      paginatedReservas.map((reserva) => {
-                        const nights = calculateNights(reserva.fechaInicio as Date, reserva.fechaFin as Date)
-                        const currency = getCurrency(reserva.pais, reserva.origen)
-                        const precioNoche =
-                          reserva.precioNoche && typeof reserva.precioNoche === "object"
-                            ? reserva.precioNoche[currency as keyof PrecioNoche] || 0
-                            : 0
-                        const hasAlert = needsPaymentAlert(reserva)
+                      paginatedReservas.map((expanded) => {
+                        const nights = calculateNights(
+                          expanded.reserva.fechaInicio as Date,
+                          expanded.reserva.fechaFin as Date,
+                        )
+                        const hasAlert = needsPaymentAlert(expanded.reserva)
 
                         return (
                           <TableRow
-                            key={reserva.id}
+                            key={expanded.uniqueKey}
                             className={cn(
                               "hover:bg-emerald-50/50 transition-colors duration-150 border-b border-emerald-100",
                               hasAlert && "bg-red-50/50 hover:bg-red-50",
@@ -428,15 +483,15 @@ export default function ReservasViewTabs({
                                   variant="outline"
                                   className="font-medium border-emerald-300 text-emerald-700 bg-emerald-50 text-xs px-2 py-0.5"
                                 >
-                                  {reserva.departamento}
+                                  {expanded.departamento}
                                 </Badge>
                               </div>
                             </TableCell>
                             <TableCell className="font-medium text-gray-700 text-xs py-2 px-2">
-                              {format(reserva.fechaInicio as Date, "dd/MM/yy")}
+                              {format(expanded.reserva.fechaInicio as Date, "dd/MM/yy")}
                             </TableCell>
                             <TableCell className="font-medium text-gray-700 text-xs py-2 px-2">
-                              {format(reserva.fechaFin as Date, "dd/MM/yy")}
+                              {format(expanded.reserva.fechaFin as Date, "dd/MM/yy")}
                             </TableCell>
                             <TableCell className="text-center py-2 px-2">
                               <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold text-xs px-2">
@@ -444,31 +499,43 @@ export default function ReservasViewTabs({
                               </Badge>
                             </TableCell>
                             <TableCell className="font-medium text-gray-900 text-xs py-2 px-2">
-                              {reserva.nombre}
+                              {expanded.departamentosTexto ? (
+                                <div className="flex flex-col">
+                                  <span className="font-semibold">{expanded.reserva.nombre}</span>
+                                  <span className="text-[10px] text-gray-600 italic">
+                                    {expanded.departamentosTexto}
+                                  </span>
+                                </div>
+                              ) : expanded.esMultiple ? (
+                                // Filas subsiguientes de múltiples - solo mostrar nombre y guión
+                                <span className="text-gray-500">—</span>
+                              ) : (
+                                expanded.reserva.nombre
+                              )}
                             </TableCell>
                             <TableCell className="text-gray-600 text-xs py-2 px-2">
-                              {PAISES.find((p) => p.code === reserva.pais)?.name || reserva.pais}
+                              {PAISES.find((p) => p.code === expanded.reserva.pais)?.name || expanded.reserva.pais}
                             </TableCell>
                             <TableCell className="font-mono text-xs text-gray-700 py-2 px-2">
-                              {reserva.numero}
+                              {expanded.reserva.numero}
                             </TableCell>
                             <TableCell className="py-2 px-2">
                               <Badge
                                 className={cn(
                                   "text-white font-medium shadow-sm text-xs px-2",
-                                  getOrigenColor(reserva.origen),
+                                  getOrigenColor(expanded.reserva.origen),
                                 )}
                               >
-                                {ORIGENES.find((o) => o.value === reserva.origen)?.label}
+                                {ORIGENES.find((o) => o.value === expanded.reserva.origen)?.label}
                               </Badge>
                             </TableCell>
                             <TableCell className="text-gray-600 text-xs py-2 px-2">
-                              {reserva.origen === "particular" && reserva.contactoParticular
-                                ? reserva.contactoParticular
+                              {expanded.reserva.origen === "particular" && expanded.reserva.contactoParticular
+                                ? expanded.reserva.contactoParticular
                                 : "-"}
                             </TableCell>
                             <TableCell className="text-center py-2 px-2">
-                              {reserva.hizoDeposito ? (
+                              {expanded.reserva.hizoDeposito ? (
                                 <Badge
                                   variant="default"
                                   className="bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-sm text-xs px-2"
@@ -482,17 +549,17 @@ export default function ReservasViewTabs({
                               )}
                             </TableCell>
                             <TableCell className="text-right font-semibold text-gray-700 text-xs py-2 px-2">
-                              ${precioNoche.toLocaleString()}
+                              ${expanded.precioNoche.toLocaleString()}
                             </TableCell>
                             <TableCell className="text-right font-bold text-emerald-600 text-xs py-2 px-2">
-                              ${(reserva.precioTotal || 0).toLocaleString()}
+                              ${expanded.precioTotal.toLocaleString()}
                             </TableCell>
                             <TableCell className="py-2 px-2">
                               <div className="flex items-center justify-center gap-1">
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => setViewingReserva(reserva)}
+                                  onClick={() => setViewingReserva(expanded.reserva)}
                                   title="Ver detalles"
                                   className="hover:bg-blue-50 hover:text-blue-600 h-8 w-8"
                                 >
@@ -501,7 +568,7 @@ export default function ReservasViewTabs({
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => openEditDialog(reserva)}
+                                  onClick={() => openEditDialog(expanded.reserva)}
                                   title="Editar"
                                   className="hover:bg-emerald-50 hover:text-emerald-600 h-8 w-8"
                                 >
@@ -510,7 +577,7 @@ export default function ReservasViewTabs({
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => setDeleteReserva(reserva)}
+                                  onClick={() => setDeleteReserva(expanded.reserva)}
                                   title="Eliminar"
                                   className="hover:bg-red-50 text-red-600 hover:text-red-700 h-8 w-8"
                                 >
@@ -536,18 +603,16 @@ export default function ReservasViewTabs({
                     </div>
                   </div>
                 ) : (
-                  paginatedReservas.map((reserva) => {
-                    const nights = calculateNights(reserva.fechaInicio as Date, reserva.fechaFin as Date)
-                    const currency = getCurrency(reserva.pais, reserva.origen)
-                    const precioNoche =
-                      reserva.precioNoche && typeof reserva.precioNoche === "object"
-                        ? reserva.precioNoche[currency as keyof PrecioNoche] || 0
-                        : 0
-                    const hasAlert = needsPaymentAlert(reserva)
+                  paginatedReservas.map((expanded) => {
+                    const nights = calculateNights(
+                      expanded.reserva.fechaInicio as Date,
+                      expanded.reserva.fechaFin as Date,
+                    )
+                    const hasAlert = needsPaymentAlert(expanded.reserva)
 
                     return (
                       <div
-                        key={reserva.id}
+                        key={expanded.uniqueKey}
                         className={cn("p-4 hover:bg-emerald-50/50 transition-colors", hasAlert && "bg-red-50/50")}
                       >
                         {/* Header */}
@@ -558,14 +623,28 @@ export default function ReservasViewTabs({
                               variant="outline"
                               className="font-bold border-emerald-300 text-emerald-700 bg-emerald-50 text-sm px-2 py-1"
                             >
-                              {reserva.departamento}
+                              {expanded.departamento}
                             </Badge>
                           </div>
                           <Badge
-                            className={cn("text-white font-medium shadow-sm text-xs", getOrigenColor(reserva.origen))}
+                            className={cn(
+                              "text-white font-medium shadow-sm text-xs",
+                              getOrigenColor(expanded.reserva.origen),
+                            )}
                           >
-                            {ORIGENES.find((o) => o.value === reserva.origen)?.label}
+                            {ORIGENES.find((o) => o.value === expanded.reserva.origen)?.label}
                           </Badge>
+                        </div>
+
+                        {/* Name and multi-cabin info */}
+                        <div className="mb-3">
+                          <div className="font-semibold text-gray-900 text-base flex items-center gap-2">
+                            <User className="h-4 w-4 text-emerald-600" />
+                            {expanded.reserva.nombre}
+                          </div>
+                          {expanded.departamentosTexto && (
+                            <div className="text-xs text-gray-600 italic mt-1 ml-6">{expanded.departamentosTexto}</div>
+                          )}
                         </div>
 
                         {/* Fechas y Noches */}
@@ -573,13 +652,13 @@ export default function ReservasViewTabs({
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Check-in</div>
                             <div className="font-semibold text-sm text-gray-900">
-                              {format(reserva.fechaInicio as Date, "dd/MM/yy")}
+                              {format(expanded.reserva.fechaInicio as Date, "dd/MM/yy")}
                             </div>
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Check-out</div>
                             <div className="font-semibold text-sm text-gray-900">
-                              {format(reserva.fechaFin as Date, "dd/MM/yy")}
+                              {format(expanded.reserva.fechaFin as Date, "dd/MM/yy")}
                             </div>
                           </div>
                           <div className="col-span-2 flex items-center justify-center pt-2 border-t border-emerald-200">
@@ -592,21 +671,19 @@ export default function ReservasViewTabs({
                         {/* Información del Cliente */}
                         <div className="space-y-2 mb-3">
                           <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-gray-400" />
-                            <span className="font-medium text-sm text-gray-900">{reserva.nombre}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
                             <MapPin className="h-4 w-4 text-gray-400" />
                             <span className="text-sm text-gray-600">
-                              {PAISES.find((p) => p.code === reserva.pais)?.name || reserva.pais}
+                              {PAISES.find((p) => p.code === expanded.reserva.pais)?.name || expanded.reserva.pais}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Phone className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm font-mono text-gray-600">{reserva.numero}</span>
+                            <span className="text-sm font-mono text-gray-600">{expanded.reserva.numero}</span>
                           </div>
-                          {reserva.origen === "particular" && reserva.contactoParticular && (
-                            <div className="text-sm text-gray-600 pl-6">Contacto: {reserva.contactoParticular}</div>
+                          {expanded.reserva.origen === "particular" && expanded.reserva.contactoParticular && (
+                            <div className="text-sm text-gray-600 pl-6">
+                              Contacto: {expanded.reserva.contactoParticular}
+                            </div>
                           )}
                         </div>
 
@@ -614,19 +691,21 @@ export default function ReservasViewTabs({
                         <div className="grid grid-cols-2 gap-2 mb-3">
                           <div className="bg-gray-50 p-2 rounded">
                             <div className="text-xs text-gray-500 mb-1">Por noche</div>
-                            <div className="font-semibold text-sm text-gray-700">${precioNoche.toLocaleString()}</div>
+                            <div className="font-semibold text-sm text-gray-700">
+                              ${expanded.precioNoche.toLocaleString()}
+                            </div>
                           </div>
                           <div className="bg-emerald-50 p-2 rounded">
                             <div className="text-xs text-emerald-600 mb-1">Total</div>
                             <div className="font-bold text-sm text-emerald-600">
-                              ${(reserva.precioTotal || 0).toLocaleString()}
+                              ${expanded.precioTotal.toLocaleString()}
                             </div>
                           </div>
                         </div>
 
                         <div className="mb-3">
                           <div className="text-xs text-gray-500 mb-1">Depósito</div>
-                          {reserva.hizoDeposito ? (
+                          {expanded.reserva.hizoDeposito ? (
                             <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-black shadow-sm">
                               Pagado
                             </Badge>
@@ -642,7 +721,7 @@ export default function ReservasViewTabs({
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setViewingReserva(reserva)}
+                            onClick={() => setViewingReserva(expanded.reserva)}
                             className="flex-1 hover:bg-blue-50 hover:text-blue-600 border-blue-200"
                           >
                             <Eye className="h-4 w-4 mr-2" />
@@ -651,7 +730,7 @@ export default function ReservasViewTabs({
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => openEditDialog(reserva)}
+                            onClick={() => openEditDialog(expanded.reserva)}
                             className="flex-1 hover:bg-emerald-50 hover:text-emerald-600 border-emerald-200"
                           >
                             <Edit className="h-4 w-4 mr-2" />
@@ -660,7 +739,7 @@ export default function ReservasViewTabs({
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setDeleteReserva(reserva)}
+                            onClick={() => setDeleteReserva(expanded.reserva)}
                             className="hover:bg-red-50 text-red-600 hover:text-red-700 border-red-200"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -674,31 +753,26 @@ export default function ReservasViewTabs({
 
               {/* Paginación */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between p-3 border-t border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50 flex-col sm:flex-row gap-2">
-                  <div className="text-xs sm:text-sm text-gray-600 font-medium">
-                    Mostrando {(currentPage - 1) * ITEMS_PER_PAGE + 1} -{" "}
-                    {Math.min(currentPage * ITEMS_PER_PAGE, filteredReservas.length)} de {filteredReservas.length}{" "}
-                    reservas
+                <div className="flex items-center justify-between px-4 py-3 border-t border-emerald-100 bg-gradient-to-r from-emerald-50/50 to-teal-50/30">
+                  <div className="text-sm text-gray-600">
+                    Página {currentPage} de {totalPages}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
-                      className="border-emerald-300 hover:bg-emerald-50 h-8 px-3"
+                      className="border-emerald-200 hover:bg-emerald-50"
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <div className="text-xs sm:text-sm font-semibold text-emerald-900 px-2">
-                      Pág {currentPage} de {totalPages}
-                    </div>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                       disabled={currentPage === totalPages}
-                      className="border-emerald-300 hover:bg-emerald-50 h-8 px-3"
+                      className="border-emerald-200 hover:bg-emerald-50"
                     >
                       <ChevronRight className="h-4 w-4" />
                     </Button>
