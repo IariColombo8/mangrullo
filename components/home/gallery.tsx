@@ -11,50 +11,97 @@ import { useLanguage } from "@/context/language-context"
 const images = [
   {
     id: 1,
-    src: "foto 3.jpg",
+    src: "pileta 1.jpg",
     alt: "Pileta",
     category: "pool",
   },
   {
     id: 2,
-    src: "foto 7.jpg",
-    alt: "Cabin interior",
-    category: "cabins",
-  },
-  {
+    src: "pileta 2.jpg",
+    alt: "Pileta",
+    category: "pool",
+  }, {
     id: 3,
-    src: "foto 4.jpg",
-    alt: "Swimming pool",
+    src: "pileta 3.jpg",
+    alt: "Pileta",
     category: "pool",
   },
   {
     id: 4,
-    src: "cama 3.jpg",
+    src: "pileta 4.jpg",
+    alt: "Pileta",
+    category: "pool",
+  },
+  {
+    id: 5,
+    src: "1.jpg",
     alt: "Surrounding nature",
     category: "surroundings",
   },
   {
-    id: 5,
-    src: "cocina 1.jpg",
-    alt: "Cabin bedroom",
-    category: "cabins",
-  },
-  {
     id: 6,
-    src: "foto 10.jpg",
-    alt: "Cabin bathroom",
-    category: "cabins",
+    src: "2.jpg",
+    alt: "Surrounding nature",
+    category: "surroundings",
   },
   {
     id: 7,
-    src: "foto 8.jpg",
-    alt: "Pool area",
-    category: "pool",
+    src: "3.jpg",
+    alt: "Surrounding nature",
+    category: "surroundings",
   },
   {
     id: 8,
-    src: "foto 12.jpg",
-    alt: "River view",
+    src: "4.jpg",
+    alt: "Surrounding nature",
+    category: "surroundings",
+  },
+  {
+    id: 9,
+    src: "5.jpg",
+    alt: "Surrounding nature",
+    category: "surroundings",
+  },
+  {
+    id: 10,
+    src: "6.jpg",
+    alt: "Surrounding nature",
+    category: "surroundings",
+  },
+  {
+    id: 11,
+    src: "7.jpg",
+    alt: "Surrounding nature",
+    category: "surroundings",
+  },
+  {
+    id: 12,
+    src: "8.jpg",
+    alt: "Surrounding nature",
+    category: "surroundings",
+  },
+  {
+    id: 13,
+    src: "9.jpg",
+    alt: "Surrounding nature",
+    category: "surroundings",
+  },
+  {
+    id: 14,
+    src: "10.jpg",
+    alt: "Surrounding nature",
+    category: "surroundings",
+  },
+  {
+    id: 15,
+    src: "11.jpg",
+    alt: "Surrounding nature",
+    category: "surroundings",
+  },
+  {
+    id: 16,
+    src: "12.jpg",
+    alt: "Surrounding nature",
     category: "surroundings",
   },
 ]
@@ -134,17 +181,7 @@ export default function Gallery() {
           >
             {t("gallery.filters.all")}
           </Button>
-          <Button
-            variant={filter === "cabins" ? "default" : "outline"}
-            className={
-              filter === "cabins"
-                ? "bg-green hover:bg-green/90"
-                : "border-green text-green hover:bg-green hover:text-white"
-            }
-            onClick={() => setFilter("cabins")}
-          >
-            {t("gallery.filters.cabins")}
-          </Button>
+          
           <Button
             variant={filter === "pool" ? "default" : "outline"}
             className={
