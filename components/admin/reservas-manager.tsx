@@ -193,9 +193,21 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
       const snapshot = await getDocs(cabinsRef)
       const cabinsData = snapshot.docs.map((doc) => {
         const data = doc.data()
+        // Manejar ambos formatos: string directo o objeto multiidioma
+        let cabinName = "Sin nombre"
+        
+        if (typeof data.name === 'string') {
+          cabinName = data.name
+        } else if (typeof data.name === 'object' && data.name !== null) {
+          cabinName = data.name.es || data.name.en || data.name.pt || "Sin nombre"
+        } else if (data.nameEs) {
+          // Compatibilidad con formato antiguo
+          cabinName = data.nameEs
+        }
+        
         return {
           id: doc.id,
-          name: data.name?.es || data.nameEs || `Cabaña ${doc.id}`,
+          name: cabinName,
         }
       })
       setCabins(cabinsData)

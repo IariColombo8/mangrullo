@@ -56,12 +56,16 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
   const getReservationsForDay = (day: Date, departamento: string) => {
     const dayStart = startOfDay(day)
     return monthReservations.filter((r) => {
-      // Check if it's a multi-cabin reservation
+      // Manejar nombre como string o como objeto
       if (r.esReservaMultiple && r.departamentos) {
-        const includesDepartamento = r.departamentos.some((d) => d.departamento === departamento)
+        const includesDepartamento = r.departamentos.some((d) => {
+          const dName = typeof d.departamento === 'string' ? d.departamento : (d.departamento?.es || d.departamento?.en || '')
+          return dName === departamento
+        })
         if (!includesDepartamento) return false
       } else {
-        if (r.departamento !== departamento) return false
+        const deptName = typeof r.departamento === 'string' ? r.departamento : (r.departamento?.es || r.departamento?.en || '')
+        if (deptName !== departamento) return false
       }
 
       const inicio = startOfDay(r.fechaInicio as Date)
@@ -144,9 +148,13 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
           {cabins.map((cabin) => {
             const deptReservations = monthReservations.filter((r) => {
               if (r.esReservaMultiple && r.departamentos) {
-                return r.departamentos.some((d) => d.departamento === cabin.name)
+                return r.departamentos.some((d) => {
+                  const dName = typeof d.departamento === 'string' ? d.departamento : (d.departamento?.es || d.departamento?.en || '')
+                  return dName === cabin.name
+                })
               }
-              return r.departamento === cabin.name
+              const deptName = typeof r.departamento === 'string' ? r.departamento : (r.departamento?.es || r.departamento?.en || '')
+              return deptName === cabin.name
             })
 
             return (

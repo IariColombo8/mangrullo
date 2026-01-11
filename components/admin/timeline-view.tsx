@@ -79,9 +79,14 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
     const dayStart = startOfDay(day)
     return (
       monthReservations.find((r) => {
+        // Manejar nombre como string o como objeto
+        const deptName = typeof r.departamento === 'string' ? r.departamento : (r.departamento?.es || r.departamento?.en || '')
         const matchesDept =
-          r.departamento === departamento ||
-          (r.departamentos && r.departamentos.some((d) => d.departamento === departamento))
+          deptName === departamento ||
+          (r.departamentos && r.departamentos.some((d) => {
+            const dName = typeof d.departamento === 'string' ? d.departamento : (d.departamento?.es || d.departamento?.en || '')
+            return dName === departamento
+          }))
         if (!matchesDept) return false
 
         const inicio = startOfDay(parseDate(r.fechaInicio))
