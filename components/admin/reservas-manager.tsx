@@ -50,7 +50,7 @@ import { es } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 
 import ComprobanteProfesional from "./ComprobanteProfesional"
-
+import CheckInsOutsHoy from "./check-ins-outs-hoy"
 import DashboardMetrics from "./dashboard-metrics"
 
 import { useAuth } from "@/context/auth-context"
@@ -709,84 +709,10 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
       />
 
       {/* Check-ins/Check-outs Today Card */}
-      {(checkIns.length > 0 || checkOuts.length > 0) && (
-        <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200 shadow-lg">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Clock className="h-5 w-5 text-blue-600" />
-              <h3 className="text-lg font-bold text-blue-900">
-                Hoy - {format(new Date(), "EEEE d 'de' MMMM", { locale: es })}
-              </h3>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="bg-white rounded-lg p-4 border border-green-200 shadow-sm">
-                <div className="flex items-center gap-2 mb-3">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <h4 className="font-semibold text-green-900">Check-ins ({checkIns.length})</h4>
-                </div>
-                <div className="space-y-2">
-                  {checkIns.length === 0 ? (
-                    <p className="text-sm text-gray-500">No hay check-ins hoy</p>
-                  ) : (
-                    checkIns.map((reserva) => (
-                      <div
-                        key={reserva.id}
-                        className="flex items-center justify-between p-2 bg-green-50 rounded-lg border border-green-200"
-                      >
-                        <div>
-                          <p className="font-semibold text-sm text-gray-900">{reserva.nombre}</p>
-                          <p className="text-xs text-gray-600">{reserva.departamento}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {!reserva.hizoDeposito && (
-                            <AlertTriangle className="h-4 w-4 text-red-500" title="Sin depósito" />
-                          )}
-                          <Badge className={cn("text-white text-xs", getOrigenColor(reserva.origen))}>
-                            {ORIGENES.find((o) => o.value === reserva.origen)?.label}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg p-4 border border-orange-200 shadow-sm">
-                <div className="flex items-center gap-2 mb-3">
-                  <Home className="h-4 w-4 text-orange-600" />
-                  <h4 className="font-semibold text-orange-900">Check-outs ({checkOuts.length})</h4>
-                </div>
-                <div className="space-y-2">
-                  {checkOuts.length === 0 ? (
-                    <p className="text-sm text-gray-500">No hay check-outs hoy</p>
-                  ) : (
-                    checkOuts.map((reserva) => (
-                      <div
-                        key={reserva.id}
-                        className="flex items-center justify-between p-2 bg-orange-50 rounded-lg border border-orange-200"
-                      >
-                        <div>
-                          <p className="font-semibold text-sm text-gray-900">{reserva.nombre}</p>
-                          <p className="text-xs text-gray-600">{reserva.departamento}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {!reserva.hizoDeposito && (
-                            <AlertTriangle className="h-4 w-4 text-red-500" title="Sin depósito" />
-                          )}
-                          <Badge className={cn("text-white text-xs", getOrigenColor(reserva.origen))}>
-                            {ORIGENES.find((o) => o.value === reserva.origen)?.label}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <CheckInsOutsHoy 
+          reservas={reservas} 
+          onReservaClick={(reserva) => setViewingReserva(reserva)} 
+        />
 
       {/* Desktop/Tablet Header */}
       <div className="hidden md:flex justify-between items-center">
@@ -1735,6 +1661,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
             </div>
 
             {/* Precios */}
+            {/* Precios */}
             <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-green-100 shadow-sm">
               <h3 className="font-semibold text-base md:text-lg text-green-900 mb-4 flex items-center gap-2">
                 <DollarSign className="h-4 w-4 md:h-5 md:w-5" />
@@ -1752,11 +1679,9 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                       const currentPrecioNoche = formData.precioNoche || { pesos: 0 }
                       const existingValue = currentPrecioNoche[value as keyof PrecioNoche] || 0
 
-                      // Update form data and potentially pricing details
                       setFormData((prev) => {
                         const newFormData = { ...prev, moneda: value }
                         if (esReservaMultiple) {
-                          // For multi-cabin, update prices in departamentosDetalles
                           const updatedDetalles = new Map<string, DepartamentoDetalle>()
                           departamentosDetalles.forEach((detalle, dept) => {
                             const currentPrecio = detalle.precioNoche[value as keyof PrecioNoche] || 0
@@ -1767,16 +1692,13 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                             })
                           })
                           setDepartamentosDetalles(updatedDetalles)
-                          // Recalculate total price for the form
                           const totalGeneral = Array.from(updatedDetalles.values()).reduce(
                             (sum, d) => sum + d.precioTotal,
                             0,
                           )
                           newFormData.precioTotal = totalGeneral
                         } else {
-                          // For single cabin, update current price entry
                           newFormData.precioNoche = { ...currentPrecioNoche, [value]: existingValue }
-                          // Optionally update precioTotal automatically if it's 0 or based on nights
                           newFormData.precioTotal =
                             prev.precioTotal === 0
                               ? existingValue * calculateNights(prev.fechaInicio, prev.fechaFin)
@@ -1795,14 +1717,13 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                           {pais.name} ({pais.currency})
                         </SelectItem>
                       ))}
-                      {/* Add any other relevant currencies if needed */}
                       <SelectItem value="USD">Dólar Estadounidense (USD)</SelectItem>
                       <SelectItem value="EUR">Euro (EUR)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                {!esReservaMultiple ? ( // Show price inputs only for single cabin booking
+                {!esReservaMultiple ? (
                   <>
                     <div className="space-y-2">
                       <Label htmlFor="precioNoche" className="text-green-900 font-semibold text-sm">
@@ -1810,25 +1731,51 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                       </Label>
                       <Input
                         id="precioNoche"
-                        type="number"
-                        value={formData.precioNoche[formData.moneda as keyof PrecioNoche] || 0}
+                        type="text"
+                        value={
+                          formData.precioNoche[formData.moneda as keyof PrecioNoche]
+                            ? formData.precioNoche[formData.moneda as keyof PrecioNoche].toLocaleString('es-AR', {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 2,
+                              })
+                            : ''
+                        }
                         onChange={(e) => {
                           const currentCurrency = formData.moneda as keyof PrecioNoche
-                          const newPrecioNocheValue = Number(e.target.value)
+                          // Permitir números, comas y puntos
+                          const value = e.target.value.replace(/[^\d,]/g, '').replace(',', '.')
+                          const numValue = value === '' ? 0 : parseFloat(value)
+                          
+                          if (!isNaN(numValue)) {
+                            const nights = calculateNights(formData.fechaInicio, formData.fechaFin)
+                            const newTotal = numValue * nights
+                            
+                            setFormData({
+                              ...formData,
+                              precioNoche: { ...formData.precioNoche, [currentCurrency]: numValue },
+                              precioTotal: newTotal,
+                            })
+                          }
+                        }}
+                        onBlur={(e) => {
+                          // Formatear al perder el foco
+                          const currentCurrency = formData.moneda as keyof PrecioNoche
+                          const currentValue = formData.precioNoche[currentCurrency] || 0
                           setFormData({
                             ...formData,
-                            precioNoche: { ...formData.precioNoche, [currentCurrency]: newPrecioNocheValue },
-                            // Optionally update precioTotal automatically if it's 0 or based on nights
-                            precioTotal:
-                              formData.precioTotal === 0
-                                ? newPrecioNocheValue * calculateNights(formData.fechaInicio, formData.fechaFin)
-                                : formData.precioTotal,
+                            precioNoche: { ...formData.precioNoche, [currentCurrency]: currentValue },
                           })
                         }}
                         placeholder="0"
                         className="border-green-200 focus:border-green-400"
-                        min={0}
                       />
+                      <p className="text-xs text-gray-500">
+                        {calculateNights(formData.fechaInicio, formData.fechaFin)} noche(s) × ${' '}
+                        {(formData.precioNoche[formData.moneda as keyof PrecioNoche] || 0).toLocaleString('es-AR', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </p>
                     </div>
 
                     <div className="space-y-2">
@@ -1837,14 +1784,48 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                       </Label>
                       <Input
                         id="precioTotal"
-                        type="number"
-                        value={formData.precioTotal}
-                        onChange={(e) => setFormData({ ...formData, precioTotal: Number(e.target.value) })}
+                        type="text"
+                        value={
+                          formData.precioTotal
+                            ? formData.precioTotal.toLocaleString('es-AR', {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 2,
+                              })
+                            : ''
+                        }
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/[^\d,]/g, '').replace(',', '.')
+                          const numValue = value === '' ? 0 : parseFloat(value)
+                          
+                          if (!isNaN(numValue)) {
+                            const currentCurrency = formData.moneda as keyof PrecioNoche
+                            const nights = calculateNights(formData.fechaInicio, formData.fechaFin)
+                            const newPrecioNoche = nights > 0 ? numValue / nights : 0
+                            
+                            setFormData({
+                              ...formData,
+                              precioTotal: numValue,
+                              precioNoche: { ...formData.precioNoche, [currentCurrency]: newPrecioNoche },
+                            })
+                          }
+                        }}
+                        onBlur={(e) => {
+                          setFormData({
+                            ...formData,
+                            precioTotal: formData.precioTotal,
+                          })
+                        }}
                         placeholder="0"
                         required
                         className="border-green-200 focus:border-green-400"
-                        min={0}
                       />
+                      <p className="text-xs text-gray-500">
+                        $ {formData.precioTotal.toLocaleString('es-AR', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}{' '}
+                        ÷ {calculateNights(formData.fechaInicio, formData.fechaFin)} noche(s)
+                      </p>
                     </div>
 
                     <div className="space-y-2">
@@ -1853,12 +1834,24 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                       </Label>
                       <Input
                         id="precioImpuestos"
-                        type="number"
-                        value={formData.precioImpuestos}
-                        onChange={(e) => setFormData({ ...formData, precioImpuestos: Number(e.target.value) })}
+                        type="text"
+                        value={
+                          formData.precioImpuestos
+                            ? formData.precioImpuestos.toLocaleString('es-AR', {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 2,
+                              })
+                            : ''
+                        }
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/[^\d,]/g, '').replace(',', '.')
+                          const numValue = value === '' ? 0 : parseFloat(value)
+                          if (!isNaN(numValue)) {
+                            setFormData({ ...formData, precioImpuestos: numValue })
+                          }
+                        }}
                         placeholder="0"
                         className="border-green-200 focus:border-green-400"
-                        min={0}
                       />
                     </div>
 
@@ -1868,30 +1861,53 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                       </Label>
                       <Input
                         id="precioGanancia"
-                        type="number"
-                        value={formData.precioGanancia}
-                        onChange={(e) => setFormData({ ...formData, precioGanancia: Number(e.target.value) })}
+                        type="text"
+                        value={
+                          formData.precioGanancia
+                            ? formData.precioGanancia.toLocaleString('es-AR', {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 2,
+                              })
+                            : ''
+                        }
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/[^\d,]/g, '').replace(',', '.')
+                          const numValue = value === '' ? 0 : parseFloat(value)
+                          if (!isNaN(numValue)) {
+                            setFormData({ ...formData, precioGanancia: numValue })
+                          }
+                        }}
                         placeholder="0"
                         className="border-green-200 focus:border-green-400"
-                        min={0}
                       />
                     </div>
                   </>
                 ) : (
-                  // Display total price for multi-cabin booking
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="precioTotal" className="text-green-900 font-semibold text-sm">
                       Precio Total de la Reserva Múltiple *
                     </Label>
                     <Input
                       id="precioTotal"
-                      type="number"
-                      value={formData.precioTotal}
-                      onChange={(e) => setFormData({ ...formData, precioTotal: Number(e.target.value) })}
+                      type="text"
+                      value={
+                        formData.precioTotal
+                          ? formData.precioTotal.toLocaleString('es-AR', {
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 2,
+                            })
+                          : ''
+                      }
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/[^\d,]/g, '').replace(',', '.')
+                        const numValue = value === '' ? 0 : parseFloat(value)
+                        if (!isNaN(numValue)) {
+                          setFormData({ ...formData, precioTotal: numValue })
+                        }
+                      }}
                       placeholder="0"
                       required
                       className="border-green-200 focus:border-green-400"
-                      min={0}
                     />
                   </div>
                 )}
@@ -1913,17 +1929,36 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                   <div className="space-y-2">
                     <Label htmlFor="montoDeposito" className="text-green-900 font-semibold text-sm">
-                      Monto del Depósito
+                      Monto del Depósito (Seña)
                     </Label>
                     <Input
                       id="montoDeposito"
-                      type="number"
-                      value={formData.montoDeposito || 0}
-                      onChange={(e) => setFormData({ ...formData, montoDeposito: Number(e.target.value) })}
+                      type="text"
+                      value={
+                        formData.montoDeposito
+                          ? formData.montoDeposito.toLocaleString('es-AR', {
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 2,
+                            })
+                          : ''
+                      }
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/[^\d,]/g, '').replace(',', '.')
+                        const numValue = value === '' ? 0 : parseFloat(value)
+                        if (!isNaN(numValue)) {
+                          setFormData({ ...formData, montoDeposito: numValue })
+                        }
+                      }}
                       placeholder="0"
                       className="border-green-200 focus:border-green-400"
-                      min={0}
                     />
+                    <p className="text-xs text-green-700 font-medium">
+                      Saldo: ${' '}
+                      {(formData.precioTotal - (formData.montoDeposito || 0)).toLocaleString('es-AR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </p>
                   </div>
 
                   <div className="space-y-2">

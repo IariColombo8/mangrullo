@@ -24,6 +24,9 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
 
   const getMonthReservations = () => {
     return reservas.filter((r) => {
+      // Filtrar solo reservas activas (no canceladas ni no presentadas)
+      if (r.estado === "cancelada" || r.estado === "no_presentado") return false
+      
       const inicio = r.fechaInicio as Date
       const fin = r.fechaFin as Date
       return (
@@ -137,7 +140,7 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
           </h3>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-2 gap-2 lg:gap-4">
           {cabins.map((cabin) => {
             const deptReservations = monthReservations.filter((r) => {
               if (r.esReservaMultiple && r.departamentos) {
@@ -148,25 +151,25 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
 
             return (
               <Card key={cabin.id} className="bg-gradient-to-br from-white to-gray-50 shadow-md border border-gray-200">
-                <CardHeader className="bg-gradient-to-r from-gray-700 to-gray-900 text-white py-2 px-3">
+                <CardHeader className="bg-gradient-to-r from-gray-700 to-gray-900 text-white py-1.5 px-2 lg:py-2 lg:px-3">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Home className="h-4 w-4" />
-                      <CardTitle className="text-sm font-bold">{cabin.name}</CardTitle>
+                    <div className="flex items-center gap-1 lg:gap-2">
+                      <Home className="h-3 w-3 lg:h-4 lg:w-4" />
+                      <CardTitle className="text-xs lg:text-sm font-bold">{cabin.name}</CardTitle>
                     </div>
-                    <Badge className="bg-white/20 text-white border-white/30 text-[10px] px-2 py-0">
+                    <Badge className="bg-white/20 text-white border-white/30 text-[9px] lg:text-[10px] px-1.5 lg:px-2 py-0">
                       {deptReservations.length}
                     </Badge>
                   </div>
                 </CardHeader>
 
-                <CardContent className="p-2">
+                <CardContent className="p-1.5 lg:p-2">
                   <div className="grid grid-cols-7 gap-0.5 mb-1">
                     {weekDays.map((day, idx) => (
                       <div
                         key={day.key}
                         className={cn(
-                          "text-center text-[9px] font-bold py-1 rounded-t",
+                          "text-center text-[8px] lg:text-[9px] font-bold py-0.5 lg:py-1 rounded-t",
                           idx === 0 || idx === 6 ? "bg-gray-200 text-gray-700" : "bg-gray-100 text-gray-600",
                         )}
                       >
@@ -181,7 +184,7 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
                         {week.map((day, dayIdx) => {
                           const isPlaceholder = day.getTime() === 0
                           if (isPlaceholder) {
-                            return <div key={dayIdx} className="h-8 bg-gray-50 rounded" />
+                            return <div key={dayIdx} className="h-6 lg:h-8 bg-gray-50 rounded" />
                           }
 
                           const dayReservations = getReservationsForDay(day, cabin.name)
@@ -200,7 +203,7 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
                             <div
                               key={day.toISOString()}
                               className={cn(
-                                "h-8 rounded border transition-all duration-200 relative overflow-hidden cursor-pointer",
+                                "h-6 lg:h-8 rounded border transition-all duration-200 relative overflow-hidden cursor-pointer",
                                 isToday && "ring-2 ring-emerald-400 ring-offset-1",
                                 primaryReservation && !hasAlert && getOrigenColor(primaryReservation.origen),
                                 primaryReservation && hasAlert && "bg-red-600",
@@ -222,7 +225,7 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
                             >
                               <div
                                 className={cn(
-                                  "absolute top-0.5 left-0.5 text-[9px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center",
+                                  "absolute top-0.5 left-0.5 text-[8px] lg:text-[9px] font-bold rounded-full w-3 h-3 lg:w-3.5 lg:h-3.5 flex items-center justify-center",
                                   primaryReservation
                                     ? "bg-black/20 text-white"
                                     : isToday
@@ -235,7 +238,7 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
 
                               {hasMultiple && (
                                 <div className="absolute top-0.5 right-0.5">
-                                  <div className="bg-white/90 text-gray-900 text-[8px] px-1 rounded font-bold">
+                                  <div className="bg-white/90 text-gray-900 text-[7px] lg:text-[8px] px-0.5 lg:px-1 rounded font-bold">
                                     +{dayReservations.length}
                                   </div>
                                 </div>
@@ -243,18 +246,18 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
 
                               {isCheckIn && (
                                 <div className="absolute bottom-0.5 left-0.5">
-                                  <CheckCircle className="h-2.5 w-2.5 text-white drop-shadow bg-green-600 rounded-full p-[1px]" />
+                                  <CheckCircle className="h-2 w-2 lg:h-2.5 lg:w-2.5 text-white drop-shadow bg-green-600 rounded-full p-[1px]" />
                                 </div>
                               )}
                               {isCheckOut && (
                                 <div className="absolute bottom-0.5 right-0.5">
-                                  <Home className="h-2.5 w-2.5 text-white drop-shadow bg-orange-600 rounded-full p-[1px]" />
+                                  <Home className="h-2 w-2 lg:h-2.5 lg:w-2.5 text-white drop-shadow bg-orange-600 rounded-full p-[1px]" />
                                 </div>
                               )}
 
                               {hasAlert && (
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                  <AlertTriangle className="h-3 w-3 text-white animate-pulse drop-shadow" />
+                                  <AlertTriangle className="h-2.5 w-2.5 lg:h-3 lg:w-3 text-white animate-pulse drop-shadow" />
                                 </div>
                               )}
                             </div>

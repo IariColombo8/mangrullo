@@ -104,7 +104,7 @@ const TimelineViewCancelados: React.FC<TimelineViewCanceladosProps> = ({ reserva
 
   // Obtener nombre corto del día
   const getDayName = (date: Date) => {
-    const names = ["d", "l", "m", "m", "j", "v", "s"]
+    const names = ["D", "L", "M", "M", "J", "V", "S"]
     return names[getDay(date)]
   }
 
@@ -159,72 +159,136 @@ const TimelineViewCancelados: React.FC<TimelineViewCanceladosProps> = ({ reserva
       <CardContent className="p-0">
         {/* Vista Desktop - Horizontal */}
         <div className="hidden md:block overflow-x-auto">
-          <table className="w-full border-collapse text-xs">
-            <thead>
-              <tr className="bg-red-100/50">
-                <th className="border border-red-200 p-1 sticky left-0 bg-red-100/50 z-10 min-w-[120px]">
-                  Departamento / Reserva
-                </th>
-                {daysInMonth.map((day) => (
-                  <th key={day.toISOString()} className="border border-red-200 p-1 min-w-[28px] text-center">
-                    <div className="flex flex-col items-center">
-                      <span className="font-bold">{format(day, "d")}</span>
-                      <span className="text-[10px] text-gray-500">{getDayName(day)}</span>
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {expandedReservations.map((expanded) => (
-                <tr key={expanded.uniqueKey}>
-                  <td className="border border-red-200 p-1 font-medium sticky left-0 bg-red-50 z-10">
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-1">
-                        {expanded.reserva.estado === "cancelada" ? (
-                          <XCircle className="h-3 w-3 text-red-500 flex-shrink-0" />
-                        ) : (
-                          <UserX className="h-3 w-3 text-amber-500 flex-shrink-0" />
-                        )}
-                        <span className="truncate text-[11px] font-semibold">{expanded.departamento}</span>
+          <div className="min-w-[900px]">
+            <div className="grid grid-cols-[120px_1fr] gap-0 border-b-2 border-red-300 bg-red-100/50 sticky top-0 z-20">
+              <div className="p-2 font-bold text-red-900 text-xs flex items-center border-r-2 border-red-300">
+                Departamento / Reserva
+              </div>
+              <div className="grid" style={{ gridTemplateColumns: `repeat(${daysInMonth.length}, minmax(28px, 1fr))` }}>
+                {daysInMonth.map((day) => {
+                  const isToday = isSameDay(day, new Date())
+                  const isWeekend = day.getDay() === 0 || day.getDay() === 6
+
+                  return (
+                    <div
+                      key={day.toISOString()}
+                      className={cn(
+                        "border-l border-red-200 p-1 text-center",
+                        isToday && "bg-red-300 ring-1 ring-red-500",
+                        !isToday && isWeekend && "bg-red-100",
+                        !isToday && !isWeekend && "bg-red-50",
+                      )}
+                    >
+                      <div className={cn("font-bold text-[10px]", isToday && "text-red-900")}>
+                        {format(day, "d")}
                       </div>
-                      <span className="truncate text-[10px] text-gray-600 ml-4">
-                        {expanded.reserva.nombre}
-                      </span>
+                      <div className={cn("text-[8px]", isToday ? "text-red-900 font-bold" : "text-gray-600")}>
+                        {getDayName(day)}
+                      </div>
                     </div>
-                  </td>
-                  {daysInMonth.map((day) => {
+                  )
+                })}
+              </div>
+            </div>
+            {expandedReservations.map((expanded) => (
+              <div
+                key={expanded.uniqueKey}
+                className="grid grid-cols-[120px_1fr] gap-0 border-b border-red-300 hover:bg-red-50/30 transition-colors"
+              >
+                <div className="bg-gradient-to-r from-red-50 to-red-100 p-2 font-semibold text-xs flex items-center border-r-2 border-red-300">
+                  <div className="flex flex-col gap-0.5 w-full">
+                    <div className="flex items-center gap-1">
+                      {expanded.reserva.estado === "cancelada" ? (
+                        <XCircle className="h-3 w-3 text-red-500 flex-shrink-0" />
+                      ) : (
+                        <UserX className="h-3 w-3 text-amber-500 flex-shrink-0" />
+                      )}
+                      <span className="truncate text-[11px] font-semibold">{expanded.departamento}</span>
+                    </div>
+                    <span className="truncate text-[10px] text-gray-600 ml-4">
+                      {expanded.reserva.nombre}
+                    </span>
+                  </div>
+                </div>
+
+                <div
+                  className="grid relative min-h-[45px]"
+                  style={{ gridTemplateColumns: `repeat(${daysInMonth.length}, minmax(28px, 1fr))` }}
+                >
+                  {daysInMonth.map((day, dayIndex) => {
+                    const isToday = isSameDay(day, new Date())
                     const matchesThisReservation = getReservationForDay(day, expanded.departamento, expanded.reserva.id || "")
-                    if (matchesThisReservation) {
-                      const isFirst = isFirstPaintedDay(expanded.reserva, day)
-                      const isLast = isLastPaintedDay(expanded.reserva, day)
-                      return (
-                        <td
-                          key={day.toISOString()}
-                          className={cn(
-                            "border border-red-200 p-0 cursor-pointer transition-opacity hover:opacity-80",
-                            getOrigenColor(expanded.reserva.origen),
-                            "opacity-60",
-                            isFirst && "border-l-[3px] border-l-black",
-                            isLast && "border-r-[3px] border-r-black",
-                          )}
-                          onClick={() => setViewingReserva(expanded.reserva)}
-                          title={`${expanded.reserva.nombre} - ${expanded.departamento} - ${expanded.reserva.estado === "cancelada" ? "CANCELADA" : "NO PRESENTADO"}`}
-                        >
-                          {isFirst && (
-                            <div className="text-[9px] text-white font-medium px-0.5 truncate">
-                              {expanded.reserva.nombre.split(" ")[0]}
-                            </div>
-                          )}
-                        </td>
-                      )
-                    }
-                    return <td key={day.toISOString()} className="border border-red-200 p-0 bg-white" />
+                    
+                    return (
+                      <div
+                        key={dayIndex}
+                        className={cn(
+                          "border-l border-red-200 min-h-[45px]",
+                          isToday && "border-l-2 border-red-500",
+                          matchesThisReservation && "bg-opacity-60",
+                          matchesThisReservation && getOrigenColor(expanded.reserva.origen),
+                          !matchesThisReservation && "bg-white",
+                        )}
+                      />
+                    )
                   })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+                  {(() => {
+                    const reserva = expanded.reserva
+                    const reservaStartDate = startOfDay(parseDate(reserva.fechaInicio))
+                    const reservaEndDate = startOfDay(parseDate(reserva.fechaFin))
+
+                    const effectiveStart = reservaStartDate < startOfMonthDate ? startOfMonthDate : reservaStartDate
+                    const lastPaintedDay = new Date(reservaEndDate)
+                    lastPaintedDay.setDate(lastPaintedDay.getDate() - 1)
+                    const effectiveEnd = lastPaintedDay > endOfMonthDate ? endOfMonthDate : lastPaintedDay
+
+                    const startDayIndex = daysInMonth.findIndex((day) => isSameDay(day, effectiveStart))
+                    const endDayIndex = daysInMonth.findIndex((day) => isSameDay(day, effectiveEnd))
+
+                    if (startDayIndex === -1 || endDayIndex === -1 || endDayIndex < startDayIndex) return null
+
+                    const visibleStartDay = startDayIndex
+                    const visibleEndDay = endDayIndex
+                    const visibleDays = visibleEndDay - visibleStartDay + 1
+
+                    const origenColorClass = getOrigenColor(reserva.origen)
+                    const isRealStart = isSameDay(effectiveStart, reservaStartDate)
+                    const isRealEnd = isSameDay(effectiveEnd, lastPaintedDay)
+
+                    return (
+                      <div
+                        className={cn(
+                          "absolute h-[38px] top-[3px] cursor-pointer transition-all hover:z-30 hover:shadow-xl flex items-center px-1 text-[9px] font-medium text-white overflow-hidden opacity-60",
+                          origenColorClass,
+                          "border-y-2 border-red-600",
+                          isRealStart && "border-l-[4px] border-l-red-800 rounded-l",
+                          isRealEnd && "border-r-[4px] border-r-red-800 rounded-r",
+                          !isRealStart && "border-l-2 border-l-red-600/30",
+                          !isRealEnd && "border-r-2 border-r-red-600/30",
+                        )}
+                        style={{
+                          left: `${(visibleStartDay / daysInMonth.length) * 100}%`,
+                          width: `${(visibleDays / daysInMonth.length) * 100}%`,
+                          zIndex: 10,
+                        }}
+                        onClick={() => setViewingReserva(reserva)}
+                        title={`${reserva.nombre} - ${expanded.departamento} - ${reserva.estado === "cancelada" ? "CANCELADA" : "NO PRESENTADO"}`}
+                      >
+                        {!isRealStart && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-yellow-400/80" />}
+                        
+                        <div className="flex items-center justify-between w-full">
+                          <span className="truncate flex-1">{reserva.nombre.split(" ")[0]}</span>
+                        </div>
+
+                        {!isRealEnd && <div className="absolute right-0 top-0 bottom-0 w-1.5 bg-yellow-400/80" />}
+                      </div>
+                    )
+                  })()}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Vista Mobile - Vertical */}
