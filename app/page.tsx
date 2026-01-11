@@ -10,15 +10,13 @@ import { LanguageProvider } from "@/context/language-context"
 
 export default function Home() {
   return (
-    <LanguageProvider>
-      <main className="min-h-screen bg-beige">
-        <Hero />
-        <Gallery />
-        <Cabins />
-        <Activities />
-        <Testimonials />
-        <Contact />
-      </main>
-    </LanguageProvider>
+    <main className="min-h-screen bg-beige">
+      <Hero />
+      <Gallery />
+      <Cabins />
+      <Activities />
+      <Testimonials />
+      <Contact />
+    </main>
   )
 }

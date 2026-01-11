@@ -52,6 +52,7 @@ export default function PublicAvailabilitySearch() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [adults, setAdults] = useState(1)
   const [children, setChildren] = useState(0)
+  const [calendarOpen, setCalendarOpen] = useState(false)
 
   const [availableDepartments, setAvailableDepartments] = useState<Departamento[]>([])
   const [searchPerformed, setSearchPerformed] = useState(false)
@@ -115,6 +116,16 @@ export default function PublicAvailabilitySearch() {
     return Object.keys(newErrors).length === 0
   }
 
+  const checkOverlap = (departamento: Departamento, fechaInicio: Date, fechaFin: Date): boolean => {
+    return cabinsData.some((cabin) => {
+      const cabinName = getLocalizedText(cabin.name)
+      if (cabinName !== departamento) return false
+
+      // Buscar reservas que afecten a este departamento
+      return false // Placeholder, se verificará contra las reservas cargadas
+    })
+  }
+
   const handleSearch = async () => {
     setErrors({})
     setHasError(false)
@@ -135,15 +146,39 @@ export default function PublicAvailabilitySearch() {
 
       snapshot.forEach((doc) => {
         const data = doc.data() as Reserva
-        const reservaStart = data.fechaInicio instanceof Timestamp ? data.fechaInicio.toDate() : data.fechaInicio
-        const reservaEnd = data.fechaFin instanceof Timestamp ? data.fechaFin.toDate() : data.fechaFin
+        
+        // Ignorar reservas canceladas o no presentadas
+        if (data.estado === "cancelada" || data.estado === "no_presentado") {
+          return
+        }
 
-        if (reservaStart < dateRange!.to! && reservaEnd > dateRange!.from!) {
-          occupiedDepts.add(data.departamento)
+        const reservaStart = data.fechaInicio instanceof Timestamp ? data.fechaInicio.toDate() : new Date(data.fechaInicio)
+        const reservaEnd = data.fechaFin instanceof Timestamp ? data.fechaFin.toDate() : new Date(data.fechaFin)
+
+        const rStart = reservaStart.getTime()
+        const rEnd = reservaEnd.getTime()
+        const newStart = dateRange!.from!.getTime()
+        const newEnd = dateRange!.to!.getTime()
+
+        // Check for overlap: new range starts before existing range ends AND new range ends after existing range starts
+        const hasOverlap = newStart < rEnd && newEnd > rStart
+
+        if (hasOverlap) {
+          // Check if this reservation uses the same departamento
+          if (data.esReservaMultiple && data.departamentos) {
+            data.departamentos.forEach((d) => {
+              occupiedDepts.add(d.departamento)
+            })
+          } else {
+            occupiedDepts.add(data.departamento)
+          }
         }
       })
 
-      const available = DEPARTAMENTOS.filter((dept) => !occupiedDepts.has(dept))
+      // Get available departments from cabins data
+      const allDepartments = cabinsData.map((cabin) => getLocalizedText(cabin.name)).filter(Boolean)
+      const available = allDepartments.filter((dept) => !occupiedDepts.has(dept))
+      
       setAvailableDepartments(available)
       setSearchPerformed(true)
     } catch (error) {
@@ -163,56 +198,58 @@ export default function PublicAvailabilitySearch() {
   }
 
   const handleOpenWhatsAppModal = () => {
-  setWhatsappModal(true)
-}
-
-const handleSendWhatsApp = () => {
-  if (!userName.trim()) {
-    setErrors({ ...errors, userName: "Por favor ingresa tu nombre" })
-    return
-  }
-  if (selectedDepartments.length === 0) {
-    setErrors({ ...errors, department: "Por favor selecciona al menos un departamento" })
-    return
+    setWhatsappModal(true)
   }
 
-  const checkInStr = dateRange?.from ? format(dateRange.from, "dd/MM/yyyy") : ""
-  const checkOutStr = dateRange?.to ? format(dateRange.to, "dd/MM/yyyy") : ""
-  
-  const deptsText = selectedDepartments.length === 1 
-    ? `el departamento ${selectedDepartments[0]}`
-    : `los departamentos: ${selectedDepartments.join(", ")}`
+  const handleSendWhatsApp = () => {
+    if (!userName.trim()) {
+      setErrors({ ...errors, userName: "Por favor ingresa tu nombre" })
+      return
+    }
+    if (selectedDepartments.length === 0) {
+      setErrors({ ...errors, department: "Por favor selecciona al menos un departamento" })
+      return
+    }
 
-  const message = encodeURIComponent(
-    `Hola, mi nombre es ${userName}.\nQuisiera consultar disponibilidad para ${deptsText}.\n\n📅 Entrada: ${checkInStr}\n📅 Salida: ${checkOutStr}\n🌙 Noches: ${nights}\n👥 Adultos: ${adults}\n👶 Niños: ${children}\n\n¿Está disponible?`,
-  )
+    const checkInStr = dateRange?.from ? format(dateRange.from, "dd/MM/yyyy") : ""
+    const checkOutStr = dateRange?.to ? format(dateRange.to, "dd/MM/yyyy") : ""
+    
+    const deptsText = selectedDepartments.length === 1 
+      ? `el departamento ${selectedDepartments[0]}`
+      : `los departamentos: ${selectedDepartments.join(", ")}`
 
-  window.open(`https://wa.me/5493456551306?text=${message}`, "_blank")
-  setWhatsappModal(false)
-  setUserName("")
-  setSelectedDepartments([])
-}
-const getRecommendedDepartments = () => {
-  const totalGuests = adults + children
-  const capacities: { [key: string]: number } = {
-    "Los Horneros": 4,
-    "Los Zorzales": 4,
-    "Las Calandrias": 5,
-    "Los Tordos": 5,
+    const message = encodeURIComponent(
+      `Hola, mi nombre es ${userName}.\nQuisiera consultar disponibilidad para ${deptsText}.\n\n📅 Entrada: ${checkInStr}\n📅 Salida: ${checkOutStr}\n🌙 Noches: ${nights}\n👥 Adultos: ${adults}\n👶 Niños: ${children}\n\n¿Está disponible?`,
+    )
+
+    window.open(`https://wa.me/5493456551306?text=${message}`, "_blank")
+    setWhatsappModal(false)
+    setUserName("")
+    setSelectedDepartments([])
   }
 
-  if (totalGuests <= 4) {
-    return availableDepartments.filter(dept => capacities[dept] === 4)
-  } else if (totalGuests === 5) {
-    return availableDepartments.filter(dept => capacities[dept] === 5)
-  } else if (totalGuests <= 9) {
-    return availableDepartments.slice(0, 2)
-  } else if (totalGuests <= 14) {
-    return availableDepartments.slice(0, 3)
-  } else {
-    return availableDepartments
+  const getRecommendedDepartments = () => {
+    const totalGuests = adults + children
+    const capacities: { [key: string]: number } = {
+      "Los Horneros": 4,
+      "Los Zorzales": 4,
+      "Las Calandrias": 5,
+      "Los Tordos": 5,
+    }
+
+    if (totalGuests <= 4) {
+      return availableDepartments.filter(dept => capacities[dept] === 4)
+    } else if (totalGuests === 5) {
+      return availableDepartments.filter(dept => capacities[dept] === 5)
+    } else if (totalGuests <= 9) {
+      return availableDepartments.slice(0, 2)
+    } else if (totalGuests <= 14) {
+      return availableDepartments.slice(0, 3)
+    } else {
+      return availableDepartments
+    }
   }
-}
+
   const handleReset = () => {
     setDateRange(undefined)
     setAdults(1)
@@ -253,6 +290,15 @@ const getRecommendedDepartments = () => {
     }
   }
 
+  // Manejar selección de fechas en el calendario
+  const handleDateSelect = (range: DateRange | undefined) => {
+    setDateRange(range)
+    // Cerrar el calendario cuando ambas fechas estén seleccionadas
+    if (range?.from && range?.to) {
+      setCalendarOpen(false)
+    }
+  }
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -282,7 +328,7 @@ const getRecommendedDepartments = () => {
                 <CalendarIcon className="h-4 w-4 text-emerald-600" />
                 Fechas de Estadía <span className="text-red-500">*</span>
               </Label>
-              <Popover>
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -311,10 +357,11 @@ const getRecommendedDepartments = () => {
                   <Calendar
                     mode="range"
                     selected={dateRange}
-                    onSelect={setDateRange}
-                    disabled={(date) => date < new Date()}
-                    numberOfMonths={2}
+                    onSelect={handleDateSelect}
+                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                    numberOfMonths={1}
                     initialFocus
+                    locale={es}
                   />
                 </PopoverContent>
               </Popover>

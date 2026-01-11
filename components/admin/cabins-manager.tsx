@@ -41,11 +41,26 @@ import {
   Search,
   Grid3X3,
   List,
+  Check,
+  Snowflake,
+  Droplets,
+  Tv,
+  UtensilsCrossed,
+  Coffee,
+  CookingPot,
+  Bed,
+  Eye,
 } from "lucide-react"
 
-// Firebase imports - TUS IMPORTS ORIGINALES
+// Firebase imports
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from "firebase/firestore"
 import { db } from "../../lib/firebase"
+
+// Tipos de moneda
+const CURRENCY_TYPES = {
+  USD: { symbol: "$", label: "Dólares (USD)" },
+  UYU: { symbol: "$U", label: "Pesos Uruguayos (UYU)" }
+}
 
 export default function CabinsManager() {
   const [cabins, setCabins] = useState([])
@@ -58,29 +73,33 @@ export default function CabinsManager() {
   const [images, setImages] = useState([])
   const [searchQuery, setSearchQuery] = useState("")
   const [viewMode, setViewMode] = useState("grid")
-  const { language, t } = useLanguage()
+  const { language } = useLanguage()
   const { toast } = useToast()
-  const MAX_IMAGES = 10 // Aumentado de 5 a 10 imágenes
+  const MAX_IMAGES = 10
 
   const [formData, setFormData] = useState({
-    nameEs: "",
-    nameEn: "",
-    namePt: "",
-    descriptionEs: "",
-    descriptionEn: "",
-    descriptionPt: "",
-    price: 0,
+    name: "",
+    description: "",
     capacity: 0,
     images: [],
+    floor: "", // "upper" o "lower"
     amenities: {
-      wifi: false,
+      balconyView: false, // Balcón con vista al parque y la piscina
       ac: false,
-      pets: false,
-      kitchen: false,
+      fridge: false,
+      microwave: false,
+      kettle: false,
+      electricPot: false,
+      dishes: false,
+      waterHeater: false,
+      tv: false,
+      wifi: false,
+      bedding: false,
+      blankets: false,
+      towels: false,
     },
   })
 
-  // TU LÓGICA ORIGINAL DE FIREBASE
   useEffect(() => {
     fetchCabins()
   }, [])
@@ -96,10 +115,10 @@ export default function CabinsManager() {
       setCabins(cabinsData)
       setFilteredCabins(cabinsData)
     } catch (error) {
-      console.error("Error al cargar las cabañas:", error)
+      console.error("Error al cargar los departamentos:", error)
       toast({
         title: "Error",
-        description: "No se pudieron cargar las cabañas",
+        description: "No se pudieron cargar los departamentos",
         variant: "destructive",
       })
     } finally {
@@ -107,41 +126,44 @@ export default function CabinsManager() {
     }
   }
 
-  // Filtrar cabañas basado en búsqueda
   useEffect(() => {
     if (!searchQuery) {
       setFilteredCabins(cabins)
     } else {
-      const filtered = cabins.filter(
-        (cabin) =>
-          cabin.name?.[language]?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          cabin.description?.[language]?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          cabin.name?.es?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          cabin.name?.en?.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
+      const filtered = cabins.filter((cabin) => {
+        const name = getCabinName(cabin).toLowerCase()
+        const description = getCabinDescription(cabin).toLowerCase()
+        const query = searchQuery.toLowerCase()
+        return name.includes(query) || description.includes(query)
+      })
       setFilteredCabins(filtered)
     }
-  }, [searchQuery, cabins, language])
+  }, [searchQuery, cabins])
 
   const handleAddNew = () => {
     setIsEditing(false)
     setCurrentCabin(null)
     setImages([])
     setFormData({
-      nameEs: "",
-      nameEn: "",
-      namePt: "",
-      descriptionEs: "",
-      descriptionEn: "",
-      descriptionPt: "",
-      price: 0,
+      name: "",
+      description: "",
       capacity: 0,
       images: [],
+      floor: "",
       amenities: {
-        wifi: false,
+        balconyView: false,
         ac: false,
-        pets: false,
-        kitchen: false,
+        fridge: false,
+        microwave: false,
+        kettle: false,
+        electricPot: false,
+        dishes: false,
+        waterHeater: false,
+        tv: false,
+        wifi: false,
+        bedding: false,
+        blankets: false,
+        towels: false,
       },
     })
     setIsDialogOpen(true)
@@ -151,26 +173,54 @@ export default function CabinsManager() {
     setIsEditing(true)
     setCurrentCabin(cabin)
 
-    // Preparar imágenes para edición
     const cabinImages = Array.isArray(cabin.images) ? cabin.images : cabin.image ? [cabin.image] : []
     setImages(cabinImages)
 
+    // Manejar ambos formatos: string directo o objeto {es, en, pt}
+    const cabinName = typeof cabin.name === 'string' ? cabin.name : (cabin.name?.es || cabin.name?.en || "")
+    const cabinDescription = typeof cabin.description === 'string' ? cabin.description : (cabin.description?.es || cabin.description?.en || "")
+
+    // Manejar amenities: array antiguo o objeto nuevo
+    let amenitiesObj = {
+      balconyView: false,
+      ac: false,
+      fridge: false,
+      microwave: false,
+      kettle: false,
+      electricPot: false,
+      dishes: false,
+      waterHeater: false,
+      tv: false,
+      wifi: false,
+      bedding: false,
+      blankets: false,
+      towels: false,
+    }
+
+    if (cabin.amenities) {
+      if (typeof cabin.amenities === 'object' && !Array.isArray(cabin.amenities)) {
+        amenitiesObj = { ...amenitiesObj, ...cabin.amenities }
+      } else if (Array.isArray(cabin.amenities)) {
+        // Convertir array antiguo a objeto nuevo
+        cabin.amenities.forEach(item => {
+          if (amenitiesObj.hasOwnProperty(item)) {
+            amenitiesObj[item] = true
+          }
+          // Compatibilidad con valores antiguos
+          if (item === 'balcony' || item === 'parkView' || item === 'poolView') {
+            amenitiesObj.balconyView = true
+          }
+        })
+      }
+    }
+
     setFormData({
-      nameEs: cabin.name?.es || "",
-      nameEn: cabin.name?.en || "",
-      namePt: cabin.name?.pt || "",
-      descriptionEs: cabin.description?.es || "",
-      descriptionEn: cabin.description?.en || "",
-      descriptionPt: cabin.description?.pt || "",
-      price: cabin.price || 0,
+      name: cabinName,
+      description: cabinDescription,
       capacity: cabin.capacity || 0,
       images: cabinImages,
-      amenities: {
-        wifi: cabin.amenities?.includes("wifi") || false,
-        ac: cabin.amenities?.includes("ac") || false,
-        pets: cabin.amenities?.includes("pets") || false,
-        kitchen: cabin.amenities?.includes("kitchen") || false,
-      },
+      floor: cabin.floor || "",
+      amenities: amenitiesObj,
     })
     setIsDialogOpen(true)
   }
@@ -185,19 +235,17 @@ export default function CabinsManager() {
 
     setIsLoading(true)
     try {
-      // Eliminar el documento de Firestore - TU LÓGICA ORIGINAL
       await deleteDoc(doc(db, "cabins", currentCabin.id))
-
       setCabins(cabins.filter((cabin) => cabin.id !== currentCabin.id))
       toast({
-        title: t("admin.cabins.deleteSuccess") || "Cabaña eliminada",
-        description: t("admin.cabins.deleteSuccessMessage") || "La cabaña ha sido eliminada exitosamente.",
+        title: "Departamento eliminado",
+        description: "El departamento ha sido eliminado exitosamente.",
       })
     } catch (error) {
-      console.error("Error al eliminar la cabaña:", error)
+      console.error("Error al eliminar el departamento:", error)
       toast({
         title: "Error",
-        description: "No se pudo eliminar la cabaña",
+        description: "No se pudo eliminar el departamento",
         variant: "destructive",
       })
     } finally {
@@ -230,35 +278,26 @@ export default function CabinsManager() {
     if (images.length + files.length > MAX_IMAGES) {
       toast({
         title: "Límite de imágenes",
-        description: `Solo se permiten ${MAX_IMAGES} imágenes por cabaña.`,
+        description: `Solo se permiten ${MAX_IMAGES} imágenes por departamento.`,
         variant: "destructive",
       })
       return
     }
 
     files.forEach((file) => {
-      // Crear URL temporal para mostrar preview
-      const imageUrl = URL.createObjectURL(file)
-
-      // Por ahora usar URLs temporales - en producción deberías subir a Firebase Storage
-      // y guardar solo las URLs en Firestore
       const reader = new FileReader()
       reader.onloadend = () => {
-        // Comprimir la imagen antes de guardar
         const img = document.createElement("img")
         img.onload = () => {
           const canvas = document.createElement("canvas")
           const ctx = canvas.getContext("2d")
 
-          // Redimensionar imagen a máximo 800px de ancho
           const maxWidth = 800
           const scale = maxWidth / img.width
           canvas.width = maxWidth
           canvas.height = img.height * scale
 
           ctx?.drawImage(img, 0, 0, canvas.width, canvas.height)
-
-          // Convertir a base64 con calidad reducida para no exceder 1MB
           const compressedBase64 = canvas.toDataURL("image/jpeg", 0.7)
 
           setImages((prev) => [...prev, compressedBase64])
@@ -272,7 +311,6 @@ export default function CabinsManager() {
       reader.readAsDataURL(file)
     })
 
-    // Limpiar el input para permitir subir archivos repetidos
     e.target.value = null
   }
 
@@ -292,55 +330,41 @@ export default function CabinsManager() {
     setIsLoading(true)
 
     try {
-      const amenitiesArray = Object.entries(formData.amenities)
-        .filter(([_, value]) => value)
-        .map(([key]) => key)
-
       const cabinData = {
-        name: {
-          es: formData.nameEs,
-          en: formData.nameEn,
-          pt: formData.namePt,
-        },
-        description: {
-          es: formData.descriptionEs,
-          en: formData.descriptionEn,
-          pt: formData.descriptionPt,
-        },
-        images: formData.images, // Guardar array de imágenes
-        image: formData.images[0] || "", // Para retrocompatibilidad
-        price: formData.price,
+        name: formData.name,
+        description: formData.description,
+        images: formData.images,
+        image: formData.images[0] || "",
         capacity: formData.capacity,
-        amenities: amenitiesArray,
-        updatedAt: new Date(), // Timestamp para saber cuándo se actualizó
+        floor: formData.floor,
+        amenities: formData.amenities,
+        updatedAt: new Date(),
       }
 
       if (isEditing && currentCabin) {
-        // Actualizar cabaña existente - TU LÓGICA ORIGINAL
         await updateDoc(doc(db, "cabins", currentCabin.id), cabinData)
         setCabins(cabins.map((cabin) => (cabin.id === currentCabin.id ? { id: currentCabin.id, ...cabinData } : cabin)))
         toast({
-          title: t("admin.cabins.updateSuccess") || "Cabaña actualizada",
-          description: t("admin.cabins.updateSuccessMessage") || "La cabaña ha sido actualizada exitosamente.",
+          title: "Departamento actualizado",
+          description: "El departamento ha sido actualizado exitosamente.",
         })
       } else {
-        // Crear nueva cabaña - TU LÓGICA ORIGINAL
-        cabinData.createdAt = new Date() // Añadir timestamp de creación
+        cabinData.createdAt = new Date()
         const docRef = await addDoc(collection(db, "cabins"), cabinData)
         const newCabin = { id: docRef.id, ...cabinData }
         setCabins([...cabins, newCabin])
         toast({
-          title: t("admin.cabins.addSuccess") || "Cabaña agregada",
-          description: t("admin.cabins.addSuccessMessage") || "La nueva cabaña ha sido agregada exitosamente.",
+          title: "Departamento agregado",
+          description: "El nuevo departamento ha sido agregado exitosamente.",
         })
       }
 
       setIsDialogOpen(false)
     } catch (error) {
-      console.error("Error al guardar la cabaña:", error)
+      console.error("Error al guardar el departamento:", error)
       toast({
         title: "Error",
-        description: isEditing ? "No se pudo actualizar la cabaña" : "No se pudo agregar la cabaña",
+        description: isEditing ? "No se pudo actualizar el departamento" : "No se pudo agregar el departamento",
         variant: "destructive",
       })
     } finally {
@@ -348,7 +372,6 @@ export default function CabinsManager() {
     }
   }
 
-  // Obtener la imagen principal para mostrar en la tarjeta - TU LÓGICA ORIGINAL
   const getMainImage = (cabin) => {
     if (Array.isArray(cabin.images) && cabin.images.length > 0) {
       return cabin.images[0]
@@ -356,19 +379,45 @@ export default function CabinsManager() {
     return cabin.image || ""
   }
 
-  const getAmenityIcon = (amenity) => {
-    switch (amenity) {
-      case "wifi":
-        return <Wifi className="h-4 w-4" />
-      case "ac":
-        return <Thermometer className="h-4 w-4" />
-      case "pets":
-        return <PawPrint className="h-4 w-4" />
-      case "kitchen":
-        return <Wind className="h-4 w-4" />
-      default:
-        return null
+  const getCabinName = (cabin) => {
+    if (!cabin) return "Sin nombre"
+    if (typeof cabin.name === 'string') {
+      return cabin.name
     }
+    if (typeof cabin.name === 'object' && cabin.name !== null) {
+      return cabin.name.es || cabin.name.en || cabin.name.pt || "Sin nombre"
+    }
+    return "Sin nombre"
+  }
+
+  const getCabinDescription = (cabin) => {
+    if (!cabin) return "Sin descripción"
+    if (typeof cabin.description === 'string') {
+      return cabin.description
+    }
+    if (typeof cabin.description === 'object' && cabin.description !== null) {
+      return cabin.description.es || cabin.description.en || cabin.description.pt || "Sin descripción"
+    }
+    return "Sin descripción"
+  }
+
+  const getAmenityInfo = (key) => {
+    const amenities = {
+      balconyView: { icon: <Eye className="h-4 w-4" />, label: "Balcón con vista al parque y la piscina" },
+      ac: { icon: <Snowflake className="h-4 w-4" />, label: "Aire acondicionado" },
+      fridge: { icon: <Snowflake className="h-4 w-4" />, label: "Heladera" },
+      microwave: { icon: <UtensilsCrossed className="h-4 w-4" />, label: "Microondas" },
+      kettle: { icon: <Coffee className="h-4 w-4" />, label: "Pava eléctrica" },
+      electricPot: { icon: <CookingPot className="h-4 w-4" />, label: "Olla eléctrica" },
+      dishes: { icon: <UtensilsCrossed className="h-4 w-4" />, label: "Vajilla completa" },
+      waterHeater: { icon: <Droplets className="h-4 w-4" />, label: "Termotanque" },
+      tv: { icon: <Tv className="h-4 w-4" />, label: "TV" },
+      wifi: { icon: <Wifi className="h-4 w-4" />, label: "WiFi" },
+      bedding: { icon: <Bed className="h-4 w-4" />, label: "Sábanas" },
+      blankets: { icon: <Bed className="h-4 w-4" />, label: "Frazadas" },
+      towels: { icon: <Bed className="h-4 w-4" />, label: "Toallas" },
+    }
+    return amenities[key] || { icon: null, label: key }
   }
 
   const CabinCardSkeleton = () => (
@@ -384,39 +433,29 @@ export default function CabinsManager() {
           <Skeleton className="h-6 w-20" />
           <Skeleton className="h-6 w-16" />
         </div>
-        <div className="flex gap-2">
-          <Skeleton className="h-6 w-12" />
-          <Skeleton className="h-6 w-16" />
-        </div>
-        <div className="flex gap-2">
-          <Skeleton className="h-8 w-20" />
-          <Skeleton className="h-8 w-20" />
-        </div>
       </CardContent>
     </Card>
   )
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900">{t("admin.cabins.title") || "Gestión de Cabañas"}</h2>
-          <p className="text-slate-600 mt-1">Gestiona todas las cabañas y alojamientos disponibles</p>
+          <h2 className="text-3xl font-bold text-slate-900">Gestión de Departamentos</h2>
+          <p className="text-slate-600 mt-1">Gestiona todos los departamentos disponibles</p>
         </div>
         <Button onClick={handleAddNew} className="bg-emerald-600 hover:bg-emerald-700" disabled={isLoading}>
           <Plus className="h-4 w-4 mr-2" />
-          {t("admin.cabins.addNew") || "Agregar Nueva Cabaña"}
+          Agregar Nuevo Departamento
         </Button>
       </div>
 
-      {/* Filtros y Búsqueda */}
       <Card className="p-4">
         <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
             <Input
-              placeholder="Buscar cabañas..."
+              placeholder="Buscar departamentos..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -426,7 +465,7 @@ export default function CabinsManager() {
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="flex items-center gap-1">
               <MapPin className="h-3 w-3" />
-              {filteredCabins.length} cabañas
+              {filteredCabins.length} departamentos
             </Badge>
 
             <div className="flex border rounded-lg p-1">
@@ -451,11 +490,8 @@ export default function CabinsManager() {
         </div>
       </Card>
 
-      {/* Lista de Cabañas */}
       {isLoading && !isDialogOpen && !isDeleteDialogOpen ? (
-        <div
-          className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"}`}
-        >
+        <div className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"}`}>
           {[...Array(6)].map((_, i) => (
             <CabinCardSkeleton key={i} />
           ))}
@@ -465,32 +501,28 @@ export default function CabinsManager() {
           <div className="text-center">
             <MapPin className="h-12 w-12 text-slate-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-slate-900 mb-2">
-              {searchQuery ? "No se encontraron cabañas" : "No hay cabañas disponibles"}
+              {searchQuery ? "No se encontraron departamentos" : "No hay departamentos disponibles"}
             </h3>
             <p className="text-slate-600 mb-4">
-              {searchQuery
-                ? "Intenta con otros términos de búsqueda"
-                : "Comienza agregando tu primera cabaña al sistema"}
+              {searchQuery ? "Intenta con otros términos de búsqueda" : "Comienza agregando tu primer departamento"}
             </p>
             {!searchQuery && (
               <Button onClick={handleAddNew} className="bg-emerald-600 hover:bg-emerald-700">
                 <Plus className="h-4 w-4 mr-2" />
-                Agregar Primera Cabaña
+                Agregar Primer Departamento
               </Button>
             )}
           </div>
         </Card>
       ) : (
-        <div
-          className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"}`}
-        >
+        <div className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"}`}>
           {filteredCabins.map((cabin) => (
             <Card key={cabin.id} className="overflow-hidden hover:shadow-lg transition-all duration-300 group">
               <div className="relative h-48 overflow-hidden">
                 {getMainImage(cabin) ? (
                   <Image
                     src={getMainImage(cabin) || "/placeholder.svg"}
-                    alt={cabin.name?.[language] || cabin.name?.en || "Cabaña"}
+                    alt={cabin.name || "Departamento"}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-300"
                   />
@@ -505,49 +537,23 @@ export default function CabinsManager() {
                     {cabin.images.length}
                   </Badge>
                 )}
-                <div className="absolute top-3 left-3">
-                  <Badge className="bg-emerald-600 text-white border-0">
-                    <DollarSign className="h-3 w-3 mr-1" />${cabin.price}
+                {cabin.floor && (
+                  <Badge className="absolute top-3 left-3 bg-blue-600 text-white border-0">
+                    {cabin.floor === 'upper' ? 'Planta Alta' : 'Planta Baja'}
                   </Badge>
-                </div>
+                )}
               </div>
 
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg line-clamp-1">
-                  {cabin.name?.[language] || cabin.name?.en || "Sin nombre"}
-                </CardTitle>
-                <CardDescription className="line-clamp-2">
-                  {cabin.description?.[language] || cabin.description?.en || "Sin descripción"}
-                </CardDescription>
+                <CardTitle className="text-lg line-clamp-1">{getCabinName(cabin)}</CardTitle>
+                <CardDescription className="line-clamp-2">{getCabinDescription(cabin)}</CardDescription>
               </CardHeader>
 
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center text-slate-600">
-                    <Users className="h-4 w-4 mr-1" />
-                    <span className="text-sm">{cabin.capacity} personas</span>
-                  </div>
-                  <div className="flex items-center text-emerald-600 font-semibold">
-                    <span className="text-lg">${cabin.price}</span>
-                    <span className="text-sm text-slate-500 ml-1">/ noche</span>
-                  </div>
+                <div className="flex items-center text-slate-600">
+                  <Users className="h-4 w-4 mr-1" />
+                  <span className="text-sm">{cabin.capacity} personas</span>
                 </div>
-
-                {cabin.amenities && cabin.amenities.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {cabin.amenities.slice(0, 4).map((amenity) => (
-                      <Badge key={amenity} variant="secondary" className="flex items-center gap-1 text-xs">
-                        {getAmenityIcon(amenity)}
-                        {t(`admin.cabins.amenities.${amenity}`) || amenity}
-                      </Badge>
-                    ))}
-                    {cabin.amenities.length > 4 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{cabin.amenities.length - 4} más
-                      </Badge>
-                    )}
-                  </div>
-                )}
 
                 <div className="flex gap-2 pt-2">
                   <Button
@@ -558,7 +564,7 @@ export default function CabinsManager() {
                     className="flex-1"
                   >
                     <Edit className="h-4 w-4 mr-1" />
-                    {t("admin.cabins.edit") || "Editar"}
+                    Editar
                   </Button>
                   <Button
                     variant="outline"
@@ -576,90 +582,55 @@ export default function CabinsManager() {
         </div>
       )}
 
-      {/* Dialog para Agregar/Editar Cabaña */}
       <Dialog open={isDialogOpen} onOpenChange={(open) => !isLoading && setIsDialogOpen(open)}>
         <DialogContent className="max-w-4xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="text-xl">
-              {isEditing
-                ? t("admin.cabins.editCabin") || "Editar Cabaña"
-                : t("admin.cabins.addCabin") || "Agregar Cabaña"}
+              {isEditing ? "Editar Departamento" : "Agregar Departamento"}
             </DialogTitle>
           </DialogHeader>
 
           <ScrollArea className="max-h-[70vh] pr-4">
             <form onSubmit={handleSubmit} className="space-y-6">
               <Tabs defaultValue="general" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="general">{t("admin.cabins.tabs.general") || "General"}</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="general">General</TabsTrigger>
                   <TabsTrigger value="images" className="flex items-center gap-2">
                     <ImageIcon className="h-4 w-4" />
                     Imágenes
                   </TabsTrigger>
-                  <TabsTrigger value="descriptions">
-                    {t("admin.cabins.tabs.descriptions") || "Descripciones"}
-                  </TabsTrigger>
-                  <TabsTrigger value="amenities">{t("admin.cabins.tabs.amenities") || "Amenidades"}</TabsTrigger>
+                  <TabsTrigger value="amenities">¿Qué incluye?</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="general" className="space-y-6 pt-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="nameEs">{t("admin.cabins.form.nameEs") || "Nombre (Español)"}</Label>
-                      <Input
-                        id="nameEs"
-                        name="nameEs"
-                        value={formData.nameEs}
-                        onChange={handleInputChange}
-                        required
-                        placeholder="Ej: Cabaña Vista Montaña"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="nameEn">{t("admin.cabins.form.nameEn") || "Nombre (Inglés)"}</Label>
-                      <Input
-                        id="nameEn"
-                        name="nameEn"
-                        value={formData.nameEn}
-                        onChange={handleInputChange}
-                        required
-                        placeholder="Ex: Mountain View Cabin"
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nombre del Departamento</Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="Ej: Departamento Vista Parque"
+                    />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="namePt">{t("admin.cabins.form.namePt") || "Nombre (Portugués)"}</Label>
-                    <Input
-                      id="namePt"
-                      name="namePt"
-                      value={formData.namePt}
+                    <Label htmlFor="description">Descripción</Label>
+                    <Textarea
+                      id="description"
+                      name="description"
+                      value={formData.description}
                       onChange={handleInputChange}
                       required
-                      placeholder="Ex: Cabana Vista da Montanha"
+                      className="min-h-[100px]"
+                      placeholder="Describe el departamento..."
                     />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="price">{t("admin.cabins.form.price") || "Precio por noche"}</Label>
-                      <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-                        <Input
-                          id="price"
-                          name="price"
-                          type="number"
-                          value={formData.price}
-                          onChange={handleInputChange}
-                          required
-                          min="0"
-                          className="pl-10"
-                          placeholder="150"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="capacity">{t("admin.cabins.form.capacity") || "Capacidad"}</Label>
+                      <Label htmlFor="capacity">Capacidad</Label>
                       <div className="relative">
                         <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
                         <Input
@@ -674,6 +645,22 @@ export default function CabinsManager() {
                           placeholder="4"
                         />
                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="floor">Ubicación</Label>
+                      <select
+                        id="floor"
+                        name="floor"
+                        value={formData.floor}
+                        onChange={handleInputChange}
+                        className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                        required
+                      >
+                        <option value="">Seleccionar...</option>
+                        <option value="upper">Planta Alta</option>
+                        <option value="lower">Planta Baja</option>
+                      </select>
                     </div>
                   </div>
                 </TabsContent>
@@ -714,18 +701,14 @@ export default function CabinsManager() {
                       <div className="bg-slate-50 border border-slate-200 rounded-lg p-8 text-center">
                         <ImageIcon className="h-12 w-12 text-slate-400 mx-auto mb-3" />
                         <p className="text-slate-600">No hay imágenes cargadas</p>
-                        <p className="text-sm text-slate-500">La primera imagen se usará como principal</p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         {images.map((img, index) => (
-                          <div
-                            key={index}
-                            className="relative aspect-square bg-slate-100 rounded-lg overflow-hidden group"
-                          >
+                          <div key={index} className="relative aspect-square bg-slate-100 rounded-lg overflow-hidden group">
                             <Image
                               src={img || "/placeholder.svg"}
-                              alt={`Imagen de cabaña ${index + 1}`}
+                              alt={`Imagen ${index + 1}`}
                               fill
                               className="object-cover"
                             />
@@ -750,128 +733,86 @@ export default function CabinsManager() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="descriptions" className="space-y-6 pt-6">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="descriptionEs">
-                        {t("admin.cabins.form.descriptionEs") || "Descripción (Español)"}
-                      </Label>
-                      <Textarea
-                        id="descriptionEs"
-                        name="descriptionEs"
-                        value={formData.descriptionEs}
-                        onChange={handleInputChange}
-                        required
-                        className="min-h-[100px]"
-                        placeholder="Describe la cabaña en español..."
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="descriptionEn">
-                        {t("admin.cabins.form.descriptionEn") || "Descripción (Inglés)"}
-                      </Label>
-                      <Textarea
-                        id="descriptionEn"
-                        name="descriptionEn"
-                        value={formData.descriptionEn}
-                        onChange={handleInputChange}
-                        required
-                        className="min-h-[100px]"
-                        placeholder="Describe the cabin in English..."
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="descriptionPt">
-                        {t("admin.cabins.form.descriptionPt") || "Descripción (Portugués)"}
-                      </Label>
-                      <Textarea
-                        id="descriptionPt"
-                        name="descriptionPt"
-                        value={formData.descriptionPt}
-                        onChange={handleInputChange}
-                        required
-                        className="min-h-[100px]"
-                        placeholder="Descreva a cabana em português..."
-                      />
-                    </div>
-                  </div>
-                </TabsContent>
-
                 <TabsContent value="amenities" className="space-y-6 pt-6">
                   <div>
-                    <Label className="text-base font-medium">Amenidades Disponibles</Label>
-                    <p className="text-sm text-slate-600 mb-4">Selecciona las amenidades que ofrece esta cabaña</p>
+                    <Label className="text-base font-medium">El departamento cuenta con:</Label>
+                    <p className="text-sm text-slate-600 mb-4">Selecciona las comodidades disponibles</p>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Card className="p-4">
-                        <div className="flex items-center space-x-3">
-                          <Switch
-                            id="wifi"
-                            checked={formData.amenities.wifi}
-                            onCheckedChange={(checked) => handleAmenityChange("wifi", checked)}
-                          />
-                          <Label htmlFor="wifi" className="flex items-center cursor-pointer flex-1">
-                            <Wifi className="h-5 w-5 mr-3 text-emerald-600" />
-                            <div>
-                              <p className="font-medium">{t("admin.cabins.amenities.wifi") || "WiFi"}</p>
-                              <p className="text-xs text-slate-500">Internet inalámbrico</p>
-                            </div>
-                          </Label>
+                    <div className="space-y-6">
+                      <div>
+                        <h4 className="font-semibold mb-3 text-emerald-700">Vista y Espacios</h4>
+                        <div className="grid grid-cols-1 gap-3">
+                          {['balconyView'].map((key) => {
+                            const info = getAmenityInfo(key)
+                            return (
+                              <Card key={key} className="p-3">
+                                <div className="flex items-center space-x-3">
+                                  <Switch
+                                    id={key}
+                                    checked={formData.amenities[key]}
+                                    onCheckedChange={(checked) => handleAmenityChange(key, checked)}
+                                  />
+                                  <Label htmlFor={key} className="flex items-center cursor-pointer flex-1">
+                                    <div className="text-emerald-600 mr-2">{info.icon}</div>
+                                    <span className="font-medium">{info.label}</span>
+                                  </Label>
+                                  {formData.amenities[key] && <Check className="h-4 w-4 text-emerald-600" />}
+                                </div>
+                              </Card>
+                            )
+                          })}
                         </div>
-                      </Card>
+                      </div>
 
-                      <Card className="p-4">
-                        <div className="flex items-center space-x-3">
-                          <Switch
-                            id="ac"
-                            checked={formData.amenities.ac}
-                            onCheckedChange={(checked) => handleAmenityChange("ac", checked)}
-                          />
-                          <Label htmlFor="ac" className="flex items-center cursor-pointer flex-1">
-                            <Thermometer className="h-5 w-5 mr-3 text-emerald-600" />
-                            <div>
-                              <p className="font-medium">{t("admin.cabins.amenities.ac") || "Aire Acondicionado"}</p>
-                              <p className="text-xs text-slate-500">Climatización</p>
-                            </div>
-                          </Label>
+                      <div>
+                        <h4 className="font-semibold mb-3 text-emerald-700">Equipamiento Completo</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {['ac', 'fridge', 'microwave', 'kettle', 'electricPot', 'dishes', 'waterHeater', 'tv', 'wifi'].map((key) => {
+                            const info = getAmenityInfo(key)
+                            return (
+                              <Card key={key} className="p-3">
+                                <div className="flex items-center space-x-3">
+                                  <Switch
+                                    id={key}
+                                    checked={formData.amenities[key]}
+                                    onCheckedChange={(checked) => handleAmenityChange(key, checked)}
+                                  />
+                                  <Label htmlFor={key} className="flex items-center cursor-pointer flex-1">
+                                    <div className="text-emerald-600 mr-2">{info.icon}</div>
+                                    <span className="font-medium">{info.label}</span>
+                                  </Label>
+                                  {formData.amenities[key] && <Check className="h-4 w-4 text-emerald-600" />}
+                                </div>
+                              </Card>
+                            )
+                          })}
                         </div>
-                      </Card>
+                      </div>
 
-                      <Card className="p-4">
-                        <div className="flex items-center space-x-3">
-                          <Switch
-                            id="pets"
-                            checked={formData.amenities.pets}
-                            onCheckedChange={(checked) => handleAmenityChange("pets", checked)}
-                          />
-                          <Label htmlFor="pets" className="flex items-center cursor-pointer flex-1">
-                            <PawPrint className="h-5 w-5 mr-3 text-emerald-600" />
-                            <div>
-                              <p className="font-medium">{t("admin.cabins.amenities.pets") || "Mascotas Permitidas"}</p>
-                              <p className="text-xs text-slate-500">Se admiten mascotas</p>
-                            </div>
-                          </Label>
+                      <div>
+                        <h4 className="font-semibold mb-3 text-emerald-700">Ropa de Cama Incluida</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          {['bedding', 'blankets', 'towels'].map((key) => {
+                            const info = getAmenityInfo(key)
+                            return (
+                              <Card key={key} className="p-3">
+                                <div className="flex items-center space-x-3">
+                                  <Switch
+                                    id={key}
+                                    checked={formData.amenities[key]}
+                                    onCheckedChange={(checked) => handleAmenityChange(key, checked)}
+                                  />
+                                  <Label htmlFor={key} className="flex items-center cursor-pointer flex-1">
+                                    <div className="text-emerald-600 mr-2">{info.icon}</div>
+                                    <span className="font-medium">{info.label}</span>
+                                  </Label>
+                                  {formData.amenities[key] && <Check className="h-4 w-4 text-emerald-600" />}
+                                </div>
+                              </Card>
+                            )
+                          })}
                         </div>
-                      </Card>
-
-                      <Card className="p-4">
-                        <div className="flex items-center space-x-3">
-                          <Switch
-                            id="kitchen"
-                            checked={formData.amenities.kitchen}
-                            onCheckedChange={(checked) => handleAmenityChange("kitchen", checked)}
-                          />
-                          <Label htmlFor="kitchen" className="flex items-center cursor-pointer flex-1">
-                            <Wind className="h-5 w-5 mr-3 text-emerald-600" />
-                            <div>
-                              <p className="font-medium">{t("admin.cabins.amenities.kitchen") || "Cocina"}</p>
-                              <p className="text-xs text-slate-500">Cocina equipada</p>
-                            </div>
-                          </Label>
-                        </div>
-                      </Card>
+                      </div>
                     </div>
                   </div>
                 </TabsContent>
@@ -886,7 +827,7 @@ export default function CabinsManager() {
               onClick={() => !isLoading && setIsDialogOpen(false)}
               disabled={isLoading}
             >
-              {t("admin.cabins.cancel") || "Cancelar"}
+              Cancelar
             </Button>
             <Button
               type="submit"
@@ -900,31 +841,27 @@ export default function CabinsManager() {
                   Guardando...
                 </>
               ) : isEditing ? (
-                t("admin.cabins.update") || "Actualizar"
+                "Actualizar"
               ) : (
-                t("admin.cabins.create") || "Crear"
+                "Crear"
               )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Confirmación de Eliminación */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => !isLoading && setIsDeleteDialogOpen(open)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("admin.cabins.confirmDelete") || "Confirmar Eliminación"}</AlertDialogTitle>
+            <AlertDialogTitle>Confirmar Eliminación</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("admin.cabins.confirmDeleteMessage", {
-                name: currentCabin?.name?.[language] || currentCabin?.name?.en || "esta cabaña",
-              }) ||
-                `¿Estás seguro de que quieres eliminar ${currentCabin?.name?.[language] || currentCabin?.name?.en || "esta cabaña"}?`}
+              ¿Estás seguro de que quieres eliminar {getCabinName(currentCabin)}?
               <br />
               <span className="text-red-600 font-medium">Esta acción no se puede deshacer.</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isLoading}>{t("admin.cabins.cancel") || "Cancelar"}</AlertDialogCancel>
+            <AlertDialogCancel disabled={isLoading}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} disabled={isLoading} className="bg-red-600 hover:bg-red-700">
               {isLoading ? (
                 <>
@@ -932,7 +869,7 @@ export default function CabinsManager() {
                   Eliminando...
                 </>
               ) : (
-                t("admin.cabins.delete") || "Eliminar"
+                "Eliminar"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
