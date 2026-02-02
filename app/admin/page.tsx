@@ -4,7 +4,9 @@ import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/auth-context"
 import { LanguageProvider } from "@/context/language-context"
-import ReservasManager, { type ReservasManagerRef } from "@/components/admin/reservas-manager"
+import ReservasManager, {
+  type ReservasManagerRef,
+} from "@/components/admin/reservas/reserva-manager";
 import CabinsManager from "@/components/admin/cabins-manager"
 import TestimonialsManager from "@/components/admin/testimonials-manager"
 import ActivitiesManager from "@/components/admin/activities-manager"
