@@ -55,7 +55,6 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
   );
   const paisData = PAISES.find((p) => p.code === reserva.pais);
 
-  // Determinar la moneda a mostrar
   const monedaReserva = reserva.moneda || "AR";
   let simboloMoneda = "$";
   let nombreMoneda = "Pesos Argentinos";
@@ -73,7 +72,6 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
     simboloMoneda = "EUR €";
     nombreMoneda = "Euros";
   } else {
-    // Fallback para otros códigos de país
     const paisMatch = PAISES.find((p) => p.code === monedaReserva);
     if (paisMatch) {
       simboloMoneda = `${paisMatch.symbol} $`;
@@ -93,20 +91,60 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
     if (!element) return;
 
     try {
+      // Remover temporalmente la clase de escala
+      const originalClass = element.className;
+      element.className = element.className
+        .replace(/scale-\[[\d.]+\]/g, "scale-100")
+        .replace(/origin-top/g, "");
+
       await new Promise((resolve) => setTimeout(resolve, 150));
 
       const canvas = await html2canvas(element, {
-        scale: 2.5,
+        scale: 2,
         backgroundColor: "#ffffff",
         logging: false,
         useCORS: true,
         allowTaint: false,
         imageTimeout: 0,
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
       });
+
+      // Restaurar las clases originales
+      element.className = originalClass;
+
+      // Crear un canvas con bordes redondeados
+      const scale = 2;
+      const radius = 12 * scale;
+      const roundedCanvas = document.createElement("canvas");
+      roundedCanvas.width = canvas.width;
+      roundedCanvas.height = canvas.height;
+      const ctx = roundedCanvas.getContext("2d");
+
+      if (ctx) {
+        ctx.beginPath();
+        ctx.moveTo(radius, 0);
+        ctx.lineTo(canvas.width - radius, 0);
+        ctx.quadraticCurveTo(canvas.width, 0, canvas.width, radius);
+        ctx.lineTo(canvas.width, canvas.height - radius);
+        ctx.quadraticCurveTo(
+          canvas.width,
+          canvas.height,
+          canvas.width - radius,
+          canvas.height,
+        );
+        ctx.lineTo(radius, canvas.height);
+        ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - radius);
+        ctx.lineTo(0, radius);
+        ctx.quadraticCurveTo(0, 0, radius, 0);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(canvas, 0, 0);
+      }
 
       const link = document.createElement("a");
       link.download = `comprobante-${reserva.nombre.replace(/\s+/g, "-")}-${format(new Date(), "dd-MM-yyyy")}.png`;
-      link.href = canvas.toDataURL("image/png", 1.0);
+      link.href = roundedCanvas.toDataURL("image/png", 1.0);
       link.click();
     } catch (error) {
       console.error("Error al generar la imagen:", error);
@@ -114,422 +152,425 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
   };
 
   return (
-    <div className="max-s-4xl mx-auto bg-white">
-      <div
-        id="comprobante-content"
-        className="bg-white border-4 border-double border-gray-400 rounded-lg p-6 shadow-2xl"
-        style={{ width: "794px"}}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4 pb-3 border-b-2 border-gray-300">
-          <div className="flex items-center">
-            <img
-              src="/mangrullo.png"
-              alt="El Mangrullo"
-              className="h-20 w-auto object-contain"
-            />
-          </div>
-          <div className="text-right">
-            <h1 className="text-3xl font-bold text-gray-800 tracking-wide uppercase">
-              El Mangrullo
-            </h1>
-            <p className="text-sm text-gray-600">Complejo Turístico</p>
-          </div>
-        </div>
-
-        {/* Título */}
-        <div className="mt-1 bg-gray-200 p-2.5 rounded border-2 border-gray-400">
-          <h2 className="text-center text-base text-gray-900 font-bold uppercase tracking-wide">
-            Comprobante de Reserva / Pago
-          </h2>
-        </div>
-
-        {reserva.estado === "pagado" && (
-          <div className="mt-3 bg-green-100 border-2 border-green-500 rounded-lg p-3 flex items-center justify-center gap-2">
-            <CheckCircle2 className="h-6 w-6 text-green-600" />
-            <span className="text-green-700 font-bold text-lg uppercase tracking-wide">
-              PAGADO
-            </span>
-          </div>
-        )}
-
-        {/* Datos del huésped */}
-        <div className="grid grid-cols-2 gap-4 mb-3 mt-3">
-          <div>
-            <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">
-              Nombre del huésped:
-            </label>
-            <div className="border-b-2 border-gray-400 py-1.5 mt-1">
-              <p className="text-gray-900 font-medium text-base">
-                {reserva.nombre}
-              </p>
+    <div className="w-full h-full flex items-center justify-center p-2 md:p-4 overflow-auto">
+      <div className="w-full max-w-4xl">
+        <div
+          id="comprobante-content"
+          className="bg-white border-4 border-double border-gray-400 rounded-lg p-3 md:p-6 shadow-2xl w-full scale-[0.65] origin-top md:scale-100"
+        >
+          {/* Header */}
+          <div className="flex flex-row items-center justify-between mb-2 pb-2 border-b-2 border-gray-300 gap-2 flex-shrink-0">
+            <div className="flex items-center">
+              <img
+                src="/mangrullo.png"
+                alt="El Mangrullo"
+                className="h-12 w-auto object-contain"
+              />
+            </div>
+            <div className="text-right">
+              <h1 className="text-xl font-bold text-gray-800 tracking-wide uppercase">
+                El Mangrullo
+              </h1>
+              <p className="text-xs text-gray-600">Complejo Turístico</p>
             </div>
           </div>
-          <div>
-            <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">
-              País:
-            </label>
-            <div className="border-b-2 border-gray-400 py-1.5 mt-1">
-              <p className="text-gray-900 font-medium text-base">
-                {paisData?.name || reserva.pais}
-              </p>
+
+          {/* Título */}
+          <div className="bg-gray-200 p-1.5 rounded border-2 border-gray-400 flex-shrink-0">
+            <h2 className="text-center text-xs text-gray-900 font-bold uppercase tracking-wide">
+              Comprobante de Reserva / Pago
+            </h2>
+          </div>
+
+          {reserva.estado === "pagado" && (
+            <div className="mt-1 bg-green-100 border-2 border-green-500 rounded-lg p-1.5 flex items-center justify-center gap-1 flex-shrink-0">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <span className="text-green-700 font-bold text-xs uppercase tracking-wide">
+                PAGADO
+              </span>
             </div>
-          </div>
-        </div>
+          )}
 
-        {/* Canal de alquiler */}
-        <div className="mb-3">
-          <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide mb-2 block">
-            Canal de alquiler:
-          </label>
-          <div className="flex gap-5 py-1 flex-wrap">
-            {ORIGENES.map((origen) => (
-              <div key={origen.value} className="flex items-center gap-2">
-                <div
-                  className={cn(
-                    "w-5 h-5 border-2 border-gray-700 flex items-center justify-center rounded-sm",
-                    reserva.origen === origen.value && "bg-gray-900",
-                  )}
-                >
-                  {reserva.origen === origen.value && (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                  )}
-                </div>
-                <span className="text-gray-700 text-sm font-medium">
-                  {origen.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {reserva.numeroReservaBooking && reserva.origen === "booking" && (
-          <div className="mb-3">
-            <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">
-              Número de Reserva Booking:
-            </label>
-            <div className="border-b-2 border-gray-400 py-1.5 mt-1">
-              <p className="text-gray-900 font-medium text-base">
-                {reserva.numeroReservaBooking}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Grid de 2 columnas */}
-        <div className="grid grid-cols-2 gap-4 mb-3">
-          {/* Columna izquierda */}
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-300 space-y-3">
+          {/* Datos del huésped */}
+          <div className="grid grid-cols-2 gap-3 mb-2 mt-2 flex-shrink-0">
             <div>
-              <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide mb-2 block">
-                {reserva.esReservaMultiple
-                  ? `Departamentos (${reserva.departamentos?.length}):`
-                  : "Departamento/s:"}
+              <label className="text-gray-700 font-semibold text-[10px] uppercase tracking-wide">
+                Nombre del huésped:
               </label>
-              {reserva.esReservaMultiple && reserva.departamentos ? (
-                // Multi-cabin display
-                <div className="space-y-2">
-                  {reserva.departamentos.map((dept) => {
-                    const isSelected = dept.departamento;
+              <div className="border-b-2 border-gray-400 py-0.5 mt-0.5">
+                <p className="text-gray-900 font-medium text-xs">
+                  {reserva.nombre}
+                </p>
+              </div>
+            </div>
+            <div>
+              <label className="text-gray-700 font-semibold text-[10px] uppercase tracking-wide">
+                País:
+              </label>
+              <div className="border-b-2 border-gray-400 py-0.5 mt-0.5">
+                <p className="text-gray-900 font-medium text-xs">
+                  {paisData?.name || reserva.pais}
+                </p>
+              </div>
+            </div>
+          </div>
 
+          {/* Canal de alquiler */}
+          <div className="mb-2 flex-shrink-0">
+            <label className="text-gray-700 font-semibold text-[10px] uppercase tracking-wide mb-1 block">
+              Canal de alquiler:
+            </label>
+            <div className="flex gap-3 flex-wrap items-center">
+              {ORIGENES.map((origen) => (
+                <div key={origen.value} className="flex items-center gap-1.5">
+                  <div
+                    className={cn(
+                      "w-3.5 h-3.5 border border-gray-600 flex items-center justify-center rounded-sm flex-shrink-0",
+                      reserva.origen === origen.value && "bg-gray-800",
+                    )}
+                  >
+                    {reserva.origen === origen.value && (
+                      <CheckCircle2 className="w-2.5 h-2.5 text-white" />
+                    )}
+                  </div>
+                  <span className="text-gray-700 text-[11px] font-medium leading-none">
+                    {origen.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {reserva.numeroReservaBooking && reserva.origen === "booking" && (
+            <div className="mb-2 flex-shrink-0">
+              <label className="text-gray-700 font-semibold text-[10px] uppercase tracking-wide">
+                Número de Reserva Booking:
+              </label>
+              <div className="border-b-2 border-gray-400 py-0.5 mt-0.5">
+                <p className="text-gray-900 font-medium text-xs">
+                  {reserva.numeroReservaBooking}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Grid de 2 columnas */}
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            {/* Columna izquierda */}
+            <div className="bg-gray-50 p-2 rounded-lg border border-gray-300 space-y-1">
+              <div>
+                <label className="text-gray-700 font-semibold text-[10px] uppercase tracking-wide mb-1 block">
+                  {reserva.esReservaMultiple
+                    ? `Departamentos (${reserva.departamentos?.length}):`
+                    : "Departamento/s:"}
+                </label>
+                {reserva.esReservaMultiple && reserva.departamentos ? (
+                  <div className="space-y-1">
+                    {reserva.departamentos.map((dept) => {
+                      return (
+                        <div
+                          key={dept.departamento}
+                          className="flex items-center gap-1 border-b border-gray-200 pb-1"
+                        >
+                          <div className="w-3 h-3 border-2 border-gray-700 flex items-center justify-center rounded-sm flex-shrink-0 bg-gray-900">
+                            <CheckCircle2 className="w-2 h-2 text-white" />
+                          </div>
+                          <span className="text-gray-700 text-[10px] font-medium">
+                            {dept.departamento}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
+                    {DEPARTAMENTOS.map((dept) => {
+                      const isSelected =
+                        reserva.departamento?.trim() === dept.trim();
+
+                      return (
+                        <div key={dept} className="flex items-center gap-1.5">
+                          <div
+                            className={cn(
+                              "w-3.5 h-3.5 border border-gray-600 flex items-center justify-center rounded-sm flex-shrink-0",
+                              isSelected && "bg-gray-800",
+                            )}
+                          >
+                            {isSelected && (
+                              <CheckCircle2 className="w-2.5 h-2.5 text-white" />
+                            )}
+                          </div>
+                          <span className="text-gray-700 text-[11px] leading-none">
+                            {dept}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Fechas en una fila */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-gray-700 font-semibold text-[10px] uppercase tracking-wide">
+                    Fecha de entrada:
+                  </label>
+                  <div className="border-b border-gray-400 py-0.5 mt-0.5">
+                    <p className="text-gray-900 text-[10px] font-medium">
+                      {format(reserva.fechaInicio as Date, "dd / MM / yyyy")}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-gray-700 font-semibold text-[10px] uppercase tracking-wide">
+                    Fecha de salida:
+                  </label>
+                  <div className="border-b border-gray-400 py-0.5 mt-0.5">
+                    <p className="text-gray-900 text-[10px] font-medium">
+                      {format(reserva.fechaFin as Date, "dd / MM / yyyy")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cantidad de noches */}
+              <div>
+                <label className="text-gray-700 font-semibold text-[10px] uppercase tracking-wide">
+                  Cantidad de noches:
+                </label>
+                <div className="border-b border-gray-400 py-0.5 mt-0.5">
+                  <p className="text-gray-900 font-bold text-[10px]">
+                    {noches}
+                  </p>
+                </div>
+              </div>
+
+              {reserva.esReservaMultiple && reserva.departamentos ? (
+                <div>
+                  <label className="text-gray-700 font-semibold text-[10px] uppercase tracking-wide mb-1 block">
+                    Cantidad de personas por departamento:
+                  </label>
+                  <div className="space-y-0.5">
+                    {reserva.departamentos.map((dept) => (
+                      <div key={dept.departamento} className="text-[10px]">
+                        <span className="font-medium">
+                          {dept.departamento}:
+                        </span>{" "}
+                        {dept.cantidadAdultos} Adultos, {dept.cantidadMenores}{" "}
+                        Menores
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-gray-700 font-semibold text-[10px] uppercase tracking-wide">
+                    Cantidad de personas:
+                  </label>
+                  <div className="border-b border-gray-400 py-0.5 mt-0.5">
+                    <p className="text-gray-900 text-[10px]">
+                      {reserva.cantidadAdultos || 0} Adultos,{" "}
+                      {reserva.cantidadMenores || 0} Menores
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Observaciones dentro del mismo recuadro */}
+              {reserva.notas && reserva.notas.trim() !== "" && (
+                <div className="pt-1">
+                  <label className="text-gray-700 font-semibold text-[10px] uppercase tracking-wide mb-0.5 block">
+                    Observaciones:
+                  </label>
+                  <div className="border border-gray-300 rounded p-1.5 bg-white">
+                    <p className="text-gray-700 text-[10px] leading-relaxed">
+                      {reserva.notas}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Columna derecha */}
+            <div className="bg-gray-50 p-2 rounded-lg border border-gray-300 space-y-1">
+              <div className="pb-1 border-b border-gray-300">
+                <p className="text-[10px] text-gray-600 font-medium">
+                  Moneda: {nombreMoneda}
+                </p>
+              </div>
+
+              {reserva.esReservaMultiple && reserva.departamentos ? (
+                <div className="space-y-1.5">
+                  <label className="text-gray-700 font-semibold text-[10px] uppercase tracking-wide block">
+                    Precios por departamento:
+                  </label>
+                  {reserva.departamentos.map((dept) => {
+                    const precioNoche = dept.precioNoche[monedaReserva] || 0;
                     return (
                       <div
                         key={dept.departamento}
-                        className="flex items-center gap-2 border-b border-gray-200 pb-2"
+                        className="border-b border-gray-300 pb-1"
                       >
-                        <div className="w-5 h-5 border-2 border-gray-700 flex items-center justify-center rounded-sm flex-shrink-0 bg-gray-900">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                        </div>
-                        <span className="text-gray-700 text-sm font-medium">
+                        <p className="text-[10px] font-medium text-gray-700 mb-0.5">
                           {dept.departamento}
-                        </span>
+                        </p>
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span className="text-gray-600">
+                            Precio por noche:
+                          </span>
+                          <span className="font-semibold text-gray-900">
+                            {simboloMoneda} {formatCurrency(precioNoche)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] mt-0.5">
+                          <span className="text-gray-600">
+                            Total ({noches} noches):
+                          </span>
+                          <span className="font-bold text-gray-900">
+                            {simboloMoneda} {formatCurrency(dept.precioTotal)}
+                          </span>
+                        </div>
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                // Single cabin display
-                <div className="grid grid-cols-2 gap-2">
-                  {DEPARTAMENTOS.map((dept) => {
-                    const isSelected =
-                      reserva.departamento?.trim() === dept.trim();
-
-                    return (
-                      <div key={dept} className="flex items-center gap-2">
-                        <div
-                          className={cn(
-                            "w-5 h-5 border-2 border-gray-700 flex items-center justify-center rounded-sm flex-shrink-0",
-                            isSelected && "bg-gray-900",
-                          )}
-                        >
-                          {isSelected && (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                          )}
-                        </div>
-                        <span className="text-gray-700 text-sm">{dept}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Fechas en una fila */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">
-                  Fecha de entrada:
-                </label>
-                <div className="border-b border-gray-400 py-1 mt-1">
-                  <p className="text-gray-900 text-sm font-medium">
-                    {format(reserva.fechaInicio as Date, "dd / MM / yyyy")}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">
-                  Fecha de salida:
-                </label>
-                <div className="border-b border-gray-400 py-1 mt-1">
-                  <p className="text-gray-900 text-sm font-medium">
-                    {format(reserva.fechaFin as Date, "dd / MM / yyyy")}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Cantidad de noches */}
-            <div>
-              <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">
-                Cantidad de noches:
-              </label>
-              <div className="border-b border-gray-400 py-1 mt-1">
-                <p className="text-gray-900 font-bold text-sm">{noches}</p>
-              </div>
-            </div>
-
-            {reserva.esReservaMultiple && reserva.departamentos ? (
-              // Display per-cabin guest counts
-              <div>
-                <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide mb-2 block">
-                  Cantidad de personas por departamento:
-                </label>
-                <div className="space-y-1">
-                  {reserva.departamentos.map((dept) => (
-                    <div key={dept.departamento} className="text-sm">
-                      <span className="font-medium">{dept.departamento}:</span>{" "}
-                      {dept.cantidadAdultos} Adultos, {dept.cantidadMenores}{" "}
-                      Menores
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              // Display total guest count for single cabin
-              <div>
-                <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">
-                  Cantidad de personas:
-                </label>
-                <div className="border-b border-gray-400 py-1 mt-1">
-                  <p className="text-gray-900 text-sm">
-                    {reserva.cantidadAdultos || 0} Adultos,{" "}
-                    {reserva.cantidadMenores || 0} Menores
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Observaciones dentro del mismo recuadro */}
-            {reserva.notas && reserva.notas.trim() !== "" && (
-              <div className="pt-2">
-                <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide mb-1.5 block">
-                  Observaciones:
-                </label>
-                <div className="border border-gray-300 rounded p-2.5 bg-white">
-                  <p className="text-gray-700 text-sm leading-relaxed">
-                    {reserva.notas}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Columna derecha */}
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-300 space-y-3">
-            <div className="mb-1 pb-2 border-b border-gray-300">
-              <p className="text-sm text-gray-600 font-medium">
-                Moneda: {nombreMoneda}
-              </p>
-            </div>
-
-            {reserva.esReservaMultiple && reserva.departamentos ? (
-              // Multi-cabin pricing display
-              <div className="space-y-3">
-                <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide block">
-                  Precios por departamento:
-                </label>
-                {reserva.departamentos.map((dept) => {
-                  const precioNoche = dept.precioNoche[monedaReserva] || 0;
-                  return (
-                    <div
-                      key={dept.departamento}
-                      className="border-b border-gray-300 pb-2"
-                    >
-                      <p className="text-sm font-medium text-gray-700 mb-1">
-                        {dept.departamento}
+                <>
+                  <div>
+                    <label className="text-gray-700 font-semibold text-[10px] uppercase tracking-wide">
+                      Precio por noche:
+                    </label>
+                    <div className="border-b border-gray-400 py-0.5 mt-0.5">
+                      <p className="text-gray-900 text-xs font-semibold">
+                        {simboloMoneda} {formatCurrency(precioNocheMostrar)}
                       </p>
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-600">Precio por noche:</span>
-                        <span className="font-semibold text-gray-900">
-                          {simboloMoneda} {formatCurrency(precioNoche)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-sm mt-1">
-                        <span className="text-gray-600">
-                          Total ({noches} noches):
-                        </span>
-                        <span className="font-bold text-gray-900">
-                          {simboloMoneda} {formatCurrency(dept.precioTotal)}
-                        </span>
-                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              // Single cabin pricing display
-              <>
-                <div>
-                  <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">
-                    Precio por noche:
-                  </label>
-                  <div className="border-b border-gray-400 py-1 mt-1">
-                    <p className="text-gray-900 text-base font-semibold">
-                      {simboloMoneda} {formatCurrency(precioNocheMostrar)}
-                    </p>
                   </div>
-                </div>
 
-                <div>
-                  <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">
-                    Cantidad de noches:
-                  </label>
-                  <div className="border-b border-gray-400 py-1 mt-1">
-                    <p className="text-gray-900 font-bold text-base">
-                      {noches}
-                    </p>
+                  <div>
+                    <label className="text-gray-700 font-semibold text-[10px] uppercase tracking-wide">
+                      Cantidad de noches:
+                    </label>
+                    <div className="border-b border-gray-400 py-0.5 mt-0.5">
+                      <p className="text-gray-900 font-bold text-xs">
+                        {noches}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </>
-            )}
+                </>
+              )}
 
-            <div className="pt-2 border-t-2 border-gray-400">
-              <label className="text-gray-700 font-semibold text-sm uppercase tracking-wide">
-                Subtotal:
-              </label>
-              <div className="mt-1 bg-white p-2 rounded border border-gray-300">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-700 font-semibold text-sm">
-                    {simboloMoneda}
-                  </span>
-                  <span className="text-gray-900 font-bold text-lg">
-                    {formatCurrency(reserva.precioTotal)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {reserva.hizoDeposito && (
-              <div>
-                <label className="text-green-700 font-semibold text-sm uppercase tracking-wide">
-                  Seña / Depósito:
+              <div className="pt-1 border-t-2 border-gray-400">
+                <label className="text-gray-700 font-semibold text-[10px] uppercase tracking-wide">
+                  Subtotal:
                 </label>
-                <div className="mt-1 bg-green-50 p-2 rounded border border-green-300">
+                <div className="mt-0.5 bg-white p-1 rounded border border-gray-300">
                   <div className="flex justify-between items-center">
-                    <span className="text-green-700 font-semibold text-sm">
+                    <span className="text-gray-700 font-semibold text-[10px]">
                       {simboloMoneda}
                     </span>
-                    <span className="text-green-700 font-bold text-lg">
-                      {formatCurrency(reserva.montoDeposito)}
+                    <span className="text-gray-900 font-bold text-sm">
+                      {formatCurrency(reserva.precioTotal)}
                     </span>
                   </div>
                 </div>
               </div>
-            )}
 
-            <div className="pt-2">
-              <label className="text-gray-900 font-bold text-sm uppercase tracking-wide">
-                Total a pagar:
-              </label>
-              <div className="mt-1 bg-gray-200 p-2.5 rounded border-2 border-gray-400">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-900 font-bold text-base">
-                    {simboloMoneda}
-                  </span>
-                  <span className="text-gray-900 font-bold text-2xl">
-                    {formatCurrency(
-                      reserva.hizoDeposito
-                        ? (reserva.precioTotal || 0) -
-                            (reserva.montoDeposito || 0)
-                        : reserva.precioTotal,
-                    )}
-                  </span>
+              {reserva.hizoDeposito && (
+                <div>
+                  <label className="text-green-700 font-semibold text-[10px] uppercase tracking-wide">
+                    Seña / Depósito:
+                  </label>
+                  <div className="mt-0.5 bg-green-50 p-1 rounded border border-green-300">
+                    <div className="flex justify-between items-center">
+                      <span className="text-green-700 font-semibold text-[10px]">
+                        {simboloMoneda}
+                      </span>
+                      <span className="text-green-700 font-bold text-sm">
+                        {formatCurrency(reserva.montoDeposito)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-1">
+                <label className="text-gray-900 font-bold text-[10px] uppercase tracking-wide">
+                  Total a pagar:
+                </label>
+                <div className="mt-0.5 bg-gray-200 p-1.5 rounded border-2 border-gray-400">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-900 font-bold text-xs">
+                      {simboloMoneda}
+                    </span>
+                    <span className="text-gray-900 font-bold text-base">
+                      {formatCurrency(
+                        reserva.hizoDeposito
+                          ? (reserva.precioTotal || 0) -
+                              (reserva.montoDeposito || 0)
+                          : reserva.precioTotal,
+                      )}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Footer */}
+          <div className="grid grid-cols-2 gap-2 mt-1 text-[10px]">
+            <div className="space-y-0.5">
+              <p className="text-gray-700 font-semibold">
+                Federación - Entre Ríos
+              </p>
+              <p className="text-gray-600">WhatsApp: +54 9 3456 551-306</p>
+              <p className="text-gray-600">
+                Instagram: @el_mangrullo_federacion
+              </p>
+            </div>
+            <div className="text-right space-y-0.5">
+              <p className="text-gray-700">
+                N° de comprobante:{" "}
+                <span className="font-bold text-gray-900">
+                  {reserva.id?.substring(0, 8).toUpperCase()}
+                </span>
+              </p>
+              <p className="text-gray-700">
+                Fecha de emisión:{" "}
+                <span className="font-semibold">
+                  {format(new Date(), "dd/MM/yyyy")}
+                </span>
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Footer */}
-        <div className="grid grid-cols-2 gap-6 mb-6 text-sm">
-          <div className="space-y-1">
-            <p className="text-gray-700 font-semibold">
-              Federación - Entre Ríos
-            </p>
-            <p className="text-gray-600">WhatsApp: +54 9 3456 551-306</p>
-            <p className="text-gray-600">Instagram: @el_mangrullo_federacion</p>
-          </div>
-          <div className="text-right space-y-1">
-            <p className="text-gray-700">
-              N° de comprobante:{" "}
-              <span className="font-bold text-gray-900">
-                {reserva.id?.substring(0, 8).toUpperCase()}
-              </span>
-            </p>
-            <p className="text-gray-700">
-              Fecha de emisión:{" "}
-              <span className="font-semibold">
-                {format(new Date(), "dd/MM/yyyy")}
-              </span>
-            </p>
-          </div>
+        {/* Botones - fuera del comprobante */}
+        <div className="flex flex-col sm:flex-row gap-3 mt-6 scale-[0.65] origin-top md:scale-100">
+          <Button
+            onClick={onClose}
+            variant="outline"
+            className="flex-1 border-gray-300 hover:bg-gray-100 bg-transparent"
+          >
+            Cerrar
+          </Button>
+          <Button
+            onClick={handleDownload}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-md"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Descargar
+          </Button>
+          <Button
+            onClick={onEdit}
+            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
+          >
+            <Edit className="h-4 w-4 mr-2" />
+            Editar
+          </Button>
         </div>
-      </div>
-
-      {/* Botones */}
-      <div className="flex gap-3 mt-6">
-        <Button
-          onClick={onClose}
-          variant="outline"
-          className="flex-1 border-gray-300 hover:bg-gray-100 bg-transparent"
-        >
-          Cerrar
-        </Button>
-        <Button
-          onClick={handleDownload}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-md"
-        >
-          <Download className="h-4 w-4 mr-2" />
-          Descargar
-        </Button>
-        <Button
-          onClick={onEdit}
-          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
-        >
-          <Edit className="h-4 w-4 mr-2" />
-          Editar
-        </Button>
       </div>
     </div>
   );
