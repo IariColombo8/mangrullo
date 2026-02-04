@@ -42,20 +42,6 @@ export default function CamposPreciosSimple({
     }
   };
 
-  const handlePrecioTotal = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const numValue = parseNumericInput(e.target.value);
-    if (!isNaN(numValue)) {
-      setFormData({
-        ...formData,
-        precioTotal: numValue,
-        precioNoche: {
-          ...formData.precioNoche,
-          [currency]: nights > 0 ? numValue / nights : 0,
-        },
-      });
-    }
-  };
-
   const handleSimpleNumeric =
     (field: "precioImpuestos" | "precioGanancia") =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,19 +90,11 @@ export default function CamposPreciosSimple({
           id="precioTotal"
           type="text"
           value={formatNum(formData.precioTotal)}
-          onChange={handlePrecioTotal}
           placeholder="0"
           required
-          className="border-green-200 focus:border-green-400"
+        readOnly
+        className="border-green-200 focus:border-green-400 bg-gray-50"
         />
-        <p className="text-xs text-gray-500">
-          ${" "}
-          {formData.precioTotal.toLocaleString("es-AR", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}{" "}
-          ÷ {nights} noche(s)
-        </p>
       </div>
 
       {/* Impuestos */}

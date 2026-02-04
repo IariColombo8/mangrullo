@@ -1,16 +1,17 @@
 "use client";
 
+import { useEffect } from "react";
 import { CalendarIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { ReservaFormData, DepartamentoDetalle } from "@/types/reserva";
-import FormularioReservaSimple from "./FormularioReservaSimple";
+import type { ReservaFormData, DepartamentoDetalle, Reserva } from "@/types/reserva";
 import FormularioReservaMultiple from "./FormularioReservaMultiple";
 
 interface SeccionFechasUbicacionProps {
   formData: ReservaFormData;
   setFormData: (data: ReservaFormData) => void;
   cabins: { id: string; name: string }[];
+  reservas: Reserva[];
   esReservaMultiple: boolean;
   setEsReservaMultiple: (value: boolean) => void;
   departamentosSeleccionados: string[];
@@ -27,6 +28,12 @@ interface SeccionFechasUbicacionProps {
 export default function SeccionFechasUbicacion(
   props: SeccionFechasUbicacionProps
 ) {
+  useEffect(() => {
+    if (!props.esReservaMultiple) {
+      props.setEsReservaMultiple(true);
+    }
+  }, [props.esReservaMultiple, props.setEsReservaMultiple]);
+
   return (
     <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-emerald-100 shadow-sm">
       <h3 className="font-semibold text-base md:text-lg text-emerald-900 mb-4 flex items-center gap-2">
@@ -38,19 +45,8 @@ export default function SeccionFechasUbicacion(
         <div className="mb-4 flex items-center gap-2">
           <Checkbox
             id="esReservaMultiple"
-            checked={props.esReservaMultiple}
-            onCheckedChange={(checked) => {
-              props.setEsReservaMultiple(checked as boolean);
-              props.setDepartamentosSeleccionados([]);
-              props.setDepartamentosDetalles(new Map());
-              if (!(checked as boolean)) {
-                props.setFormData({
-                  ...props.formData,
-                  fechaInicio: new Date(),
-                  fechaFin: new Date(),
-                });
-              }
-            }}
+            checked={true}
+            disabled
             className="border-emerald-300"
           />
           <Label
@@ -62,11 +58,7 @@ export default function SeccionFechasUbicacion(
         </div>
       )}
 
-      {props.esReservaMultiple ? (
-        <FormularioReservaMultiple {...props} />
-      ) : (
-        <FormularioReservaSimple {...props} />
-      )}
+      <FormularioReservaMultiple {...props} />
     </div>
   );
 }

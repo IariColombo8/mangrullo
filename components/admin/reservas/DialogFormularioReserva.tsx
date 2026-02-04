@@ -27,6 +27,7 @@ interface DialogFormularioReservaProps {
   setFormData: (data: ReservaFormData) => void;
   editingReserva: Reserva | null;
   cabins: { id: string; name: string }[];
+  reservas?: Reserva[];
   esReservaMultiple: boolean;
   setEsReservaMultiple: (value: boolean) => void;
   departamentosSeleccionados: string[];
@@ -47,6 +48,7 @@ export default function DialogFormularioReserva({
   setFormData,
   editingReserva,
   cabins,
+  reservas,
   esReservaMultiple,
   setEsReservaMultiple,
   departamentosSeleccionados,
@@ -78,6 +80,7 @@ export default function DialogFormularioReserva({
             formData={formData}
             setFormData={setFormData}
             cabins={cabins}
+            reservas={reservas || []}
             esReservaMultiple={esReservaMultiple}
             setEsReservaMultiple={setEsReservaMultiple}
             departamentosSeleccionados={departamentosSeleccionados}

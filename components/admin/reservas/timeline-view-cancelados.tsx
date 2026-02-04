@@ -12,6 +12,8 @@ interface TimelineViewCanceladosProps {
   reservas: Reserva[]
   mes: Date
   setViewingReserva: (reserva: Reserva) => void
+  isFeriado: (date: Date) => boolean
+  getFeriadoLabel: (date: Date) => string | undefined
 }
 
 interface ExpandedReserva {
@@ -20,7 +22,13 @@ interface ExpandedReserva {
   uniqueKey: string
 }
 
-const TimelineViewCancelados: React.FC<TimelineViewCanceladosProps> = ({ reservas, mes, setViewingReserva }) => {
+const TimelineViewCancelados: React.FC<TimelineViewCanceladosProps> = ({
+  reservas,
+  mes,
+  setViewingReserva,
+  isFeriado,
+  getFeriadoLabel,
+}) => {
   const startOfMonthDate = startOfMonth(mes)
   const endOfMonthDate = endOfMonth(mes)
   const daysInMonth = eachDayOfInterval({ start: startOfMonthDate, end: endOfMonthDate })
@@ -168,6 +176,7 @@ const TimelineViewCancelados: React.FC<TimelineViewCanceladosProps> = ({ reserva
                 {daysInMonth.map((day) => {
                   const isToday = isSameDay(day, new Date())
                   const isWeekend = day.getDay() === 0 || day.getDay() === 6
+                  const holiday = isFeriado(day)
 
                   return (
                     <div
@@ -175,10 +184,13 @@ const TimelineViewCancelados: React.FC<TimelineViewCanceladosProps> = ({ reserva
                       className={cn(
                         "border-l border-red-200 p-1 text-center",
                         isToday && "bg-red-300 ring-1 ring-red-500",
-                        !isToday && isWeekend && "bg-red-100",
+                        !isToday && holiday && "bg-violet-100 ring-1 ring-violet-300",
+                        !isToday && !holiday && isWeekend && "bg-red-100",
                         !isToday && !isWeekend && "bg-red-50",
                       )}
+                      title={holiday ? getFeriadoLabel(day) : undefined}
                     >
+                      {holiday && <div className="w-2 h-2 bg-violet-500 rounded-sm mx-auto mb-0.5" />}
                       <div className={cn("font-bold text-[10px]", isToday && "text-red-900")}>
                         {format(day, "d")}
                       </div>

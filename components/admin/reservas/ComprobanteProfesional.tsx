@@ -183,7 +183,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
       <div className="w-full max-w-4xl">
         <div
           id="comprobante-content"
-          className="bg-white border-4 border-double border-gray-400 rounded-lg p-3 md:p-6 shadow-2xl w-full scale-[0.65] origin-top md:scale-100"
+          className="bg-white border-4 border-double border-gray-400 rounded-lg p-3 md:p-6 shadow-2xl w-[118%] -mx-[9%] scale-[0.7] origin-top text-[11px] md:scale-[0.9] md:w-full md:mx-0 md:text-base"
         >
           {/* Header */}
           <div className="flex flex-row items-center justify-between mb-2 pb-2 border-b-2 border-gray-300 gap-2 flex-shrink-0">
@@ -575,34 +575,34 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
         </div>
 
         {/* Botones - fuera del comprobante */}
-        <div className="flex flex-col sm:flex-row gap-3 mt-6 scale-[0.65] origin-top md:scale-100">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3 -mt-[180px] sm:-mt-[100px] md:-mt-[50px] scale-[0.85] origin-top md:scale-100">
           <Button
             onClick={onClose}
             variant="outline"
-            className="flex-1 border-gray-300 hover:bg-gray-100 bg-transparent"
+            className="order-1 sm:order-none flex-1 border-gray-300 hover:bg-gray-100 bg-transparent md:h-8 md:text-xs md:px-2"
           >
             Cerrar
           </Button>
           <Button
-            onClick={handleDownloadImage}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-md"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Descargar imagen
-          </Button>
-          <Button
-            onClick={handleDownloadPdf}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-md"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Descargar PDF
-          </Button>
-          <Button
             onClick={onEdit}
-            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
+            className="order-2 sm:order-none flex-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md md:h-8 md:text-xs md:px-2"
           >
             <Edit className="h-4 w-4 mr-2" />
             Editar
+          </Button>
+          <Button
+            onClick={handleDownloadImage}
+            className="order-3 sm:order-none flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-md md:h-8 md:text-xs md:px-2"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Descargar PNG
+          </Button>
+          <Button
+            onClick={handleDownloadPdf}
+            className="order-4 sm:order-none flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-md md:h-8 md:text-xs md:px-2"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Descargar PDF
           </Button>
         </div>
       </div>

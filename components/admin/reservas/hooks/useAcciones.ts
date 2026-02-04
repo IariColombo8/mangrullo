@@ -48,7 +48,7 @@ export function useAcciones(estado: EstadoAcciones, _filteredReservas: Reserva[]
       estado: "activa",
       numeroReservaBooking: "",
     })
-    estado.setEsReservaMultiple(false)
+    estado.setEsReservaMultiple(true)
     estado.setDepartamentosSeleccionados([])
     estado.setDepartamentosDetalles(new Map())
   }
@@ -62,16 +62,23 @@ export function useAcciones(estado: EstadoAcciones, _filteredReservas: Reserva[]
   const openEditDialog = (reserva: Reserva) => {
     estado.setEditingReserva(reserva)
 
+    estado.setEsReservaMultiple(true)
     if (reserva.esReservaMultiple && reserva.departamentos) {
-      estado.setEsReservaMultiple(true)
       estado.setDepartamentosSeleccionados(reserva.departamentos.map((d) => d.departamento))
       const newMap = new Map<string, DepartamentoDetalle>()
       reserva.departamentos.forEach((d) => newMap.set(d.departamento, d))
       estado.setDepartamentosDetalles(newMap)
     } else {
-      estado.setEsReservaMultiple(false)
-      estado.setDepartamentosSeleccionados([])
-      estado.setDepartamentosDetalles(new Map())
+      estado.setDepartamentosSeleccionados([reserva.departamento])
+      const newMap = new Map<string, DepartamentoDetalle>()
+      newMap.set(reserva.departamento, {
+        departamento: reserva.departamento,
+        cantidadAdultos: reserva.cantidadAdultos || 2,
+        cantidadMenores: reserva.cantidadMenores || 0,
+        precioNoche: reserva.precioNoche || { pesos: 0 },
+        precioTotal: reserva.precioTotal || 0,
+      })
+      estado.setDepartamentosDetalles(newMap)
     }
 
     estado.setFormData({
@@ -93,8 +100,8 @@ export function useAcciones(estado: EstadoAcciones, _filteredReservas: Reserva[]
 
     // Validaciones
     if (esReservaMultiple) {
-      if (departamentosSeleccionados.length < 2 || departamentosSeleccionados.length > 4) {
-        alert("Debe seleccionar entre 2 y 4 departamentos para una reserva múltiple"); return
+      if (departamentosSeleccionados.length < 1 || departamentosSeleccionados.length > 4) {
+        alert("Debe seleccionar entre 1 y 4 departamentos para una reserva múltiple"); return
       }
       if (!formData.nombre) { alert("Por favor completa el Nombre del huésped"); return }
       for (const dept of departamentosSeleccionados) {

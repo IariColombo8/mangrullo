@@ -15,9 +15,18 @@ interface GridViewProps {
   mes: Date
   cabins: { id: string; name: string }[]
   setViewingReserva: (reserva: Reserva) => void
+  isFeriado: (date: Date) => boolean
+  getFeriadoLabel: (date: Date) => string | undefined
 }
 
-const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingReserva }) => {
+const GridView: React.FC<GridViewProps> = ({
+  reservas,
+  mes,
+  cabins,
+  setViewingReserva,
+  isFeriado,
+  getFeriadoLabel,
+}) => {
   const startOfMonthDate = startOfMonth(mes)
   const endOfMonthDate = endOfMonth(mes)
   const daysInMonth = eachDayOfInterval({ start: startOfMonthDate, end: endOfMonthDate })
@@ -200,6 +209,7 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
                           const hasMultiple = dayReservations.length > 1
                           const isToday = isSameDay(day, new Date())
                           const isWeekend = day.getDay() === 0 || day.getDay() === 6
+                          const holiday = isFeriado(day)
                           const hasAlert = primaryReservation ? needsPaymentAlert(primaryReservation) : false
                           const isCheckIn = primaryReservation && isSameDay(primaryReservation.fechaInicio as Date, day)
                           const isCheckOut = primaryReservation && isSameDay(primaryReservation.fechaFin as Date, day)
@@ -212,10 +222,11 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
                               key={day.toISOString()}
                               className={cn(
                                 "h-6 lg:h-8 rounded border transition-all duration-200 relative overflow-hidden cursor-pointer",
-                                isToday && "ring-2 ring-emerald-400 ring-offset-1",
+                                isToday && "ring-2 ring-emerald-500 ring-offset-2",
                                 primaryReservation && !hasAlert && getOrigenColor(primaryReservation.origen),
                                 primaryReservation && hasAlert && "bg-red-600",
-                                !primaryReservation && isWeekend && "bg-gray-100 border-gray-200",
+                                !primaryReservation && holiday && "bg-violet-100 border-violet-200",
+                                !primaryReservation && !holiday && isWeekend && "bg-gray-100 border-gray-200",
                                 !primaryReservation && !isWeekend && "bg-white border-gray-200",
                                 primaryReservation && "hover:brightness-110 shadow",
                                 !primaryReservation && "hover:bg-gray-50",
@@ -228,7 +239,7 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
                               title={
                                 primaryReservation
                                   ? `${primaryReservation.nombre}\n${format(primaryReservation.fechaInicio as Date, "dd/MM")} - ${format(primaryReservation.fechaFin as Date, "dd/MM")}\n${calculateNights(primaryReservation.fechaInicio as Date, primaryReservation.fechaFin as Date)} noches${primaryReservation.esReservaMultiple ? `\n🏠 Reserva múltiple (${primaryReservation.departamentos?.length} deptos)` : ""}${hasAlert ? "\n⚠️ SIN PAGO" : ""}`
-                                  : `${format(day, "dd/MM/yyyy")}\nDisponible`
+                                  : `${format(day, "dd/MM/yyyy")}\n${holiday ? `Feriado: ${getFeriadoLabel(day)}` : "Disponible"}`
                               }
                             >
                               <div
@@ -238,11 +249,16 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
                                     ? "bg-black/20 text-white"
                                     : isToday
                                       ? "bg-emerald-500 text-white"
-                                      : "text-gray-700",
+                                      : holiday
+                                        ? "bg-violet-500 text-white"
+                                        : "text-gray-700",
                                 )}
                               >
                                 {format(day, "d")}
                               </div>
+                              {holiday && (
+                                <div className="absolute top-0.5 right-0.5 w-2 h-2 bg-violet-600 rounded-sm"></div>
+                              )}
 
                               {hasMultiple && (
                                 <div className="absolute top-0.5 right-0.5">
@@ -286,7 +302,7 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
               <p className="text-[10px] font-semibold text-gray-600 mb-1">Orígenes:</p>
               {ORIGENES.slice(0, 4).map((origen) => (
                 <div key={origen.value} className="flex items-center gap-1.5">
-                  <div className={cn("w-3 h-3 rounded border border-white shadow-sm", origen.color)}></div>
+                  <div className={cn("w-4 h-4 rounded border border-white shadow-sm", origen.color)}></div>
                   <span className="text-[10px] text-gray-700">{origen.label}</span>
                 </div>
               ))}
@@ -296,7 +312,7 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
               <p className="text-[10px] font-semibold text-gray-600 mb-1">&nbsp;</p>
               {ORIGENES.slice(4).map((origen) => (
                 <div key={origen.value} className="flex items-center gap-1.5">
-                  <div className={cn("w-3 h-3 rounded border border-white shadow-sm", origen.color)}></div>
+                  <div className={cn("w-4 h-4 rounded border border-white shadow-sm", origen.color)}></div>
                   <span className="text-[10px] text-gray-700">{origen.label}</span>
                 </div>
               ))}
@@ -305,11 +321,15 @@ const GridView: React.FC<GridViewProps> = ({ reservas, mes, cabins, setViewingRe
             <div className="space-y-1">
               <p className="text-[10px] font-semibold text-gray-600 mb-1">Estados:</p>
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded bg-red-600 border border-white shadow-sm"></div>
+                <div className="w-4 h-4 rounded bg-red-600 border border-white shadow-sm"></div>
                 <span className="text-[10px] text-gray-700">Sin Pago</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded bg-white border border-emerald-500 ring-1 ring-emerald-400"></div>
+                <div className="w-4 h-4 rounded bg-violet-100 border border-violet-300 shadow-sm"></div>
+                <span className="text-[10px] text-gray-700">Feriado</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-4 rounded bg-white border border-emerald-500 ring-2 ring-emerald-400"></div>
                 <span className="text-[10px] text-gray-700">Hoy</span>
               </div>
             </div>

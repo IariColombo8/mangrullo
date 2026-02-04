@@ -32,6 +32,7 @@ import { useEstadoReservas } from "./hooks/useEstadoReservas";
 import { useMetricas } from "./hooks/useMetricas";
 import { useFiltrados } from "./hooks/useFiltrados";
 import { useAcciones } from "./hooks/useAcciones";
+import { useFeriados } from "./hooks/useFeriados";
 
 export interface ReservasManagerRef {
   openNewDialog: () => void;
@@ -44,6 +45,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
     cabins: estado.cabins,
     filterMes: estado.filterMes,
   });
+  const feriados = useFeriados(estado.filterMes);
   const { filteredReservas, hasActiveFilters, clearAllFilters } =
     useFiltrados(estado);
   const acciones = useAcciones(estado, filteredReservas);
@@ -142,6 +144,11 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
         setViewingReserva={estado.setViewingReserva}
         openEditDialog={acciones.openEditDialog}
         setDeleteReserva={estado.setDeleteReserva}
+        isFeriado={feriados.isFeriado}
+        getFeriadoLabel={feriados.getFeriadoLabel}
+        monthFeriados={feriados.monthFeriados}
+        addCustomHoliday={feriados.addCustomHoliday}
+        removeCustomHoliday={feriados.removeCustomHoliday}
         filterDepartamento={estado.filterDepartamento}
         setFilterDepartamento={estado.setFilterDepartamento}
         filterOrigen={estado.filterOrigen}
@@ -157,6 +164,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
         setFilterNumeroReservaBooking={estado.setFilterNumeroReservaBooking}
       />
 
+
       <DialogFormularioReserva
         isOpen={estado.isDialogOpen}
         onClose={() => estado.setIsDialogOpen(false)}
@@ -164,6 +172,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
         setFormData={estado.setFormData}
         editingReserva={estado.editingReserva}
         cabins={estado.cabins}
+        reservas={estado.reservas}
         esReservaMultiple={estado.esReservaMultiple}
         setEsReservaMultiple={estado.setEsReservaMultiple}
         departamentosSeleccionados={estado.departamentosSeleccionados}
@@ -182,7 +191,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
           open={!!estado.viewingReserva}
           onOpenChange={() => estado.setViewingReserva(null)}
         >
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="w-[92vw] max-w-sm sm:max-w-4xl max-h-[92vh] sm:max-h-[90vh] overflow-y-auto p-1 sm:p-6">
             <DialogHeader>
               <DialogTitle className="sr-only">
                 Detalles de la Reserva

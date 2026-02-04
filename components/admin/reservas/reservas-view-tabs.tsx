@@ -86,6 +86,11 @@ interface ReservasViewTabsProps {
   setViewingReserva: (reserva: Reserva | null) => void
   openEditDialog: (reserva: Reserva) => void
   setDeleteReserva: (reserva: Reserva | null) => void
+  isFeriado: (date: Date) => boolean
+  getFeriadoLabel: (date: Date) => string | undefined
+  monthFeriados: { date: string; name: string; isCustom: boolean }[]
+  addCustomHoliday: (date: string, name: string) => void
+  removeCustomHoliday: (date: string) => void
   // Filter props
   filterDepartamento: string
   setFilterDepartamento: (value: string) => void
@@ -147,6 +152,11 @@ export default function ReservasViewTabs({
   setViewingReserva,
   openEditDialog,
   setDeleteReserva,
+  isFeriado,
+  getFeriadoLabel,
+  monthFeriados,
+  addCustomHoliday,
+  removeCustomHoliday,
   filterDepartamento,
   setFilterDepartamento,
   filterOrigen,
@@ -800,14 +810,32 @@ export default function ReservasViewTabs({
             mes={filterMes}
             cabins={cabins}
             setViewingReserva={setViewingReserva}
+            isFeriado={isFeriado}
+            getFeriadoLabel={getFeriadoLabel}
+            monthFeriados={monthFeriados}
+            addCustomHoliday={addCustomHoliday}
+            removeCustomHoliday={removeCustomHoliday}
           />
-          <TimelineViewCancelados reservas={filteredReservas} mes={filterMes} setViewingReserva={setViewingReserva} />
+          <TimelineViewCancelados
+            reservas={filteredReservas}
+            mes={filterMes}
+            setViewingReserva={setViewingReserva}
+            isFeriado={isFeriado}
+            getFeriadoLabel={getFeriadoLabel}
+          />
         </TabsContent>
       )}
 
       {viewMode === "grid" && (
         <TabsContent value="grid" className="mt-2">
-          <GridView reservas={filteredReservas} mes={filterMes} cabins={cabins} setViewingReserva={setViewingReserva} />
+          <GridView
+            reservas={filteredReservas}
+            mes={filterMes}
+            cabins={cabins}
+            setViewingReserva={setViewingReserva}
+            isFeriado={isFeriado}
+            getFeriadoLabel={getFeriadoLabel}
+          />
         </TabsContent>
       )}
     </Tabs>

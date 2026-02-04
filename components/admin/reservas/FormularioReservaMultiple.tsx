@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,13 +15,15 @@ import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import type { PrecioNoche } from "@/types/reserva";
-import { calculateNights } from "./utilidadesReserva";
+import type { PrecioNoche, Reserva } from "@/types/reserva";
+import { calculateNights, checkOverlap } from "./utilidadesReserva";
 
 export default function FormularioReservaMultiple({
   formData,
   setFormData,
   cabins,
+  reservas,
+  editingReserva,
   departamentosSeleccionados,
   setDepartamentosSeleccionados,
   departamentosDetalles,
@@ -30,6 +33,37 @@ export default function FormularioReservaMultiple({
   checkoutPopoverOpen,
   setCheckoutPopoverOpen,
 }: any) {
+  const hasValidDates =
+    formData.fechaInicio &&
+    formData.fechaFin &&
+    formData.fechaFin > formData.fechaInicio;
+
+  const availableCabins = useMemo(() => {
+    if (!hasValidDates) return [];
+    return cabins.filter((cabin: any) => {
+      return !checkOverlap(
+        (reservas || []) as Reserva[],
+        cabin.name,
+        formData.fechaInicio,
+        formData.fechaFin,
+        editingReserva?.id
+      );
+    });
+  }, [cabins, reservas, formData.fechaInicio, formData.fechaFin, hasValidDates, editingReserva]);
+
+  useEffect(() => {
+    if (!hasValidDates) return;
+    const availableNames = new Set(availableCabins.map((c: any) => c.name));
+    const filtered = departamentosSeleccionados.filter((d: string) => availableNames.has(d));
+    if (filtered.length !== departamentosSeleccionados.length) {
+      setDepartamentosSeleccionados(filtered);
+      const newDetalles = new Map(departamentosDetalles);
+      Array.from(newDetalles.keys()).forEach((key) => {
+        if (!availableNames.has(key)) newDetalles.delete(key);
+      });
+      setDepartamentosDetalles(newDetalles);
+    }
+  }, [availableCabins, hasValidDates, departamentosSeleccionados, departamentosDetalles, setDepartamentosSeleccionados, setDepartamentosDetalles]);
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pb-4 border-b border-emerald-200">
@@ -108,58 +142,70 @@ export default function FormularioReservaMultiple({
         <Label className="text-emerald-900 font-semibold text-sm">
           Selecciona Departamentos ({departamentosSeleccionados.length}/4) *
         </Label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 border border-emerald-200 rounded-lg bg-white/50">
-          {cabins.map((cabin: any) => {
-            const isSelected = departamentosSeleccionados.includes(cabin.name);
-            const isDisabled =
-              !isSelected && departamentosSeleccionados.length >= 4;
+        {!hasValidDates && (
+          <div className="p-3 text-sm text-gray-600 border border-emerald-200 rounded-lg bg-white/50">
+            Selecciona fecha de entrada y salida para ver disponibilidad.
+          </div>
+        )}
+        {hasValidDates && availableCabins.length === 0 && (
+          <div className="p-3 text-sm text-red-600 border border-red-200 rounded-lg bg-red-50/40">
+            En esta fecha no hay departamentos disponibles.
+          </div>
+        )}
+        {hasValidDates && availableCabins.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 border border-emerald-200 rounded-lg bg-white/50">
+            {availableCabins.map((cabin: any) => {
+              const isSelected = departamentosSeleccionados.includes(cabin.name);
+              const isDisabled =
+                !isSelected && departamentosSeleccionados.length >= 4;
 
-            return (
-              <div
-                key={cabin.id}
-                className={cn(
-                  "flex items-center space-x-2 p-2 rounded-md transition-colors",
-                  isDisabled && "opacity-50 cursor-not-allowed",
-                  !isDisabled && "hover:bg-emerald-50"
-                )}
-              >
-                <Checkbox
-                  id={`cabin-${cabin.id}`}
-                  checked={isSelected}
-                  disabled={isDisabled}
-                  onCheckedChange={(checked) => {
-                    if (isDisabled) return;
-                    if (checked) {
-                      setDepartamentosSeleccionados([
-                        ...departamentosSeleccionados,
-                        cabin.name,
-                      ]);
-                    } else {
-                      setDepartamentosSeleccionados(
-                        departamentosSeleccionados.filter(
-                          (d: string) => d !== cabin.name
-                        )
-                      );
-                      const newDetalles = new Map(departamentosDetalles);
-                      newDetalles.delete(cabin.name);
-                      setDepartamentosDetalles(newDetalles);
-                    }
-                  }}
-                  className="border-emerald-300"
-                />
-                <Label
-                  htmlFor={`cabin-${cabin.id}`}
+              return (
+                <div
+                  key={cabin.id}
                   className={cn(
-                    "text-sm font-medium cursor-pointer",
-                    isDisabled && "cursor-not-allowed"
+                    "flex items-center space-x-2 p-2 rounded-md transition-colors",
+                    isDisabled && "opacity-50 cursor-not-allowed",
+                    !isDisabled && "hover:bg-emerald-50"
                   )}
                 >
-                  {cabin.name}
-                </Label>
-              </div>
-            );
-          })}
-        </div>
+                  <Checkbox
+                    id={`cabin-${cabin.id}`}
+                    checked={isSelected}
+                    disabled={isDisabled}
+                    onCheckedChange={(checked) => {
+                      if (isDisabled) return;
+                      if (checked) {
+                        setDepartamentosSeleccionados([
+                          ...departamentosSeleccionados,
+                          cabin.name,
+                        ]);
+                      } else {
+                        setDepartamentosSeleccionados(
+                          departamentosSeleccionados.filter(
+                            (d: string) => d !== cabin.name
+                          )
+                        );
+                        const newDetalles = new Map(departamentosDetalles);
+                        newDetalles.delete(cabin.name);
+                        setDepartamentosDetalles(newDetalles);
+                      }
+                    }}
+                    className="border-emerald-300"
+                  />
+                  <Label
+                    htmlFor={`cabin-${cabin.id}`}
+                    className={cn(
+                      "text-sm font-medium cursor-pointer",
+                      isDisabled && "cursor-not-allowed"
+                    )}
+                  >
+                    {cabin.name}
+                  </Label>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="space-y-4">

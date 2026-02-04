@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { useState } from "react"
 import {
   format,
   startOfMonth,
@@ -11,10 +12,17 @@ import {
   isBefore,
   addDays,
   parse,
+  parseISO,
 } from "date-fns"
 import { es } from "date-fns/locale"
 import { Card, CardContent } from "@/components/ui/card"
-import { Home, AlertTriangle } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Calendar as CalendarIcon, Home, AlertTriangle } from "lucide-react"
 import type { Reserva, OrigenReserva } from "@/types/reserva"
 import { ORIGENES } from "@/types/reserva"
 import { cn } from "@/lib/utils"
@@ -24,6 +32,11 @@ interface TimelineViewProps {
   mes: Date
   cabins: { id: string; name: string }[]
   setViewingReserva: (reserva: Reserva) => void
+  isFeriado: (date: Date) => boolean
+  getFeriadoLabel: (date: Date) => string | undefined
+  monthFeriados: { date: string; name: string; isCustom: boolean }[]
+  addCustomHoliday: (date: string, name: string) => void
+  removeCustomHoliday: (date: string) => void
 }
 
 const parseDate = (date: Date | string | number): Date => {
@@ -54,7 +67,20 @@ const parseDate = (date: Date | string | number): Date => {
   return new Date()
 }
 
-const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setViewingReserva }) => {
+const TimelineView: React.FC<TimelineViewProps> = ({
+  reservas,
+  mes,
+  cabins,
+  setViewingReserva,
+  isFeriado,
+  getFeriadoLabel,
+  monthFeriados,
+  addCustomHoliday,
+  removeCustomHoliday,
+}) => {
+  const [feriadoDate, setFeriadoDate] = useState<Date | undefined>(undefined)
+  const [feriadoNombre, setFeriadoNombre] = useState("")
+  const [isFeriadosOpen, setIsFeriadosOpen] = useState(false)
   const startOfMonthDate = startOfMonth(mes)
   const endOfMonthDate = endOfMonth(mes)
   const daysInMonth = eachDayOfInterval({ start: startOfMonthDate, end: endOfMonthDate })
@@ -123,17 +149,27 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
                 {daysInMonth.map((day) => {
                   const isToday = isSameDay(day, new Date())
                   const isWeekend = day.getDay() === 0 || day.getDay() === 6
+                  const holiday = isFeriado(day)
 
                   return (
                     <div
                       key={day.toISOString()}
                       className={cn(
-                        "border-l border-emerald-200 p-1 text-center",
-                        isToday && "bg-emerald-300 ring-1 ring-emerald-500",
-                        !isToday && isWeekend && "bg-emerald-100",
+                        "border-l border-emerald-200 p-1 text-center relative",
+                        isToday && "bg-emerald-400 ring-2 ring-emerald-700",
+                        !isToday && holiday && "bg-violet-100 ring-1 ring-violet-300",
+                        !isToday && !holiday && isWeekend && "bg-emerald-100",
                         !isToday && !isWeekend && "bg-emerald-50",
                       )}
+                      title={holiday ? getFeriadoLabel(day) : undefined}
                     >
+                      {isToday && (
+                        <>
+                          <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-emerald-700" />
+                          <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-emerald-700" />
+                        </>
+                      )}
+                      {holiday && <div className="w-2 h-2 bg-violet-500 rounded-sm mx-auto mb-0.5" />}
                       <div className={cn("font-bold text-[10px]", isToday && "text-emerald-900")}>
                         {format(day, "d")}
                       </div>
@@ -170,7 +206,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
                         key={dayIndex}
                         className={cn(
                           "border-l border-gray-200 min-h-[45px]",
-                          isToday && "border-l-2 border-emerald-500",
+                          isToday && "border-l-2 border-r-2 border-emerald-600",
                           hasAlert && "bg-red-100",
                           !hasAlert && reserva && getOrigenColor(reserva.origen).replace("bg-", "bg-opacity-20 bg-"),
                           !reserva && "bg-white",
@@ -253,7 +289,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
         <div className="md:hidden overflow-x-auto">
           <div className="min-w-full">
             <div
-              className="grid gap-0 border-b-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-teal-50 sticky top-0 z-20"
+              className="grid gap-0 border-b-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-teal-50 sticky top-0 z-30"
               style={{ gridTemplateColumns: `50px repeat(${cabins.length}, 1fr)` }}
             >
               <div className="p-1 font-bold text-emerald-900 text-[9px] flex items-center justify-center border-r-2 border-emerald-300">
@@ -281,12 +317,21 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
                 >
                   <div
                     className={cn(
-                      "p-1 font-semibold text-[9px] flex flex-col items-center justify-center border-r-2 border-gray-300",
-                      isToday && "bg-emerald-500 text-white",
-                      !isToday && isWeekend && "bg-emerald-100 text-emerald-900",
+                      "p-1 font-semibold text-[9px] flex flex-col items-center justify-center border-r-2 border-gray-300 relative",
+                      isToday && "bg-emerald-600 text-white ring-2 ring-emerald-700",
+                      !isToday && isFeriado(day) && "bg-violet-100 text-violet-900",
+                      !isToday && !isFeriado(day) && isWeekend && "bg-emerald-100 text-emerald-900",
                       !isToday && !isWeekend && "bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700",
                     )}
+                    title={isFeriado(day) ? getFeriadoLabel(day) : undefined}
                   >
+                    {isToday && (
+                      <>
+                        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-emerald-800" />
+                        <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-emerald-800" />
+                      </>
+                    )}
+                    {isFeriado(day) && <div className="w-2 h-2 bg-violet-500 rounded-sm mb-0.5" />}
                     <div className="font-bold text-[11px]">{format(day, "d")}</div>
                     <div className="text-[7px] leading-tight">{format(day, "EEE", { locale: es })}</div>
                   </div>
@@ -340,24 +385,106 @@ const TimelineView: React.FC<TimelineViewProps> = ({ reservas, mes, cabins, setV
         </div>
 
         <div className="mt-4 pt-4 border-t border-gray-200 hidden md:block">
-          <div className="flex flex-wrap gap-3 justify-center text-xs">
-            <div className="flex items-center gap-1">
-              <div className="w-4 h-4 rounded border border-gray-300 bg-emerald-300"></div>
-              <span>Hoy</span>
-            </div>
-            {ORIGENES.map((origen) => (
-              <div key={origen.value} className="flex items-center gap-1">
-                <div className={cn("w-4 h-4 rounded border border-gray-300", origen.color)}></div>
-                <span>{origen.label}</span>
+          <div className="flex flex-wrap items-start justify-center gap-6 text-xs">
+            <div className="flex flex-wrap gap-3 justify-center">
+              <div className="flex items-center gap-1">
+                <div className="w-5 h-5 rounded border border-gray-300 bg-emerald-300"></div>
+                <span>Hoy</span>
               </div>
-            ))}
-            <div className="flex items-center gap-1">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              <span>Sin pago vencido</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-4 h-4 rounded bg-yellow-400/80 border border-gray-300"></div>
-              <span>Continúa de/hacia otro mes</span>
+              <Dialog open={isFeriadosOpen} onOpenChange={setIsFeriadosOpen}>
+                <DialogTrigger asChild>
+                  <button className="flex items-center gap-1 text-violet-700 hover:text-violet-800">
+                    <div className="w-5 h-5 rounded border border-violet-300 bg-violet-100"></div>
+                    <span>Feriados</span>
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Feriados del mes</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                      {monthFeriados.length === 0 && (
+                        <div className="text-sm text-gray-500">No hay feriados este mes</div>
+                      )}
+                      {monthFeriados.map((feriado) => (
+                        <div key={`${feriado.date}-${feriado.name}`} className="flex items-center gap-2 text-sm">
+                          <div className="w-3 h-3 bg-violet-600 rounded-sm flex-shrink-0" />
+                          <span className="text-gray-800">
+                            {format(parseISO(feriado.date), "dd/MM")} - {feriado.name}
+                          </span>
+                          {feriado.isCustom && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs text-red-600 hover:bg-red-50"
+                              onClick={() => removeCustomHoliday(feriado.date)}
+                            >
+                              Eliminar
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="space-y-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-gray-600">Nombre</Label>
+                        <Input
+                          placeholder="Ej: Feriado local"
+                          value={feriadoNombre}
+                          onChange={(e) => setFeriadoNombre(e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-gray-600">Fecha</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="h-8 w-full justify-start text-sm">
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {feriadoDate ? format(feriadoDate, "dd/MM/yyyy") : "Elegir fecha"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={feriadoDate}
+                            onSelect={(date) => setFeriadoDate(date || undefined)}
+                            locale={es}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                      <Button
+                        className="h-8 text-xs bg-violet-600 hover:bg-violet-700 text-white"
+                        onClick={() => {
+                          if (!feriadoDate) return
+                          addCustomHoliday(format(feriadoDate, "yyyy-MM-dd"), feriadoNombre)
+                          setFeriadoNombre("")
+                          setFeriadoDate(undefined)
+                        }}
+                      >
+                        Agregar feriado
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              {ORIGENES.map((origen) => (
+                <div key={origen.value} className="flex items-center gap-1">
+                  <div className={cn("w-5 h-5 rounded border border-gray-300", origen.color)}></div>
+                  <span>{origen.label}</span>
+                </div>
+              ))}
+              <div className="flex items-center gap-1">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+                <span>Sin pago vencido</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-5 h-5 rounded bg-yellow-400/80 border border-gray-300"></div>
+                <span>Continúa de/hacia otro mes</span>
+              </div>
             </div>
           </div>
         </div>
