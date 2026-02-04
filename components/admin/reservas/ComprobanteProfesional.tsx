@@ -8,6 +8,7 @@ import type { Reserva } from "@/types/reserva";
 import { ORIGENES } from "@/types/reserva";
 import { cn } from "@/lib/utils";
 import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 
 const PAISES = [
   { code: "AR", name: "Argentina", currency: "pesos", symbol: "ARS" },
@@ -86,68 +87,94 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
       ? reserva.precioNoche[monedaReserva] || 0
       : 0;
 
-  const handleDownload = async () => {
+  const createCaptureCanvas = async () => {
     const element = document.getElementById("comprobante-content");
-    if (!element) return;
+    if (!element) return null;
+
+    const wrapper = document.createElement("div");
+    wrapper.style.position = "fixed";
+    wrapper.style.left = "-99999px";
+    wrapper.style.top = "0";
+    wrapper.style.padding = "24px";
+    wrapper.style.background = "#ffffff";
+    wrapper.style.display = "inline-block";
+    wrapper.style.boxSizing = "content-box";
+
+    const clone = element.cloneNode(true) as HTMLElement;
+    clone.className = clone.className
+      .replace(/scale-\[[\d.]+\]/g, "scale-100")
+      .replace(/origin-top/g, "");
+    clone.style.transform = "none";
+    clone.style.transformOrigin = "top left";
+
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+
+    await new Promise((resolve) => setTimeout(resolve, 150));
 
     try {
-      // Remover temporalmente la clase de escala
-      const originalClass = element.className;
-      element.className = element.className
-        .replace(/scale-\[[\d.]+\]/g, "scale-100")
-        .replace(/origin-top/g, "");
-
-      await new Promise((resolve) => setTimeout(resolve, 150));
-
-      const canvas = await html2canvas(element, {
+      const canvas = await html2canvas(wrapper, {
         scale: 2,
         backgroundColor: "#ffffff",
         logging: false,
         useCORS: true,
         allowTaint: false,
         imageTimeout: 0,
-        windowWidth: element.scrollWidth,
-        windowHeight: element.scrollHeight,
+        windowWidth: wrapper.scrollWidth,
+        windowHeight: wrapper.scrollHeight,
+        onclone: (doc) => {
+          const style = doc.createElement("style");
+          style.textContent = `
+            #comprobante-content p,
+            #comprobante-content label,
+            #comprobante-content h1,
+            #comprobante-content h2 {
+              position: relative;
+              top: -3px;
+            }
+            #comprobante-content .export-text-up {
+              position: relative;
+              top: -7px;
+            }
+          `;
+          doc.head.appendChild(style);
+        },
       });
+      return canvas;
+    } finally {
+      document.body.removeChild(wrapper);
+    }
+  };
 
-      // Restaurar las clases originales
-      element.className = originalClass;
-
-      // Crear un canvas con bordes redondeados
-      const scale = 2;
-      const radius = 12 * scale;
-      const roundedCanvas = document.createElement("canvas");
-      roundedCanvas.width = canvas.width;
-      roundedCanvas.height = canvas.height;
-      const ctx = roundedCanvas.getContext("2d");
-
-      if (ctx) {
-        ctx.beginPath();
-        ctx.moveTo(radius, 0);
-        ctx.lineTo(canvas.width - radius, 0);
-        ctx.quadraticCurveTo(canvas.width, 0, canvas.width, radius);
-        ctx.lineTo(canvas.width, canvas.height - radius);
-        ctx.quadraticCurveTo(
-          canvas.width,
-          canvas.height,
-          canvas.width - radius,
-          canvas.height,
-        );
-        ctx.lineTo(radius, canvas.height);
-        ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - radius);
-        ctx.lineTo(0, radius);
-        ctx.quadraticCurveTo(0, 0, radius, 0);
-        ctx.closePath();
-        ctx.clip();
-        ctx.drawImage(canvas, 0, 0);
-      }
+  const handleDownloadImage = async () => {
+    try {
+      const canvas = await createCaptureCanvas();
+      if (!canvas) return;
 
       const link = document.createElement("a");
       link.download = `comprobante-${reserva.nombre.replace(/\s+/g, "-")}-${format(new Date(), "dd-MM-yyyy")}.png`;
-      link.href = roundedCanvas.toDataURL("image/png", 1.0);
+      link.href = canvas.toDataURL("image/png", 1.0);
       link.click();
     } catch (error) {
       console.error("Error al generar la imagen:", error);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    try {
+      const canvas = await createCaptureCanvas();
+      if (!canvas) return;
+
+      const imgData = canvas.toDataURL("image/png", 1.0);
+      const pdf = new jsPDF({
+        orientation: canvas.width > canvas.height ? "landscape" : "portrait",
+        unit: "px",
+        format: [canvas.width, canvas.height],
+      });
+      pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+      pdf.save(`comprobante-${reserva.nombre.replace(/\s+/g, "-")}-${format(new Date(), "dd-MM-yyyy")}.pdf`);
+    } catch (error) {
+      console.error("Error al generar el PDF:", error);
     }
   };
 
@@ -233,7 +260,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
                       <CheckCircle2 className="w-2.5 h-2.5 text-white" />
                     )}
                   </div>
-                  <span className="text-gray-700 text-[11px] font-medium leading-none">
+                  <span className="text-gray-700 text-[11px] font-medium leading-none export-text-up">
                     {origen.label}
                   </span>
                 </div>
@@ -275,7 +302,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
                           <div className="w-3 h-3 border-2 border-gray-700 flex items-center justify-center rounded-sm flex-shrink-0 bg-gray-900">
                             <CheckCircle2 className="w-2 h-2 text-white" />
                           </div>
-                          <span className="text-gray-700 text-[10px] font-medium">
+                          <span className="text-gray-700 text-[10px] font-medium export-text-up">
                             {dept.departamento}
                           </span>
                         </div>
@@ -300,7 +327,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
                               <CheckCircle2 className="w-2.5 h-2.5 text-white" />
                             )}
                           </div>
-                          <span className="text-gray-700 text-[11px] leading-none">
+                          <span className="text-gray-700 text-[11px] leading-none export-text-up">
                             {dept}
                           </span>
                         </div>
@@ -557,11 +584,18 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
             Cerrar
           </Button>
           <Button
-            onClick={handleDownload}
+            onClick={handleDownloadImage}
             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-md"
           >
             <Download className="h-4 w-4 mr-2" />
-            Descargar
+            Descargar imagen
+          </Button>
+          <Button
+            onClick={handleDownloadPdf}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-md"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Descargar PDF
           </Button>
           <Button
             onClick={onEdit}

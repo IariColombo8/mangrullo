@@ -1,9 +1,10 @@
 "use client"
 
+import { useMemo, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, CheckCircle, Home, AlertTriangle } from "lucide-react"
-import { format } from "date-fns"
+import { Clock, CheckCircle, Home, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react"
+import { addDays, format, isSameDay, subDays } from "date-fns"
 import { es } from "date-fns/locale"
 import type { Reserva } from "@/types/reserva"
 import { cn } from "@/lib/utils"
@@ -21,8 +22,21 @@ interface CheckInsOutsHoyProps {
 }
 
 export default function CheckInsOutsHoy({ reservas, onReservaClick }: CheckInsOutsHoyProps) {
+  const [selectedDate, setSelectedDate] = useState(new Date())
   // Filtrar solo reservas activas (no canceladas ni no presentados)
-  const reservasActivas = reservas.filter((r) => r.estado !== "cancelada" && r.estado !== "no_presentado")
+  const reservasActivas = useMemo(
+    () => reservas.filter((r) => r.estado !== "cancelada" && r.estado !== "no_presentado"),
+    [reservas],
+  )
+  const dayKey = format(selectedDate, "yyyy-MM-dd")
+  const checkInsHoy = useMemo(
+    () => reservasActivas.filter((r) => format(r.fechaInicio as Date, "yyyy-MM-dd") === dayKey),
+    [reservasActivas, dayKey],
+  )
+  const checkOutsHoy = useMemo(
+    () => reservasActivas.filter((r) => format(r.fechaFin as Date, "yyyy-MM-dd") === dayKey),
+    [reservasActivas, dayKey],
+  )
 
   const getOrigenColor = (origen: string) => {
     return ORIGENES.find((o) => o.value === origen)?.color || "bg-gray-500"
@@ -36,11 +50,30 @@ export default function CheckInsOutsHoy({ reservas, onReservaClick }: CheckInsOu
   return (
     <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200 shadow-lg">
       <CardContent className="pt-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Clock className="h-5 w-5 text-blue-600" />
-          <h3 className="text-lg font-bold text-blue-900">
-            Hoy - {format(new Date(), "EEEE d 'de' MMMM", { locale: es })}
-          </h3>
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-blue-600" />
+            <h3 className="text-lg font-bold text-blue-900">
+              {isSameDay(selectedDate, new Date()) ? "Hoy" : "Día"} -{" "}
+              {format(selectedDate, "EEEE d 'de' MMMM", { locale: es })}
+            </h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSelectedDate((prev) => subDays(prev, 1))}
+              className="h-8 w-8 rounded-md border border-blue-200 text-blue-700 hover:bg-blue-50 flex items-center justify-center"
+              title="Día anterior"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setSelectedDate((prev) => addDays(prev, 1))}
+              className="h-8 w-8 rounded-md border border-blue-200 text-blue-700 hover:bg-blue-50 flex items-center justify-center"
+              title="Día siguiente"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-4">
@@ -49,16 +82,14 @@ export default function CheckInsOutsHoy({ reservas, onReservaClick }: CheckInsOu
             <div className="flex items-center gap-2 mb-3">
               <CheckCircle className="h-4 w-4 text-green-600" />
               <h4 className="font-semibold text-green-900">
-                Check-ins ({reservasActivas.filter((r) => format(r.fechaInicio as Date, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd")).length})
+                Check-ins ({checkInsHoy.length})
               </h4>
             </div>
             <div className="space-y-2">
-              {reservasActivas.filter((r) => format(r.fechaInicio as Date, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd")).length === 0 ? (
+              {checkInsHoy.length === 0 ? (
                 <p className="text-sm text-gray-500">No hay check-ins hoy</p>
               ) : (
-                reservasActivas
-                  .filter((r) => format(r.fechaInicio as Date, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd"))
-                  .map((reserva) => (
+                checkInsHoy.map((reserva) => (
                     <div
                       key={reserva.id}
                       onClick={() => onReservaClick?.(reserva)}
@@ -87,16 +118,14 @@ export default function CheckInsOutsHoy({ reservas, onReservaClick }: CheckInsOu
             <div className="flex items-center gap-2 mb-3">
               <Home className="h-4 w-4 text-orange-600" />
               <h4 className="font-semibold text-orange-900">
-                Check-outs ({reservasActivas.filter((r) => format(r.fechaFin as Date, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd")).length})
+                Check-outs ({checkOutsHoy.length})
               </h4>
             </div>
             <div className="space-y-2">
-              {reservasActivas.filter((r) => format(r.fechaFin as Date, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd")).length === 0 ? (
+              {checkOutsHoy.length === 0 ? (
                 <p className="text-sm text-gray-500">No hay check-outs hoy</p>
               ) : (
-                reservasActivas
-                  .filter((r) => format(r.fechaFin as Date, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd"))
-                  .map((reserva) => (
+                checkOutsHoy.map((reserva) => (
                     <div
                       key={reserva.id}
                       onClick={() => onReservaClick?.(reserva)}

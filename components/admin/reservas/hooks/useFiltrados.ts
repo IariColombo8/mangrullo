@@ -22,12 +22,14 @@ export function useFiltrados(estado: {
   const filteredReservas = useMemo(() => {
     const startMes = startOfMonth(estado.filterMes)
     const endMes = endOfMonth(estado.filterMes)
+    const normalizedSearch = estado.searchQuery.trim().toLowerCase()
+    const normalizedBooking = estado.filterNumeroReservaBooking.trim().toLowerCase()
 
     return estado.reservas.filter((reserva) => {
       // Búsqueda por nombre o teléfono
       const matchesSearch =
-        !estado.searchQuery ||
-        (reserva.nombre?.toLowerCase().includes(estado.searchQuery.toLowerCase())) ||
+        !normalizedSearch ||
+        (reserva.nombre?.toLowerCase().includes(normalizedSearch)) ||
         (reserva.numero?.includes(estado.searchQuery))
 
       // Filtro departamento (soporta múltiples)
@@ -48,8 +50,7 @@ export function useFiltrados(estado: {
       else if (estado.filterDeposito === "no") matchesDeposito = !reserva.hizoDeposito
 
       const matchesBooking =
-        !estado.filterNumeroReservaBooking ||
-        reserva.numeroReservaBooking?.toLowerCase().includes(estado.filterNumeroReservaBooking.toLowerCase())
+        !normalizedBooking || reserva.numeroReservaBooking?.toLowerCase().includes(normalizedBooking)
 
       // Filtro por mes: la reserva se muestra si algún día cae dentro del mes
       const inicio = reserva.fechaInicio as Date

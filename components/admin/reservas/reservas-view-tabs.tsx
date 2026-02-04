@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -67,6 +67,9 @@ const ORIGENES = [
   { value: "particular", label: "Particular" },
 ]
 
+const PAISES_BY_CODE = new Map(PAISES.map((pais) => [pais.code, pais]))
+const ORIGENES_BY_VALUE = new Map(ORIGENES.map((origen) => [origen.value, origen]))
+
 interface PrecioNoche {
   pesos?: number
   dolares?: number
@@ -103,7 +106,7 @@ function calculateNights(checkIn: Date, checkOut: Date): number {
 }
 
 function getCurrency(pais: string, origen: string): string {
-  const paisInfo = PAISES.find((p) => p.code === pais)
+  const paisInfo = PAISES_BY_CODE.get(pais)
   if (!paisInfo) return "pesos"
 
   switch (paisInfo.currency) {
@@ -171,53 +174,59 @@ export default function ReservasViewTabs({
     departamentosTexto?: string // Texto para mostrar "alquiló X departamentos: ..."
   }
 
-  const expandedReservas: ExpandedReserva[] = []
-  filteredReservas.forEach((reserva) => {
-    if (reserva.esMultiple && reserva.departamentos && reserva.departamentos.length > 0) {
-      // Si es múltiple, crear una fila por cada departamento
-      const departamentosTexto = `alquiló ${reserva.departamentos.length} departamentos: ${reserva.departamentos.map((d) => d.nombre).join(", ")}`
-      reserva.departamentos.forEach((depto, index) => {
+  const expandedReservas = useMemo(() => {
+    const expanded: ExpandedReserva[] = []
+    filteredReservas.forEach((reserva) => {
+      if (reserva.esMultiple && reserva.departamentos && reserva.departamentos.length > 0) {
+        // Si es múltiple, crear una fila por cada departamento
+        const departamentosTexto = `alquiló ${reserva.departamentos.length} departamentos: ${reserva.departamentos.map((d) => d.nombre).join(", ")}`
+        reserva.departamentos.forEach((depto, index) => {
+          const currency = getCurrency(reserva.pais, reserva.origen)
+          const precioNoche =
+            depto.precioNoche && typeof depto.precioNoche === "object"
+              ? depto.precioNoche[currency as keyof PrecioNoche] || 0
+              : 0
+
+          expanded.push({
+            reserva,
+            departamento: depto.nombre,
+            adultos: depto.adultos,
+            menores: depto.menores,
+            precioNoche,
+            precioTotal: depto.precioTotal || 0,
+            uniqueKey: `${reserva.id}-${depto.nombre}-${index}`,
+            esMultiple: true,
+            departamentosTexto: index === 0 ? departamentosTexto : undefined, // Solo en la primera fila
+          })
+        })
+      } else {
+        // Si no es múltiple, mantener como está
         const currency = getCurrency(reserva.pais, reserva.origen)
         const precioNoche =
-          depto.precioNoche && typeof depto.precioNoche === "object"
-            ? depto.precioNoche[currency as keyof PrecioNoche] || 0
+          reserva.precioNoche && typeof reserva.precioNoche === "object"
+            ? reserva.precioNoche[currency as keyof PrecioNoche] || 0
             : 0
 
-        expandedReservas.push({
+        expanded.push({
           reserva,
-          departamento: depto.nombre,
-          adultos: depto.adultos,
-          menores: depto.menores,
+          departamento: reserva.departamento,
+          adultos: reserva.adultos,
+          menores: reserva.menores,
           precioNoche,
-          precioTotal: depto.precioTotal || 0,
-          uniqueKey: `${reserva.id}-${depto.nombre}-${index}`,
-          esMultiple: true,
-          departamentosTexto: index === 0 ? departamentosTexto : undefined, // Solo en la primera fila
+          precioTotal: reserva.precioTotal || 0,
+          uniqueKey: reserva.id,
+          esMultiple: false,
         })
-      })
-    } else {
-      // Si no es múltiple, mantener como está
-      const currency = getCurrency(reserva.pais, reserva.origen)
-      const precioNoche =
-        reserva.precioNoche && typeof reserva.precioNoche === "object"
-          ? reserva.precioNoche[currency as keyof PrecioNoche] || 0
-          : 0
+      }
+    })
+    return expanded
+  }, [filteredReservas])
 
-      expandedReservas.push({
-        reserva,
-        departamento: reserva.departamento,
-        adultos: reserva.adultos,
-        menores: reserva.menores,
-        precioNoche,
-        precioTotal: reserva.precioTotal || 0,
-        uniqueKey: reserva.id,
-        esMultiple: false,
-      })
-    }
-  })
-
-  const totalPages = Math.ceil(expandedReservas.length / ITEMS_PER_PAGE)
-  const paginatedReservas = expandedReservas.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+  const totalPages = useMemo(() => Math.ceil(expandedReservas.length / ITEMS_PER_PAGE), [expandedReservas.length])
+  const paginatedReservas = useMemo(
+    () => expandedReservas.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
+    [expandedReservas, currentPage],
+  )
 
   return (
     <Tabs value={viewMode} onValueChange={(v) => onViewModeChange(v as typeof viewMode)} className="w-full">
@@ -392,7 +401,7 @@ export default function ReservasViewTabs({
           )}
           {filterOrigen !== "todos" && (
             <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">
-              {ORIGENES.find((o) => o.value === filterOrigen)?.label}
+              {ORIGENES_BY_VALUE.get(filterOrigen)?.label}
               <button onClick={() => setFilterOrigen("todos")} className="ml-1">
                 <X className="h-3 w-3" />
               </button>
@@ -514,7 +523,7 @@ export default function ReservasViewTabs({
                               )}
                             </TableCell>
                             <TableCell className="text-gray-600 text-xs py-2 px-2">
-                              {PAISES.find((p) => p.code === expanded.reserva.pais)?.name || expanded.reserva.pais}
+                              {PAISES_BY_CODE.get(expanded.reserva.pais)?.name || expanded.reserva.pais}
                             </TableCell>
                             <TableCell className="font-mono text-xs text-gray-700 py-2 px-2">
                               {expanded.reserva.numero}
@@ -526,7 +535,7 @@ export default function ReservasViewTabs({
                                   getOrigenColor(expanded.reserva.origen),
                                 )}
                               >
-                                {ORIGENES.find((o) => o.value === expanded.reserva.origen)?.label}
+                                {ORIGENES_BY_VALUE.get(expanded.reserva.origen)?.label}
                               </Badge>
                             </TableCell>
                             <TableCell className="text-gray-600 text-xs py-2 px-2">
@@ -632,7 +641,7 @@ export default function ReservasViewTabs({
                               getOrigenColor(expanded.reserva.origen),
                             )}
                           >
-                            {ORIGENES.find((o) => o.value === expanded.reserva.origen)?.label}
+                            {ORIGENES_BY_VALUE.get(expanded.reserva.origen)?.label}
                           </Badge>
                         </div>
 
@@ -673,7 +682,7 @@ export default function ReservasViewTabs({
                           <div className="flex items-center gap-2">
                             <MapPin className="h-4 w-4 text-gray-400" />
                             <span className="text-sm text-gray-600">
-                              {PAISES.find((p) => p.code === expanded.reserva.pais)?.name || expanded.reserva.pais}
+                              {PAISES_BY_CODE.get(expanded.reserva.pais)?.name || expanded.reserva.pais}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">

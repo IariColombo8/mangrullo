@@ -41,53 +41,41 @@ export default function SeccionFiltros(props: SeccionFiltrosProps) {
 
   return (
     <div className="space-y-3">
-      {/* Filtros - Mobile: Dialog, Desktop: Expandido */}
-      <div className="md:hidden">
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button
-              variant="outline"
-              className="w-full border-emerald-200 hover:bg-emerald-50 relative bg-white/80"
-            >
-              <Search className="h-4 w-4 mr-2" />
-              Filtros
-              {props.hasActiveFilters && (
-                <span className="absolute -top-1 -right-1 h-5 w-5 bg-emerald-600 text-white text-xs rounded-full flex items-center justify-center">
-                  !
-                </span>
-              )}
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-[95vw] max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Filtros de Búsqueda</DialogTitle>
-            </DialogHeader>
-            <ContenidoFiltros {...props} isMobile />
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Desktop - Panel compacto */}
-      <div className="hidden md:block bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-emerald-200 shadow-md">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base font-semibold text-emerald-900 flex items-center gap-2">
-            <Search className="h-4 w-4" />
+      {/* Filtros - Modal en todas las pantallas */}
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button
+            variant="outline"
+            className="w-full md:w-auto border-emerald-200 hover:bg-emerald-50 relative bg-white/80"
+          >
+            <Search className="h-4 w-4 mr-2" />
             Filtros
-          </h3>
+            {props.hasActiveFilters && (
+              <span className="absolute -top-1 -right-1 h-5 w-5 bg-emerald-600 text-white text-xs rounded-full flex items-center justify-center">
+                !
+              </span>
+            )}
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-w-[95vw] md:max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Filtros de Búsqueda</DialogTitle>
+          </DialogHeader>
+          <ContenidoFiltros {...props} isMobile />
           {props.hasActiveFilters && (
-            <Button
-              onClick={props.clearAllFilters}
-              variant="ghost"
-              size="sm"
-              className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 h-8 text-xs"
-            >
-              <X className="h-3 w-3 mr-1" />
-              Limpiar
-            </Button>
+            <div className="pt-2">
+              <Button
+                onClick={props.clearAllFilters}
+                variant="outline"
+                className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Limpiar filtros
+              </Button>
+            </div>
           )}
-        </div>
-        <ContenidoFiltros {...props} />
-      </div>
+        </DialogContent>
+      </Dialog>
       {/* Selector de Mes - Siempre visible */}
       <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-emerald-200 shadow-lg">
         <div className="flex items-center justify-between gap-2">
