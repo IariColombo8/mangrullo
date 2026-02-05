@@ -54,6 +54,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
     reserva.fechaInicio as Date,
     reserva.fechaFin as Date,
   );
+  const departamentosCount = reserva.esReservaMultiple ? reserva.departamentos?.length || 0 : 1
   const paisData = PAISES.find((p) => p.code === reserva.pais);
 
   const monedaReserva = reserva.moneda || "AR";
@@ -91,6 +92,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
     const element = document.getElementById("comprobante-content");
     if (!element) return null;
 
+    const rect = element.getBoundingClientRect();
     const wrapper = document.createElement("div");
     wrapper.style.position = "fixed";
     wrapper.style.left = "-99999px";
@@ -99,6 +101,8 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
     wrapper.style.background = "#ffffff";
     wrapper.style.display = "inline-block";
     wrapper.style.boxSizing = "content-box";
+    wrapper.style.width = `${rect.width}px`;
+    wrapper.style.height = `${rect.height}px`;
 
     const clone = element.cloneNode(true) as HTMLElement;
     clone.className = clone.className
@@ -106,6 +110,11 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
       .replace(/origin-top/g, "");
     clone.style.transform = "none";
     clone.style.transformOrigin = "top left";
+    clone.style.width = `${rect.width}px`;
+    clone.style.height = `${rect.height}px`;
+    clone.style.margin = "0";
+    clone.style.maxWidth = "none";
+    clone.style.boxSizing = "border-box";
 
     wrapper.appendChild(clone);
     document.body.appendChild(wrapper);
@@ -125,16 +134,29 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
         onclone: (doc) => {
           const style = doc.createElement("style");
           style.textContent = `
-            #comprobante-content p,
-            #comprobante-content label,
-            #comprobante-content h1,
-            #comprobante-content h2 {
+            #comprobante-content .export-guest-value {
               position: relative;
               top: -3px;
             }
-            #comprobante-content .export-text-up {
+            #comprobante-content .export-origen-label {
               position: relative;
-              top: -7px;
+              top: -8px;
+            }
+            #comprobante-content .export-depto-label {
+              position: relative;
+              top: -6px;
+            }
+            #comprobante-content .export-price-value {
+              position: relative;
+              top: -3px;
+            }
+            #comprobante-content .export-booking-number {
+              position: relative;
+              top: -3px;
+            }
+            #comprobante-content .export-left-shift {
+              position: relative;
+              top: -3px;
             }
           `;
           doc.head.appendChild(style);
@@ -225,7 +247,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
                 Nombre del huésped:
               </label>
               <div className="border-b-2 border-gray-400 py-0.5 mt-0.5">
-                <p className="text-gray-900 font-medium text-xs">
+                <p className="text-gray-900 font-medium text-xs export-guest-value">
                   {reserva.nombre}
                 </p>
               </div>
@@ -235,7 +257,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
                 País:
               </label>
               <div className="border-b-2 border-gray-400 py-0.5 mt-0.5">
-                <p className="text-gray-900 font-medium text-xs">
+                <p className="text-gray-900 font-medium text-xs export-guest-value">
                   {paisData?.name || reserva.pais}
                 </p>
               </div>
@@ -260,7 +282,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
                       <CheckCircle2 className="w-2.5 h-2.5 text-white" />
                     )}
                   </div>
-                  <span className="text-gray-700 text-[11px] font-medium leading-none export-text-up">
+                  <span className="text-gray-700 text-[11px] font-medium leading-none export-origen-label">
                     {origen.label}
                   </span>
                 </div>
@@ -274,7 +296,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
                 Número de Reserva Booking:
               </label>
               <div className="border-b-2 border-gray-400 py-0.5 mt-0.5">
-                <p className="text-gray-900 font-medium text-xs">
+                <p className="text-gray-900 font-medium text-xs export-booking-number">
                   {reserva.numeroReservaBooking}
                 </p>
               </div>
@@ -302,7 +324,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
                           <div className="w-3 h-3 border-2 border-gray-700 flex items-center justify-center rounded-sm flex-shrink-0 bg-gray-900">
                             <CheckCircle2 className="w-2 h-2 text-white" />
                           </div>
-                          <span className="text-gray-700 text-[10px] font-medium export-text-up">
+                          <span className="text-gray-700 text-[10px] font-medium export-depto-label">
                             {dept.departamento}
                           </span>
                         </div>
@@ -327,7 +349,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
                               <CheckCircle2 className="w-2.5 h-2.5 text-white" />
                             )}
                           </div>
-                          <span className="text-gray-700 text-[11px] leading-none export-text-up">
+                          <span className="text-gray-700 text-[11px] leading-none export-depto-label">
                             {dept}
                           </span>
                         </div>
@@ -344,7 +366,12 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
                     Fecha de entrada:
                   </label>
                   <div className="border-b border-gray-400 py-0.5 mt-0.5">
-                    <p className="text-gray-900 text-[10px] font-medium">
+                    <p
+                      className={cn(
+                        "text-gray-900 text-[10px] font-medium",
+                        reserva.esReservaMultiple && (reserva.departamentos?.length || 0) >= 2 && "export-left-shift",
+                      )}
+                    >
                       {format(reserva.fechaInicio as Date, "dd / MM / yyyy")}
                     </p>
                   </div>
@@ -355,7 +382,12 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
                     Fecha de salida:
                   </label>
                   <div className="border-b border-gray-400 py-0.5 mt-0.5">
-                    <p className="text-gray-900 text-[10px] font-medium">
+                    <p
+                      className={cn(
+                        "text-gray-900 text-[10px] font-medium",
+                        reserva.esReservaMultiple && (reserva.departamentos?.length || 0) >= 2 && "export-left-shift",
+                      )}
+                    >
                       {format(reserva.fechaFin as Date, "dd / MM / yyyy")}
                     </p>
                   </div>
@@ -368,7 +400,12 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
                   Cantidad de noches:
                 </label>
                 <div className="border-b border-gray-400 py-0.5 mt-0.5">
-                  <p className="text-gray-900 font-bold text-[10px]">
+                  <p
+                    className={cn(
+                      "text-gray-900 font-bold text-[10px]",
+                      reserva.esReservaMultiple && (reserva.departamentos?.length || 0) >= 2 && "export-left-shift",
+                    )}
+                  >
                     {noches}
                   </p>
                 </div>
@@ -408,7 +445,12 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
               {/* Observaciones dentro del mismo recuadro */}
               {reserva.notas && reserva.notas.trim() !== "" && (
                 <div className="pt-1">
-                  <label className="text-gray-700 font-semibold text-[10px] uppercase tracking-wide mb-0.5 block">
+                  <label
+                    className={cn(
+                      "text-gray-700 font-semibold text-[10px] uppercase tracking-wide mb-0.5 block",
+                      reserva.esReservaMultiple && (reserva.departamentos?.length || 0) >= 2 && "export-left-shift",
+                    )}
+                  >
                     Observaciones:
                   </label>
                   <div className="border border-gray-300 rounded p-1.5 bg-white">
@@ -447,7 +489,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
                           <span className="text-gray-600">
                             Precio por noche:
                           </span>
-                          <span className="font-semibold text-gray-900">
+                          <span className="font-semibold text-gray-900 export-price-value">
                             {simboloMoneda} {formatCurrency(precioNoche)}
                           </span>
                         </div>
@@ -455,7 +497,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
                           <span className="text-gray-600">
                             Total ({noches} noches):
                           </span>
-                          <span className="font-bold text-gray-900">
+                          <span className="font-bold text-gray-900 export-price-value">
                             {simboloMoneda} {formatCurrency(dept.precioTotal)}
                           </span>
                         </div>
@@ -470,7 +512,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
                       Precio por noche:
                     </label>
                     <div className="border-b border-gray-400 py-0.5 mt-0.5">
-                      <p className="text-gray-900 text-xs font-semibold">
+                      <p className="text-gray-900 text-xs font-semibold export-price-value">
                         {simboloMoneda} {formatCurrency(precioNocheMostrar)}
                       </p>
                     </div>
@@ -481,7 +523,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
                       Cantidad de noches:
                     </label>
                     <div className="border-b border-gray-400 py-0.5 mt-0.5">
-                      <p className="text-gray-900 font-bold text-xs">
+                      <p className="text-gray-900 font-bold text-xs export-price-value">
                         {noches}
                       </p>
                     </div>
@@ -547,24 +589,24 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
           </div>
 
           {/* Footer */}
-          <div className="grid grid-cols-2 gap-2 mt-1 text-[10px]">
-            <div className="space-y-0.5">
-              <p className="text-gray-700 font-semibold">
+          <div className={cn("grid grid-cols-2 gap-2 mt-1 text-[10px]", departamentosCount === 1 && "pb-[53px]")}>
+            <div className="space-y-1">
+              <p className="text-gray-700 font-semibold pb-0.5">
                 Federación - Entre Ríos
               </p>
-              <p className="text-gray-600">WhatsApp: +54 9 3456 551-306</p>
-              <p className="text-gray-600">
+              <p className="text-gray-600 pb-0.5">WhatsApp: +54 9 3456 551-306</p>
+              <p className="text-gray-600 pb-0.5">
                 Instagram: @el_mangrullo_federacion
               </p>
             </div>
-            <div className="text-right space-y-0.5">
-              <p className="text-gray-700">
+            <div className="text-right space-y-1">
+              <p className="text-gray-700 pb-0.5">
                 N° de comprobante:{" "}
                 <span className="font-bold text-gray-900">
                   {reserva.id?.substring(0, 8).toUpperCase()}
                 </span>
               </p>
-              <p className="text-gray-700">
+              <p className="text-gray-700 pb-0.5">
                 Fecha de emisión:{" "}
                 <span className="font-semibold">
                   {format(new Date(), "dd/MM/yyyy")}
