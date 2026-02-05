@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils"
 const ORIGENES = [
   { value: "booking", label: "Booking", color: "bg-gradient-to-r from-blue-600 to-blue-700" },
   { value: "airbnb", label: "Airbnb", color: "bg-gradient-to-r from-pink-600 to-red-600" },
-  { value: "upcn", label: "UPCN", color: "bg-gradient-to-r from-[#9E3D2E] to-[#7E2D1E]" },
+  { value: "upcn", label: "UPCN", color: "bg-gradient-to-r from-lime-500 to-lime-600" },
   { value: "particular", label: "Particular", color: "bg-gradient-to-r from-purple-600 to-indigo-600" },
 ]
 

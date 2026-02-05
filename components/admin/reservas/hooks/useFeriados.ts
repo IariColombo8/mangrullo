@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { compareAsc, format, getYear, isSameMonth, parseISO } from "date-fns"
+import { compareAsc, format, getYear, isSameMonth, parse, parseISO } from "date-fns"
+import { getAuth } from "firebase/auth"
+import { doc, getDoc, setDoc } from "firebase/firestore"
+import { db } from "@/lib/firebase"
 
 type FeriadoApi = {
   date: string
@@ -17,8 +20,6 @@ export type MonthFeriado = {
   name: string
   isCustom: boolean
 }
-
-const STORAGE_KEY = "customFeriadosAR"
 
 export function useFeriados(mes: Date) {
   const [feriados, setFeriados] = useState<FeriadoApi[]>([])
@@ -48,27 +49,70 @@ export function useFeriados(mes: Date) {
     fetchFeriados(getYear(mes))
   }, [mes, fetchFeriados])
 
-  useEffect(() => {
+  const fetchCustomFeriados = useCallback(async (year: number) => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      if (raw) {
-        const data = JSON.parse(raw) as CustomFeriado[]
-        if (Array.isArray(data)) {
-          setCustomFeriados(data)
-        }
+      const snapshot = await getDoc(doc(db, "feriados", String(year)))
+      if (!snapshot.exists()) {
+        setCustomFeriados([])
+        return
       }
+      const data = snapshot.data() as {
+        dates?: string[]
+        custom?: { date: string; name?: string }[]
+      }
+      if (Array.isArray(data.custom) && data.custom.length > 0) {
+        setCustomFeriados(
+          data.custom.map((item) => ({
+            date: item.date,
+            name: item.name || "Feriado",
+          })),
+        )
+        return
+      }
+      if (Array.isArray(data.dates)) {
+        setCustomFeriados(
+          data.dates.map((date) => ({
+            date: date.includes("/")
+              ? format(parse(date, "dd/MM/yyyy", new Date()), "yyyy-MM-dd")
+              : date,
+            name: "Feriado",
+          })),
+        )
+        return
+      }
+      setCustomFeriados([])
     } catch {
-      // ignorar
+      setCustomFeriados([])
+    }
+  }, [])
+
+  const saveCustomFeriados = useCallback(async (year: number, list: CustomFeriado[]) => {
+    const dates = list.map((item) =>
+      item.date.includes("/")
+        ? item.date
+        : format(parseISO(item.date), "dd/MM/yyyy"),
+    )
+    try {
+      const auth = getAuth()
+      if (!auth.currentUser) {
+        setError("Debes iniciar sesión para guardar feriados")
+        throw new Error("Unauthenticated")
+      }
+      await setDoc(
+        doc(db, "feriados", String(year)),
+        { dates, custom: list },
+        { merge: true },
+      )
+    } catch (err) {
+      console.error("Error guardando feriados:", err)
+      setError("No se pudieron guardar los feriados")
+      throw err
     }
   }, [])
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(customFeriados))
-    } catch {
-      // ignorar
-    }
-  }, [customFeriados])
+    fetchCustomFeriados(getYear(mes))
+  }, [mes, fetchCustomFeriados])
 
   const feriadoByDate = useMemo(() => {
     const map = new Map(feriados.map((f) => [f.date, f.localName || f.name || "Feriado"]))
@@ -122,14 +166,25 @@ export function useFeriados(mes: Date) {
     addCustomHoliday: (date: string, name: string) => {
       if (!date) return
       const normalizedName = name?.trim() || "Feriado"
+      const year = getYear(parseISO(date))
       setCustomFeriados((prev) => {
         const next = prev.filter((f) => f.date !== date)
         next.push({ date, name: normalizedName })
+        saveCustomFeriados(year, next)
+          .then(() => fetchCustomFeriados(year))
+          .catch(() => null)
         return next
       })
     },
     removeCustomHoliday: (date: string) => {
-      setCustomFeriados((prev) => prev.filter((f) => f.date !== date))
+      const year = getYear(parseISO(date))
+      setCustomFeriados((prev) => {
+        const next = prev.filter((f) => f.date !== date)
+        saveCustomFeriados(year, next)
+          .then(() => fetchCustomFeriados(year))
+          .catch(() => null)
+        return next
+      })
     },
     loading,
     error,

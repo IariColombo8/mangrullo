@@ -149,6 +149,7 @@ const ReservasManager = forwardRef<ReservasManagerRef>((props, ref) => {
         monthFeriados={feriados.monthFeriados}
         addCustomHoliday={feriados.addCustomHoliday}
         removeCustomHoliday={feriados.removeCustomHoliday}
+        feriadosError={feriados.error}
         filterDepartamento={estado.filterDepartamento}
         setFilterDepartamento={estado.setFilterDepartamento}
         filterOrigen={estado.filterOrigen}

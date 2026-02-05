@@ -37,6 +37,7 @@ interface TimelineViewProps {
   monthFeriados: { date: string; name: string; isCustom: boolean }[]
   addCustomHoliday: (date: string, name: string) => void
   removeCustomHoliday: (date: string) => void
+  error?: string | null
 }
 
 const parseDate = (date: Date | string | number): Date => {
@@ -77,6 +78,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
   monthFeriados,
   addCustomHoliday,
   removeCustomHoliday,
+  error,
 }) => {
   const [feriadoDate, setFeriadoDate] = useState<Date | undefined>(undefined)
   const [feriadoNombre, setFeriadoNombre] = useState("")
@@ -146,10 +148,12 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                 Departamento
               </div>
               <div className="grid" style={{ gridTemplateColumns: `repeat(${daysInMonth.length}, minmax(28px, 1fr))` }}>
-                {daysInMonth.map((day) => {
+                {daysInMonth.map((day, index) => {
                   const isToday = isSameDay(day, new Date())
                   const isWeekend = day.getDay() === 0 || day.getDay() === 6
                   const holiday = isFeriado(day)
+                  const prevIsHoliday = index > 0 ? isFeriado(daysInMonth[index - 1]) : false
+                  const nextIsHoliday = index < daysInMonth.length - 1 ? isFeriado(daysInMonth[index + 1]) : false
 
                   return (
                     <div
@@ -169,7 +173,13 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                           <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-emerald-700" />
                         </>
                       )}
-                      {holiday && <div className="w-2 h-2 bg-violet-500 rounded-sm mx-auto mb-0.5" />}
+                      {holiday && (
+                        <>
+                          {!prevIsHoliday && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-violet-600" />}
+                          {!nextIsHoliday && <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-violet-600" />}
+                        </>
+                      )}
+                      {holiday && <div className="w-2 h-2 bg-violet-600 rounded-sm mx-auto mb-0.5" />}
                       <div className={cn("font-bold text-[10px]", isToday && "text-emerald-900")}>
                         {format(day, "d")}
                       </div>
@@ -182,106 +192,115 @@ const TimelineView: React.FC<TimelineViewProps> = ({
               </div>
             </div>
 
-            {cabins.map((cabin) => (
-              <div
-                key={cabin.id}
-                className="grid grid-cols-[120px_1fr] gap-0 border-b border-gray-300 hover:bg-gray-50/50 transition-colors"
-              >
-                <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-2 font-semibold text-xs flex items-center border-r-2 border-gray-300">
-                  <Home className="h-3 w-3 mr-1 text-emerald-600 flex-shrink-0" />
-                  <span className="truncate">{cabin.name}</span>
-                </div>
-
+            <div className="relative">
+              {cabins.map((cabin) => (
                 <div
-                  className="grid relative min-h-[45px]"
-                  style={{ gridTemplateColumns: `repeat(${daysInMonth.length}, minmax(28px, 1fr))` }}
+                  key={cabin.id}
+                  className="grid grid-cols-[120px_1fr] gap-0 border-b border-gray-300 hover:bg-gray-50/50 transition-colors relative z-10"
                 >
-                  {daysInMonth.map((day, dayIndex) => {
-                    const isToday = isSameDay(day, new Date())
-                    const reserva = getReservationForDayAndDept(day, cabin.name)
-                    const hasAlert = reserva ? needsPaymentAlert(reserva) : false
+                  <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-2 font-semibold text-xs flex items-center border-r-2 border-gray-300">
+                    <Home className="h-3 w-3 mr-1 text-emerald-600 flex-shrink-0" />
+                    <span className="truncate">{cabin.name}</span>
+                  </div>
 
-                    return (
-                      <div
-                        key={dayIndex}
-                        className={cn(
-                          "border-l border-gray-200 min-h-[45px]",
-                          isToday && "border-l-2 border-r-2 border-emerald-600",
-                          hasAlert && "bg-red-100",
-                          !hasAlert && reserva && getOrigenColor(reserva.origen).replace("bg-", "bg-opacity-20 bg-"),
-                          !reserva && "bg-white",
-                        )}
-                      />
-                    )
-                  })}
-
-                  {monthReservations
-                    .filter((r) => {
-                      return (
-                        r.departamento === cabin.name ||
-                        (r.departamentos && r.departamentos.some((d) => d.departamento === cabin.name))
-                      )
-                    })
-                    .map((reserva, idx) => {
-                      const reservaStartDate = startOfDay(parseDate(reserva.fechaInicio))
-                      const reservaEndDate = startOfDay(parseDate(reserva.fechaFin))
-
-                      const effectiveStart = reservaStartDate < startOfMonthDate ? startOfMonthDate : reservaStartDate
-                      const lastPaintedDay = addDays(reservaEndDate, -1)
-                      const effectiveEnd = lastPaintedDay > endOfMonthDate ? endOfMonthDate : lastPaintedDay
-
-                      const startDayIndex = daysInMonth.findIndex((day) => isSameDay(day, effectiveStart))
-                      const endDayIndex = daysInMonth.findIndex((day) => isSameDay(day, effectiveEnd))
-
-                      if (startDayIndex === -1 || endDayIndex === -1 || endDayIndex < startDayIndex) return null
-
-                      const visibleStartDay = startDayIndex
-                      const visibleEndDay = endDayIndex
-                      const visibleDays = visibleEndDay - visibleStartDay + 1
-
-                      const totalNights = calculateNights(reservaStartDate, reservaEndDate)
-
-                      const hasAlert = needsPaymentAlert(reserva)
-                      const origenColorClass = getOrigenColor(reserva.origen)
-
-                      const isRealStart = isSameDay(effectiveStart, reservaStartDate)
-                      const isRealEnd = isSameDay(effectiveEnd, lastPaintedDay)
+                  <div
+                    className="grid relative min-h-[45px]"
+                    style={{ gridTemplateColumns: `repeat(${daysInMonth.length}, minmax(28px, 1fr))` }}
+                  >
+                    {daysInMonth.map((day, dayIndex) => {
+                      const isToday = isSameDay(day, new Date())
+                      const reserva = getReservationForDayAndDept(day, cabin.name)
+                      const hasAlert = reserva ? needsPaymentAlert(reserva) : false
+                      const holiday = isFeriado(day)
+                      const prevIsHoliday = dayIndex > 0 ? isFeriado(daysInMonth[dayIndex - 1]) : false
+                      const nextIsHoliday =
+                        dayIndex < daysInMonth.length - 1 ? isFeriado(daysInMonth[dayIndex + 1]) : false
 
                       return (
                         <div
-                          key={`${reserva.id}-${idx}`}
+                          key={dayIndex}
                           className={cn(
-                            "absolute h-[38px] top-[3px] cursor-pointer transition-all hover:z-30 hover:shadow-xl flex items-center px-1 text-[9px] font-medium text-white overflow-hidden",
-                            origenColorClass,
-                            hasAlert && "border-2 border-red-600 ring-2 ring-red-300",
-                            !hasAlert && "border-y-2 border-black/70",
-                            !hasAlert && isRealStart && "border-l-[4px] border-l-black rounded-l",
-                            !hasAlert && isRealEnd && "border-r-[4px] border-r-black rounded-r",
-                            !hasAlert && !isRealStart && "border-l-2 border-l-black/30",
-                            !hasAlert && !isRealEnd && "border-r-2 border-r-black/30",
+                            "border-l border-gray-200 min-h-[45px]",
+                            isToday && "border-l-2 border-r-2 border-emerald-600",
+                            holiday && "bg-violet-100/40",
+                            holiday && !prevIsHoliday && "border-l-2 border-violet-600",
+                            holiday && !nextIsHoliday && "border-r-2 border-violet-600",
+                            hasAlert && "bg-red-100",
+                            !hasAlert && reserva && getOrigenColor(reserva.origen).replace("bg-", "bg-opacity-20 bg-"),
+                            !reserva && "bg-white",
                           )}
-                          style={{
-                            left: `${(visibleStartDay / daysInMonth.length) * 100}%`,
-                            width: `${(visibleDays / daysInMonth.length) * 100}%`,
-                            zIndex: 10 + idx,
-                          }}
-                          onClick={() => setViewingReserva(reserva)}
-                          title={`${reserva.nombre} - ${reserva.origen} - ${totalNights} noches${!isRealStart ? " (continúa desde mes anterior)" : ""}${!isRealEnd ? " (continúa en mes siguiente)" : ""}`}
-                        >
-                          {!isRealStart && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-yellow-400/80" />}
-
-                          <div className="flex items-center justify-between w-full">
-                            <span className="truncate flex-1">{reserva.nombre.split(" ")[0]}</span>
-                            {hasAlert && <AlertTriangle className="h-3 w-3 ml-1 flex-shrink-0" />}
-                          </div>
-
-                          {!isRealEnd && <div className="absolute right-0 top-0 bottom-0 w-1.5 bg-yellow-400/80" />}
-                        </div>
+                        />
                       )
                     })}
+
+                    {monthReservations
+                      .filter((r) => {
+                        return (
+                          r.departamento === cabin.name ||
+                          (r.departamentos && r.departamentos.some((d) => d.departamento === cabin.name))
+                        )
+                      })
+                      .map((reserva, idx) => {
+                        const reservaStartDate = startOfDay(parseDate(reserva.fechaInicio))
+                        const reservaEndDate = startOfDay(parseDate(reserva.fechaFin))
+
+                        const effectiveStart = reservaStartDate < startOfMonthDate ? startOfMonthDate : reservaStartDate
+                        const lastPaintedDay = addDays(reservaEndDate, -1)
+                        const effectiveEnd = lastPaintedDay > endOfMonthDate ? endOfMonthDate : lastPaintedDay
+
+                        const startDayIndex = daysInMonth.findIndex((day) => isSameDay(day, effectiveStart))
+                        const endDayIndex = daysInMonth.findIndex((day) => isSameDay(day, effectiveEnd))
+
+                        if (startDayIndex === -1 || endDayIndex === -1 || endDayIndex < startDayIndex) return null
+
+                        const visibleStartDay = startDayIndex
+                        const visibleEndDay = endDayIndex
+                        const visibleDays = visibleEndDay - visibleStartDay + 1
+
+                        const totalNights = calculateNights(reservaStartDate, reservaEndDate)
+
+                        const hasAlert = needsPaymentAlert(reserva)
+                        const origenColorClass = getOrigenColor(reserva.origen)
+
+                        const isRealStart = isSameDay(effectiveStart, reservaStartDate)
+                        const isRealEnd = isSameDay(effectiveEnd, lastPaintedDay)
+
+                        return (
+                          <div
+                            key={`${reserva.id}-${idx}`}
+                            className={cn(
+                              "absolute h-[38px] top-[3px] cursor-pointer transition-all hover:z-30 hover:shadow-xl flex items-center px-1 text-[9px] font-medium text-white overflow-hidden",
+                              origenColorClass,
+                              hasAlert && "border-2 border-red-600 ring-2 ring-red-300",
+                              !hasAlert && "border-y-2 border-black/70",
+                              !hasAlert && isRealStart && "border-l-[4px] border-l-black rounded-l",
+                              !hasAlert && isRealEnd && "border-r-[4px] border-r-black rounded-r",
+                              !hasAlert && !isRealStart && "border-l-2 border-l-black/30",
+                              !hasAlert && !isRealEnd && "border-r-2 border-r-black/30",
+                            )}
+                            style={{
+                              left: `${(visibleStartDay / daysInMonth.length) * 100}%`,
+                              width: `${(visibleDays / daysInMonth.length) * 100}%`,
+                              zIndex: 10 + idx,
+                            }}
+                            onClick={() => setViewingReserva(reserva)}
+                            title={`${reserva.nombre} - ${reserva.origen} - ${totalNights} noches${!isRealStart ? " (continúa desde mes anterior)" : ""}${!isRealEnd ? " (continúa en mes siguiente)" : ""}`}
+                          >
+                            {!isRealStart && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-yellow-400/80" />}
+
+                            <div className="flex items-center justify-between w-full">
+                              <span className="truncate flex-1">{reserva.nombre.split(" ")[0]}</span>
+                              {hasAlert && <AlertTriangle className="h-3 w-3 ml-1 flex-shrink-0" />}
+                            </div>
+
+                            {!isRealEnd && <div className="absolute right-0 top-0 bottom-0 w-1.5 bg-yellow-400/80" />}
+                          </div>
+                        )
+                      })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
@@ -305,9 +324,12 @@ const TimelineView: React.FC<TimelineViewProps> = ({
               ))}
             </div>
 
-            {daysInMonth.map((day) => {
-              const isToday = isSameDay(day, new Date())
+            {daysInMonth.map((day, index) => {
+                  const isToday = isSameDay(day, new Date())
               const isWeekend = day.getDay() === 0 || day.getDay() === 6
+                  const holiday = isFeriado(day)
+                  const prevIsHoliday = index > 0 ? isFeriado(daysInMonth[index - 1]) : false
+                  const nextIsHoliday = index < daysInMonth.length - 1 ? isFeriado(daysInMonth[index + 1]) : false
 
               return (
                 <div
@@ -331,7 +353,13 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                         <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-emerald-800" />
                       </>
                     )}
-                    {isFeriado(day) && <div className="w-2 h-2 bg-violet-500 rounded-sm mb-0.5" />}
+                        {holiday && (
+                          <>
+                            {!prevIsHoliday && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-violet-700" />}
+                            {!nextIsHoliday && <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-violet-700" />}
+                          </>
+                        )}
+                    {isFeriado(day) && <div className="w-2 h-2 bg-violet-600 rounded-sm mb-0.5" />}
                     <div className="font-bold text-[11px]">{format(day, "d")}</div>
                     <div className="text-[7px] leading-tight">{format(day, "EEE", { locale: es })}</div>
                   </div>
@@ -385,58 +413,74 @@ const TimelineView: React.FC<TimelineViewProps> = ({
         </div>
 
         <div className="mt-4 pt-4 border-t border-gray-200 hidden md:block">
-          <div className="flex flex-wrap items-start justify-center gap-6 text-xs">
-            <div className="flex flex-wrap gap-3 justify-center">
+          <div className="flex flex-wrap items-start justify-between gap-6 text-xs">
+            <div className="flex flex-wrap gap-3 justify-center flex-1">
               <div className="flex items-center gap-1">
                 <div className="w-5 h-5 rounded border border-gray-300 bg-emerald-300"></div>
                 <span>Hoy</span>
               </div>
-              <Dialog open={isFeriadosOpen} onOpenChange={setIsFeriadosOpen}>
-                <DialogTrigger asChild>
-                  <button className="flex items-center gap-1 text-violet-700 hover:text-violet-800">
-                    <div className="w-5 h-5 rounded border border-violet-300 bg-violet-100"></div>
-                    <span>Feriados</span>
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Feriados del mes</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-3">
-                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                      {monthFeriados.length === 0 && (
-                        <div className="text-sm text-gray-500">No hay feriados este mes</div>
-                      )}
-                      {monthFeriados.map((feriado) => (
-                        <div key={`${feriado.date}-${feriado.name}`} className="flex items-center gap-2 text-sm">
-                          <div className="w-3 h-3 bg-violet-600 rounded-sm flex-shrink-0" />
-                          <span className="text-gray-800">
-                            {format(parseISO(feriado.date), "dd/MM")} - {feriado.name}
-                          </span>
-                          {feriado.isCustom && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-xs text-red-600 hover:bg-red-50"
-                              onClick={() => removeCustomHoliday(feriado.date)}
-                            >
-                              Eliminar
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+              {ORIGENES.map((origen) => (
+                <div key={origen.value} className="flex items-center gap-1">
+                  <div className={cn("w-5 h-5 rounded border border-gray-300", origen.color)}></div>
+                  <span>{origen.label}</span>
+                </div>
+              ))}
+              <div className="flex items-center gap-1">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+                <span>Sin pago vencido</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-5 h-5 rounded bg-yellow-400/80 border border-gray-300"></div>
+                <span>Continúa de/hacia otro mes</span>
+              </div>
+            </div>
+            <Dialog open={isFeriadosOpen} onOpenChange={setIsFeriadosOpen}>
+              <DialogTrigger asChild>
+                <button className="flex items-center gap-1 text-violet-700 hover:text-violet-800 ml-auto">
+                  <div className="w-5 h-5 rounded border border-violet-300 bg-violet-600"></div>
+                  <span>Feriados</span>
+                </button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Feriados del mes</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  {error && <div className="text-sm text-red-600">{error}</div>}
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {monthFeriados.length === 0 && (
+                      <div className="text-sm text-gray-500">No hay feriados este mes</div>
+                    )}
+                    {monthFeriados.map((feriado) => (
+                      <div key={`${feriado.date}-${feriado.name}`} className="flex items-center gap-2 text-sm">
+                        <div className="w-3 h-3 bg-violet-600 rounded-sm flex-shrink-0" />
+                        <span className="text-gray-800">
+                          {format(parseISO(feriado.date), "dd/MM")} - {feriado.name}
+                        </span>
+                        {feriado.isCustom && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-red-600 hover:bg-red-50"
+                            onClick={() => removeCustomHoliday(feriado.date)}
+                          >
+                            Eliminar
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
 
-                    <div className="space-y-2">
+                  <div className="space-y-2">
                     <div className="space-y-1">
                       <Label className="text-xs text-gray-600">Nombre</Label>
-                        <Input
-                          placeholder="Ej: Feriado local"
-                          value={feriadoNombre}
-                          onChange={(e) => setFeriadoNombre(e.target.value)}
-                          className="h-8 text-sm"
-                        />
-                      </div>
+                      <Input
+                        placeholder="Ej: Feriado local"
+                        value={feriadoNombre}
+                        onChange={(e) => setFeriadoNombre(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
                     <div className="space-y-1">
                       <Label className="text-xs text-gray-600">Fecha</Label>
                       <Popover>
@@ -456,36 +500,21 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                         </PopoverContent>
                       </Popover>
                     </div>
-                      <Button
-                        className="h-8 text-xs bg-violet-600 hover:bg-violet-700 text-white"
-                        onClick={() => {
-                          if (!feriadoDate) return
-                          addCustomHoliday(format(feriadoDate, "yyyy-MM-dd"), feriadoNombre)
-                          setFeriadoNombre("")
-                          setFeriadoDate(undefined)
-                        }}
-                      >
-                        Agregar feriado
-                      </Button>
-                    </div>
+                    <Button
+                      className="h-8 text-xs bg-violet-600 hover:bg-violet-700 text-white"
+                      onClick={() => {
+                        if (!feriadoDate) return
+                        addCustomHoliday(format(feriadoDate, "yyyy-MM-dd"), feriadoNombre)
+                        setFeriadoNombre("")
+                        setFeriadoDate(undefined)
+                      }}
+                    >
+                      Agregar feriado
+                    </Button>
                   </div>
-                </DialogContent>
-              </Dialog>
-              {ORIGENES.map((origen) => (
-                <div key={origen.value} className="flex items-center gap-1">
-                  <div className={cn("w-5 h-5 rounded border border-gray-300", origen.color)}></div>
-                  <span>{origen.label}</span>
                 </div>
-              ))}
-              <div className="flex items-center gap-1">
-                <AlertTriangle className="h-5 w-5 text-red-600" />
-                <span>Sin pago vencido</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-5 h-5 rounded bg-yellow-400/80 border border-gray-300"></div>
-                <span>Continúa de/hacia otro mes</span>
-              </div>
-            </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </CardContent>

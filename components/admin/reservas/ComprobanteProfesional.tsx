@@ -92,7 +92,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
     const element = document.getElementById("comprobante-content");
     if (!element) return null;
 
-    const rect = element.getBoundingClientRect();
+    const desktopWidth = 1024;
     const wrapper = document.createElement("div");
     wrapper.style.position = "fixed";
     wrapper.style.left = "-99999px";
@@ -101,8 +101,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
     wrapper.style.background = "#ffffff";
     wrapper.style.display = "inline-block";
     wrapper.style.boxSizing = "content-box";
-    wrapper.style.width = `${rect.width}px`;
-    wrapper.style.height = `${rect.height}px`;
+    wrapper.style.width = `${desktopWidth}px`;
 
     const clone = element.cloneNode(true) as HTMLElement;
     clone.className = clone.className
@@ -110,8 +109,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
       .replace(/origin-top/g, "");
     clone.style.transform = "none";
     clone.style.transformOrigin = "top left";
-    clone.style.width = `${rect.width}px`;
-    clone.style.height = `${rect.height}px`;
+    clone.style.width = `${desktopWidth}px`;
     clone.style.margin = "0";
     clone.style.maxWidth = "none";
     clone.style.boxSizing = "border-box";
@@ -129,7 +127,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
         useCORS: true,
         allowTaint: false,
         imageTimeout: 0,
-        windowWidth: wrapper.scrollWidth,
+        windowWidth: desktopWidth,
         windowHeight: wrapper.scrollHeight,
         onclone: (doc) => {
           const style = doc.createElement("style");

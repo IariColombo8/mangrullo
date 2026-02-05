@@ -74,7 +74,7 @@ export default function TodayTimeline() {
     const colors = {
       booking: "bg-blue-500",
       airbnb: "bg-pink-500",
-      upcn: "bg-green-500",
+      upcn: "bg-lime-500",
       particular: "bg-orange-500",
     }
     return colors[origen as keyof typeof colors] || "bg-black-500"

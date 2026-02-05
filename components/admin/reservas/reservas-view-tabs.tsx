@@ -91,6 +91,7 @@ interface ReservasViewTabsProps {
   monthFeriados: { date: string; name: string; isCustom: boolean }[]
   addCustomHoliday: (date: string, name: string) => void
   removeCustomHoliday: (date: string) => void
+  feriadosError?: string | null
   // Filter props
   filterDepartamento: string
   setFilterDepartamento: (value: string) => void
@@ -157,6 +158,7 @@ export default function ReservasViewTabs({
   monthFeriados,
   addCustomHoliday,
   removeCustomHoliday,
+  feriadosError,
   filterDepartamento,
   setFilterDepartamento,
   filterOrigen,
@@ -815,6 +817,7 @@ export default function ReservasViewTabs({
             monthFeriados={monthFeriados}
             addCustomHoliday={addCustomHoliday}
             removeCustomHoliday={removeCustomHoliday}
+            error={feriadosError}
           />
           <TimelineViewCancelados
             reservas={filteredReservas}
