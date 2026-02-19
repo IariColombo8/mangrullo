@@ -8,19 +8,19 @@ import PublicAvailabilitySearch from "@/components/booking/public-availability-s
 const slides = [
   {
     id: 1,
-    image: "foto 7.jpg",
+    image: "2.jpg",
     title: "Bienvenido",
     subtitle: "Relajate, conectate con la naturaleza y sentite como en casa.",
   },
   {
     id: 2,
-    image: "foto 3.jpg",
+    image: "8.jpg",
     title: "Tu descanso, nuestra prioridad",
     subtitle: "Elegí con quién venir, nosotros nos encargamos del resto.",
   },
   {
     id: 3,
-    image: "foto 4.jpg",
+    image: "pileta 1.jpg",
     title: "Un rincón para desconectar y disfrutar.",
     subtitle: "Departamentos totalmente equipados, pensados para tu confort.",
   },
