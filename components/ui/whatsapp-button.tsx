@@ -4,7 +4,7 @@ import { useLanguage } from "@/context/language-context"
 
 export default function WhatsAppButton() {
   const { t } = useLanguage()
-  const phoneNumber = "5493456551550" // Replace with your actual WhatsApp number
+  const phoneNumber = "5493456551306" // Replace with your actual WhatsApp number
   const whatsappUrl = `https://wa.me/${phoneNumber}`
 
   return (

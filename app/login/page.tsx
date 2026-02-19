@@ -1,32 +1,54 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState } from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { useLanguage } from "@/context/language-context"
-import { useAuth } from "@/context/auth-context"
+import type React from "react";
+import { useState } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { useLanguage } from "@/context/language-context";
+import { useAuth } from "@/context/auth-context";
 
 export default function LoginPage() {
-  const { t } = useLanguage()
-  const { loginWithGoogle, loading, error } = useAuth()
+  const { t } = useLanguage();
+  const { loginWithGoogle, loading, error } = useAuth();
 
   const handleGoogleLogin = async () => {
-    await loginWithGoogle()
-  }
+    await loginWithGoogle();
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-beige py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center text-brown">{t("login.title")}</CardTitle>
-          <CardDescription className="text-center">{t("login.subtitle")}</CardDescription>
+        <CardHeader className="space-y-3 flex flex-col items-center">
+          <img
+            src="/ccccccc.jpg"
+            alt="Logo"
+            className="h-25 w-25 object-contain rounded-2xl"
+          />
+          <CardDescription className="text-center">
+            Ingrese sus credenciales para acceder al sistema
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {error && <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-md text-sm">{error}</div>}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-md text-sm">
+              {error}
+            </div>
+          )}
 
-          <Button type="button" variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={loading}>
+          <Button
+            type="button"
+            className="w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 shadow-sm"
+            onClick={handleGoogleLogin}
+            disabled={loading}
+          >
             <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
               <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
                 <path
@@ -47,17 +69,17 @@ export default function LoginPage() {
                 />
               </g>
             </svg>
-            Google
+            Continuar con Google
           </Button>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           <div className="text-sm text-center">
-            <Link href="/" className="text-green hover:underline">
-              {t("login.backToHome")}
+            <Link href="/" className="text-teal-500 hover:underline">
+              Volver para atrás
             </Link>
           </div>
         </CardFooter>
       </Card>
     </div>
-  )
+  );
 }

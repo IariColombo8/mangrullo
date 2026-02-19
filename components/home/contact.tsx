@@ -91,7 +91,7 @@ export default function Contact() {
                   <div>
                     <h4 className="font-semibold text-gray-800">{t("contact.info.phone")}</h4>
                     <p className="text-gray-600">
-                      <a href="tel:+5493456551550" className="hover:text-green transition-colors">
+                      <a href="tel:+5493456551306" className="hover:text-green transition-colors">
                         +54 9 3456 551550
                       </a>
                     </p>

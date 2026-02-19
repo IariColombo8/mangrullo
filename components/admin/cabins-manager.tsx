@@ -1,18 +1,30 @@
-"use client"
-import { useState, useEffect } from "react"
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { useToast } from "@/components/ui/use-toast"
+"use client";
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/components/ui/use-toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,8 +34,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { useLanguage } from "@/context/language-context"
+} from "@/components/ui/alert-dialog";
+import { useLanguage } from "@/context/language-context";
 import {
   Edit,
   Trash,
@@ -50,32 +62,39 @@ import {
   CookingPot,
   Bed,
   Eye,
-} from "lucide-react"
+} from "lucide-react";
 
 // Firebase imports
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from "firebase/firestore"
-import { db } from "../../lib/firebase"
+import {
+  collection,
+  addDoc,
+  getDocs,
+  doc,
+  updateDoc,
+  deleteDoc,
+} from "firebase/firestore";
+import { db } from "../../lib/firebase";
 
 // Tipos de moneda
 const CURRENCY_TYPES = {
   USD: { symbol: "$", label: "Dólares (USD)" },
-  UYU: { symbol: "$U", label: "Pesos Uruguayos (UYU)" }
-}
+  UYU: { symbol: "$U", label: "Pesos Uruguayos (UYU)" },
+};
 
 export default function CabinsManager() {
-  const [cabins, setCabins] = useState([])
-  const [filteredCabins, setFilteredCabins] = useState([])
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [currentCabin, setCurrentCabin] = useState(null)
-  const [isEditing, setIsEditing] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [images, setImages] = useState([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [viewMode, setViewMode] = useState("grid")
-  const { language } = useLanguage()
-  const { toast } = useToast()
-  const MAX_IMAGES = 10
+  const [cabins, setCabins] = useState([]);
+  const [filteredCabins, setFilteredCabins] = useState([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [currentCabin, setCurrentCabin] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [images, setImages] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState("grid");
+  const { language } = useLanguage();
+  const { toast } = useToast();
+  const MAX_IMAGES = 10;
 
   const [formData, setFormData] = useState({
     name: "",
@@ -98,52 +117,52 @@ export default function CabinsManager() {
       blankets: false,
       towels: false,
     },
-  })
+  });
 
   useEffect(() => {
-    fetchCabins()
-  }, [])
+    fetchCabins();
+  }, []);
 
   const fetchCabins = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const querySnapshot = await getDocs(collection(db, "cabins"))
+      const querySnapshot = await getDocs(collection(db, "cabins"));
       const cabinsData = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      }))
-      setCabins(cabinsData)
-      setFilteredCabins(cabinsData)
+      }));
+      setCabins(cabinsData);
+      setFilteredCabins(cabinsData);
     } catch (error) {
-      console.error("Error al cargar los departamentos:", error)
+      console.error("Error al cargar los departamentos:", error);
       toast({
         title: "Error",
         description: "No se pudieron cargar los departamentos",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
     if (!searchQuery) {
-      setFilteredCabins(cabins)
+      setFilteredCabins(cabins);
     } else {
       const filtered = cabins.filter((cabin) => {
-        const name = getCabinName(cabin).toLowerCase()
-        const description = getCabinDescription(cabin).toLowerCase()
-        const query = searchQuery.toLowerCase()
-        return name.includes(query) || description.includes(query)
-      })
-      setFilteredCabins(filtered)
+        const name = getCabinName(cabin).toLowerCase();
+        const description = getCabinDescription(cabin).toLowerCase();
+        const query = searchQuery.toLowerCase();
+        return name.includes(query) || description.includes(query);
+      });
+      setFilteredCabins(filtered);
     }
-  }, [searchQuery, cabins])
+  }, [searchQuery, cabins]);
 
   const handleAddNew = () => {
-    setIsEditing(false)
-    setCurrentCabin(null)
-    setImages([])
+    setIsEditing(false);
+    setCurrentCabin(null);
+    setImages([]);
     setFormData({
       name: "",
       description: "",
@@ -165,20 +184,30 @@ export default function CabinsManager() {
         blankets: false,
         towels: false,
       },
-    })
-    setIsDialogOpen(true)
-  }
+    });
+    setIsDialogOpen(true);
+  };
 
   const handleEdit = (cabin) => {
-    setIsEditing(true)
-    setCurrentCabin(cabin)
+    setIsEditing(true);
+    setCurrentCabin(cabin);
 
-    const cabinImages = Array.isArray(cabin.images) ? cabin.images : cabin.image ? [cabin.image] : []
-    setImages(cabinImages)
+    const cabinImages = Array.isArray(cabin.images)
+      ? cabin.images
+      : cabin.image
+        ? [cabin.image]
+        : [];
+    setImages(cabinImages);
 
     // Manejar ambos formatos: string directo o objeto {es, en, pt}
-    const cabinName = typeof cabin.name === 'string' ? cabin.name : (cabin.name?.es || cabin.name?.en || "")
-    const cabinDescription = typeof cabin.description === 'string' ? cabin.description : (cabin.description?.es || cabin.description?.en || "")
+    const cabinName =
+      typeof cabin.name === "string"
+        ? cabin.name
+        : cabin.name?.es || cabin.name?.en || "";
+    const cabinDescription =
+      typeof cabin.description === "string"
+        ? cabin.description
+        : cabin.description?.es || cabin.description?.en || "";
 
     // Manejar amenities: array antiguo o objeto nuevo
     let amenitiesObj = {
@@ -195,22 +224,29 @@ export default function CabinsManager() {
       bedding: false,
       blankets: false,
       towels: false,
-    }
+    };
 
     if (cabin.amenities) {
-      if (typeof cabin.amenities === 'object' && !Array.isArray(cabin.amenities)) {
-        amenitiesObj = { ...amenitiesObj, ...cabin.amenities }
+      if (
+        typeof cabin.amenities === "object" &&
+        !Array.isArray(cabin.amenities)
+      ) {
+        amenitiesObj = { ...amenitiesObj, ...cabin.amenities };
       } else if (Array.isArray(cabin.amenities)) {
         // Convertir array antiguo a objeto nuevo
-        cabin.amenities.forEach(item => {
+        cabin.amenities.forEach((item) => {
           if (amenitiesObj.hasOwnProperty(item)) {
-            amenitiesObj[item] = true
+            amenitiesObj[item] = true;
           }
           // Compatibilidad con valores antiguos
-          if (item === 'balcony' || item === 'parkView' || item === 'poolView') {
-            amenitiesObj.balconyView = true
+          if (
+            item === "balcony" ||
+            item === "parkView" ||
+            item === "poolView"
+          ) {
+            amenitiesObj.balconyView = true;
           }
-        })
+        });
       }
     }
 
@@ -221,46 +257,46 @@ export default function CabinsManager() {
       images: cabinImages,
       floor: cabin.floor || "",
       amenities: amenitiesObj,
-    })
-    setIsDialogOpen(true)
-  }
+    });
+    setIsDialogOpen(true);
+  };
 
   const handleDelete = (cabin) => {
-    setCurrentCabin(cabin)
-    setIsDeleteDialogOpen(true)
-  }
+    setCurrentCabin(cabin);
+    setIsDeleteDialogOpen(true);
+  };
 
   const confirmDelete = async () => {
-    if (!currentCabin) return
+    if (!currentCabin) return;
 
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      await deleteDoc(doc(db, "cabins", currentCabin.id))
-      setCabins(cabins.filter((cabin) => cabin.id !== currentCabin.id))
+      await deleteDoc(doc(db, "cabins", currentCabin.id));
+      setCabins(cabins.filter((cabin) => cabin.id !== currentCabin.id));
       toast({
         title: "Departamento eliminado",
         description: "El departamento ha sido eliminado exitosamente.",
-      })
+      });
     } catch (error) {
-      console.error("Error al eliminar el departamento:", error)
+      console.error("Error al eliminar el departamento:", error);
       toast({
         title: "Error",
         description: "No se pudo eliminar el departamento",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
-      setIsDeleteDialogOpen(false)
+      setIsLoading(false);
+      setIsDeleteDialogOpen(false);
     }
-  }
+  };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: name === "price" || name === "capacity" ? Number(value) : value,
-    }))
-  }
+    }));
+  };
 
   const handleAmenityChange = (amenity, checked) => {
     setFormData((prev) => ({
@@ -269,65 +305,65 @@ export default function CabinsManager() {
         ...prev.amenities,
         [amenity]: checked,
       },
-    }))
-  }
+    }));
+  };
 
   const handleImageChange = (e) => {
-    const files = Array.from(e.target.files)
+    const files = Array.from(e.target.files);
 
     if (images.length + files.length > MAX_IMAGES) {
       toast({
         title: "Límite de imágenes",
         description: `Solo se permiten ${MAX_IMAGES} imágenes por departamento.`,
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
     files.forEach((file) => {
-      const reader = new FileReader()
+      const reader = new FileReader();
       reader.onloadend = () => {
-        const img = document.createElement("img")
+        const img = document.createElement("img");
         img.onload = () => {
-          const canvas = document.createElement("canvas")
-          const ctx = canvas.getContext("2d")
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
 
-          const maxWidth = 800
-          const scale = maxWidth / img.width
-          canvas.width = maxWidth
-          canvas.height = img.height * scale
+          const maxWidth = 800;
+          const scale = maxWidth / img.width;
+          canvas.width = maxWidth;
+          canvas.height = img.height * scale;
 
-          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height)
-          const compressedBase64 = canvas.toDataURL("image/jpeg", 0.7)
+          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const compressedBase64 = canvas.toDataURL("image/jpeg", 0.7);
 
-          setImages((prev) => [...prev, compressedBase64])
+          setImages((prev) => [...prev, compressedBase64]);
           setFormData((prev) => ({
             ...prev,
             images: [...prev.images, compressedBase64],
-          }))
-        }
-        img.src = reader.result as string
-      }
-      reader.readAsDataURL(file)
-    })
+          }));
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
 
-    e.target.value = null
-  }
+    e.target.value = null;
+  };
 
   const removeImage = (index) => {
-    const newImages = [...images]
-    newImages.splice(index, 1)
-    setImages(newImages)
+    const newImages = [...images];
+    newImages.splice(index, 1);
+    setImages(newImages);
 
     setFormData((prev) => ({
       ...prev,
       images: newImages,
-    }))
-  }
+    }));
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setIsLoading(true)
+    e.preventDefault();
+    setIsLoading(true);
 
     try {
       const cabinData = {
@@ -339,86 +375,117 @@ export default function CabinsManager() {
         floor: formData.floor,
         amenities: formData.amenities,
         updatedAt: new Date(),
-      }
+      };
 
       if (isEditing && currentCabin) {
-        await updateDoc(doc(db, "cabins", currentCabin.id), cabinData)
-        setCabins(cabins.map((cabin) => (cabin.id === currentCabin.id ? { id: currentCabin.id, ...cabinData } : cabin)))
+        await updateDoc(doc(db, "cabins", currentCabin.id), cabinData);
+        setCabins(
+          cabins.map((cabin) =>
+            cabin.id === currentCabin.id
+              ? { id: currentCabin.id, ...cabinData }
+              : cabin,
+          ),
+        );
         toast({
           title: "Departamento actualizado",
           description: "El departamento ha sido actualizado exitosamente.",
-        })
+        });
       } else {
-        cabinData.createdAt = new Date()
-        const docRef = await addDoc(collection(db, "cabins"), cabinData)
-        const newCabin = { id: docRef.id, ...cabinData }
-        setCabins([...cabins, newCabin])
+        cabinData.createdAt = new Date();
+        const docRef = await addDoc(collection(db, "cabins"), cabinData);
+        const newCabin = { id: docRef.id, ...cabinData };
+        setCabins([...cabins, newCabin]);
         toast({
           title: "Departamento agregado",
           description: "El nuevo departamento ha sido agregado exitosamente.",
-        })
+        });
       }
 
-      setIsDialogOpen(false)
+      setIsDialogOpen(false);
     } catch (error) {
-      console.error("Error al guardar el departamento:", error)
+      console.error("Error al guardar el departamento:", error);
       toast({
         title: "Error",
-        description: isEditing ? "No se pudo actualizar el departamento" : "No se pudo agregar el departamento",
+        description: isEditing
+          ? "No se pudo actualizar el departamento"
+          : "No se pudo agregar el departamento",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const getMainImage = (cabin) => {
     if (Array.isArray(cabin.images) && cabin.images.length > 0) {
-      return cabin.images[0]
+      return cabin.images[0];
     }
-    return cabin.image || ""
-  }
+    return cabin.image || "";
+  };
 
   const getCabinName = (cabin) => {
-    if (!cabin) return "Sin nombre"
-    if (typeof cabin.name === 'string') {
-      return cabin.name
+    if (!cabin) return "Sin nombre";
+    if (typeof cabin.name === "string") {
+      return cabin.name;
     }
-    if (typeof cabin.name === 'object' && cabin.name !== null) {
-      return cabin.name.es || cabin.name.en || cabin.name.pt || "Sin nombre"
+    if (typeof cabin.name === "object" && cabin.name !== null) {
+      return cabin.name.es || cabin.name.en || cabin.name.pt || "Sin nombre";
     }
-    return "Sin nombre"
-  }
+    return "Sin nombre";
+  };
 
   const getCabinDescription = (cabin) => {
-    if (!cabin) return "Sin descripción"
-    if (typeof cabin.description === 'string') {
-      return cabin.description
+    if (!cabin) return "Sin descripción";
+    if (typeof cabin.description === "string") {
+      return cabin.description;
     }
-    if (typeof cabin.description === 'object' && cabin.description !== null) {
-      return cabin.description.es || cabin.description.en || cabin.description.pt || "Sin descripción"
+    if (typeof cabin.description === "object" && cabin.description !== null) {
+      return (
+        cabin.description.es ||
+        cabin.description.en ||
+        cabin.description.pt ||
+        "Sin descripción"
+      );
     }
-    return "Sin descripción"
-  }
+    return "Sin descripción";
+  };
 
   const getAmenityInfo = (key) => {
     const amenities = {
-      balconyView: { icon: <Eye className="h-4 w-4" />, label: "Balcón con vista al parque y la piscina" },
-      ac: { icon: <Snowflake className="h-4 w-4" />, label: "Aire acondicionado" },
+      balconyView: {
+        icon: <Eye className="h-4 w-4" />,
+        label: "Balcón con vista al parque y la piscina",
+      },
+      ac: {
+        icon: <Snowflake className="h-4 w-4" />,
+        label: "Aire acondicionado",
+      },
       fridge: { icon: <Snowflake className="h-4 w-4" />, label: "Heladera" },
-      microwave: { icon: <UtensilsCrossed className="h-4 w-4" />, label: "Microondas" },
+      microwave: {
+        icon: <UtensilsCrossed className="h-4 w-4" />,
+        label: "Microondas",
+      },
       kettle: { icon: <Coffee className="h-4 w-4" />, label: "Pava eléctrica" },
-      electricPot: { icon: <CookingPot className="h-4 w-4" />, label: "Olla eléctrica" },
-      dishes: { icon: <UtensilsCrossed className="h-4 w-4" />, label: "Vajilla completa" },
-      waterHeater: { icon: <Droplets className="h-4 w-4" />, label: "Termotanque" },
+      electricPot: {
+        icon: <CookingPot className="h-4 w-4" />,
+        label: "Olla eléctrica",
+      },
+      dishes: {
+        icon: <UtensilsCrossed className="h-4 w-4" />,
+        label: "Vajilla completa",
+      },
+      waterHeater: {
+        icon: <Droplets className="h-4 w-4" />,
+        label: "Termotanque",
+      },
       tv: { icon: <Tv className="h-4 w-4" />, label: "TV" },
       wifi: { icon: <Wifi className="h-4 w-4" />, label: "WiFi" },
       bedding: { icon: <Bed className="h-4 w-4" />, label: "Sábanas" },
       blankets: { icon: <Bed className="h-4 w-4" />, label: "Frazadas" },
       towels: { icon: <Bed className="h-4 w-4" />, label: "Toallas" },
-    }
-    return amenities[key] || { icon: null, label: key }
-  }
+    };
+    return amenities[key] || { icon: null, label: key };
+  };
 
   const CabinCardSkeleton = () => (
     <Card className="overflow-hidden">
@@ -435,16 +502,24 @@ export default function CabinsManager() {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900">Gestión de Departamentos</h2>
-          <p className="text-slate-600 mt-1">Gestiona todos los departamentos disponibles</p>
+          <h2 className="text-3xl font-bold text-slate-900">
+            Gestión de Departamentos
+          </h2>
+          <p className="text-slate-600 mt-1">
+            Gestiona todos los departamentos disponibles
+          </p>
         </div>
-        <Button onClick={handleAddNew} className="bg-emerald-600 hover:bg-emerald-700" disabled={isLoading}>
+        <Button
+          onClick={handleAddNew}
+          className="bg-emerald-600 hover:bg-emerald-700"
+          disabled={isLoading}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Agregar Nuevo Departamento
         </Button>
@@ -491,7 +566,9 @@ export default function CabinsManager() {
       </Card>
 
       {isLoading && !isDialogOpen && !isDeleteDialogOpen ? (
-        <div className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"}`}>
+        <div
+          className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"}`}
+        >
           {[...Array(6)].map((_, i) => (
             <CabinCardSkeleton key={i} />
           ))}
@@ -501,13 +578,20 @@ export default function CabinsManager() {
           <div className="text-center">
             <MapPin className="h-12 w-12 text-slate-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-slate-900 mb-2">
-              {searchQuery ? "No se encontraron departamentos" : "No hay departamentos disponibles"}
+              {searchQuery
+                ? "No se encontraron departamentos"
+                : "No hay departamentos disponibles"}
             </h3>
             <p className="text-slate-600 mb-4">
-              {searchQuery ? "Intenta con otros términos de búsqueda" : "Comienza agregando tu primer departamento"}
+              {searchQuery
+                ? "Intenta con otros términos de búsqueda"
+                : "Comienza agregando tu primer departamento"}
             </p>
             {!searchQuery && (
-              <Button onClick={handleAddNew} className="bg-emerald-600 hover:bg-emerald-700">
+              <Button
+                onClick={handleAddNew}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Agregar Primer Departamento
               </Button>
@@ -515,10 +599,15 @@ export default function CabinsManager() {
           </div>
         </Card>
       ) : (
-        <div className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"}`}>
+        <div
+          className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"}`}
+        >
           {filteredCabins.map((cabin) => (
-            <Card key={cabin.id} className="overflow-hidden hover:shadow-lg transition-all duration-300 group">
-              <div className="relative h-48 overflow-hidden">
+            <Card
+              key={cabin.id}
+              className="overflow-hidden hover:shadow-lg transition-all duration-300 group"
+            >
+              <div className="relative aspect-square overflow-hidden">
                 {getMainImage(cabin) ? (
                   <Image
                     src={getMainImage(cabin) || "/placeholder.svg"}
@@ -539,14 +628,18 @@ export default function CabinsManager() {
                 )}
                 {cabin.floor && (
                   <Badge className="absolute top-3 left-3 bg-blue-600 text-white border-0">
-                    {cabin.floor === 'upper' ? 'Planta Alta' : 'Planta Baja'}
+                    {cabin.floor === "upper" ? "Planta Alta" : "Planta Baja"}
                   </Badge>
                 )}
               </div>
 
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg line-clamp-1">{getCabinName(cabin)}</CardTitle>
-                <CardDescription className="line-clamp-2">{getCabinDescription(cabin)}</CardDescription>
+                <CardTitle className="text-lg line-clamp-1">
+                  {getCabinName(cabin)}
+                </CardTitle>
+                <CardDescription className="line-clamp-2">
+                  {getCabinDescription(cabin)}
+                </CardDescription>
               </CardHeader>
 
               <CardContent className="space-y-4">
@@ -582,7 +675,10 @@ export default function CabinsManager() {
         </div>
       )}
 
-      <Dialog open={isDialogOpen} onOpenChange={(open) => !isLoading && setIsDialogOpen(open)}>
+      <Dialog
+        open={isDialogOpen}
+        onOpenChange={(open) => !isLoading && setIsDialogOpen(open)}
+      >
         <DialogContent className="max-w-4xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="text-xl">
@@ -595,7 +691,10 @@ export default function CabinsManager() {
               <Tabs defaultValue="general" className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="general">General</TabsTrigger>
-                  <TabsTrigger value="images" className="flex items-center gap-2">
+                  <TabsTrigger
+                    value="images"
+                    className="flex items-center gap-2"
+                  >
                     <ImageIcon className="h-4 w-4" />
                     Imágenes
                   </TabsTrigger>
@@ -669,9 +768,12 @@ export default function CabinsManager() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label className="text-base font-medium">Imágenes del Departamento</Label>
+                        <Label className="text-base font-medium">
+                          Imágenes del Departamento
+                        </Label>
                         <p className="text-sm text-slate-600">
-                          Sube hasta {MAX_IMAGES} imágenes. La primera será la imagen principal.
+                          Sube hasta {MAX_IMAGES} imágenes. La primera será la
+                          imagen principal.
                         </p>
                       </div>
                       <Badge variant="outline">
@@ -691,8 +793,12 @@ export default function CabinsManager() {
                         />
                         <Label htmlFor="images" className="cursor-pointer">
                           <Upload className="h-8 w-8 text-slate-400 mx-auto mb-2" />
-                          <p className="text-sm font-medium text-slate-700">Haz clic para subir imágenes</p>
-                          <p className="text-xs text-slate-500">PNG, JPG hasta 10MB cada una</p>
+                          <p className="text-sm font-medium text-slate-700">
+                            Haz clic para subir imágenes
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            PNG, JPG hasta 10MB cada una
+                          </p>
                         </Label>
                       </div>
                     )}
@@ -700,12 +806,17 @@ export default function CabinsManager() {
                     {images.length === 0 ? (
                       <div className="bg-slate-50 border border-slate-200 rounded-lg p-8 text-center">
                         <ImageIcon className="h-12 w-12 text-slate-400 mx-auto mb-3" />
-                        <p className="text-slate-600">No hay imágenes cargadas</p>
+                        <p className="text-slate-600">
+                          No hay imágenes cargadas
+                        </p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         {images.map((img, index) => (
-                          <div key={index} className="relative aspect-square bg-slate-100 rounded-lg overflow-hidden group">
+                          <div
+                            key={index}
+                            className="relative aspect-square bg-slate-100 rounded-lg overflow-hidden group"
+                          >
                             <Image
                               src={img || "/placeholder.svg"}
                               alt={`Imagen ${index + 1}`}
@@ -735,81 +846,134 @@ export default function CabinsManager() {
 
                 <TabsContent value="amenities" className="space-y-6 pt-6">
                   <div>
-                    <Label className="text-base font-medium">El departamento cuenta con:</Label>
-                    <p className="text-sm text-slate-600 mb-4">Selecciona las comodidades disponibles</p>
+                    <Label className="text-base font-medium">
+                      El departamento cuenta con:
+                    </Label>
+                    <p className="text-sm text-slate-600 mb-4">
+                      Selecciona las comodidades disponibles
+                    </p>
 
                     <div className="space-y-6">
                       <div>
-                        <h4 className="font-semibold mb-3 text-emerald-700">Vista y Espacios</h4>
+                        <h4 className="font-semibold mb-3 text-emerald-700">
+                          Vista y Espacios
+                        </h4>
                         <div className="grid grid-cols-1 gap-3">
-                          {['balconyView'].map((key) => {
-                            const info = getAmenityInfo(key)
+                          {["balconyView"].map((key) => {
+                            const info = getAmenityInfo(key);
                             return (
                               <Card key={key} className="p-3">
                                 <div className="flex items-center space-x-3">
                                   <Switch
                                     id={key}
                                     checked={formData.amenities[key]}
-                                    onCheckedChange={(checked) => handleAmenityChange(key, checked)}
+                                    onCheckedChange={(checked) =>
+                                      handleAmenityChange(key, checked)
+                                    }
                                   />
-                                  <Label htmlFor={key} className="flex items-center cursor-pointer flex-1">
-                                    <div className="text-emerald-600 mr-2">{info.icon}</div>
-                                    <span className="font-medium">{info.label}</span>
+                                  <Label
+                                    htmlFor={key}
+                                    className="flex items-center cursor-pointer flex-1"
+                                  >
+                                    <div className="text-emerald-600 mr-2">
+                                      {info.icon}
+                                    </div>
+                                    <span className="font-medium">
+                                      {info.label}
+                                    </span>
                                   </Label>
-                                  {formData.amenities[key] && <Check className="h-4 w-4 text-emerald-600" />}
+                                  {formData.amenities[key] && (
+                                    <Check className="h-4 w-4 text-emerald-600" />
+                                  )}
                                 </div>
                               </Card>
-                            )
+                            );
                           })}
                         </div>
                       </div>
 
                       <div>
-                        <h4 className="font-semibold mb-3 text-emerald-700">Equipamiento Completo</h4>
+                        <h4 className="font-semibold mb-3 text-emerald-700">
+                          Equipamiento Completo
+                        </h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {['ac', 'fridge', 'microwave', 'kettle', 'electricPot', 'dishes', 'waterHeater', 'tv', 'wifi'].map((key) => {
-                            const info = getAmenityInfo(key)
+                          {[
+                            "ac",
+                            "fridge",
+                            "microwave",
+                            "kettle",
+                            "electricPot",
+                            "dishes",
+                            "waterHeater",
+                            "tv",
+                            "wifi",
+                          ].map((key) => {
+                            const info = getAmenityInfo(key);
                             return (
                               <Card key={key} className="p-3">
                                 <div className="flex items-center space-x-3">
                                   <Switch
                                     id={key}
                                     checked={formData.amenities[key]}
-                                    onCheckedChange={(checked) => handleAmenityChange(key, checked)}
+                                    onCheckedChange={(checked) =>
+                                      handleAmenityChange(key, checked)
+                                    }
                                   />
-                                  <Label htmlFor={key} className="flex items-center cursor-pointer flex-1">
-                                    <div className="text-emerald-600 mr-2">{info.icon}</div>
-                                    <span className="font-medium">{info.label}</span>
+                                  <Label
+                                    htmlFor={key}
+                                    className="flex items-center cursor-pointer flex-1"
+                                  >
+                                    <div className="text-emerald-600 mr-2">
+                                      {info.icon}
+                                    </div>
+                                    <span className="font-medium">
+                                      {info.label}
+                                    </span>
                                   </Label>
-                                  {formData.amenities[key] && <Check className="h-4 w-4 text-emerald-600" />}
+                                  {formData.amenities[key] && (
+                                    <Check className="h-4 w-4 text-emerald-600" />
+                                  )}
                                 </div>
                               </Card>
-                            )
+                            );
                           })}
                         </div>
                       </div>
 
                       <div>
-                        <h4 className="font-semibold mb-3 text-emerald-700">Ropa de Cama Incluida</h4>
+                        <h4 className="font-semibold mb-3 text-emerald-700">
+                          Ropa de Cama Incluida
+                        </h4>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          {['bedding', 'blankets', 'towels'].map((key) => {
-                            const info = getAmenityInfo(key)
+                          {["bedding", "blankets", "towels"].map((key) => {
+                            const info = getAmenityInfo(key);
                             return (
                               <Card key={key} className="p-3">
                                 <div className="flex items-center space-x-3">
                                   <Switch
                                     id={key}
                                     checked={formData.amenities[key]}
-                                    onCheckedChange={(checked) => handleAmenityChange(key, checked)}
+                                    onCheckedChange={(checked) =>
+                                      handleAmenityChange(key, checked)
+                                    }
                                   />
-                                  <Label htmlFor={key} className="flex items-center cursor-pointer flex-1">
-                                    <div className="text-emerald-600 mr-2">{info.icon}</div>
-                                    <span className="font-medium">{info.label}</span>
+                                  <Label
+                                    htmlFor={key}
+                                    className="flex items-center cursor-pointer flex-1"
+                                  >
+                                    <div className="text-emerald-600 mr-2">
+                                      {info.icon}
+                                    </div>
+                                    <span className="font-medium">
+                                      {info.label}
+                                    </span>
                                   </Label>
-                                  {formData.amenities[key] && <Check className="h-4 w-4 text-emerald-600" />}
+                                  {formData.amenities[key] && (
+                                    <Check className="h-4 w-4 text-emerald-600" />
+                                  )}
                                 </div>
                               </Card>
-                            )
+                            );
                           })}
                         </div>
                       </div>
@@ -850,19 +1014,29 @@ export default function CabinsManager() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => !isLoading && setIsDeleteDialogOpen(open)}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => !isLoading && setIsDeleteDialogOpen(open)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Eliminación</AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Estás seguro de que quieres eliminar {getCabinName(currentCabin)}?
+              ¿Estás seguro de que quieres eliminar {getCabinName(currentCabin)}
+              ?
               <br />
-              <span className="text-red-600 font-medium">Esta acción no se puede deshacer.</span>
+              <span className="text-red-600 font-medium">
+                Esta acción no se puede deshacer.
+              </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isLoading}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} disabled={isLoading} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={isLoading}
+              className="bg-red-600 hover:bg-red-700"
+            >
               {isLoading ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -876,5 +1050,5 @@ export default function CabinsManager() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
+  );
 }
