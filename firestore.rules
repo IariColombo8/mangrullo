@@ -1,31 +1,71 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /reservas/{document=**} {
-      allow read: if true;
-      allow write: if request.auth != null;
-    }
-    
-    // Allow public read access to activities
-    match /activities/{document=**} {
-      allow read: if true;
-      allow write: if request.auth != null;
-    }
-    
-    match /testimonials/{testimonialId} {
-      allow read: if true || resource.data.status == 'approved';
-      allow write: if request.auth != null;
-    }
-    
-    // Only allow authenticated users to read and write settings
-    match /settings/{document=**} {
-      allow read: if true;
-      allow write: if request.auth != null;
+
+    // Helper: verificar si el usuario es admin
+    function isAdmin() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
+    // Reservas: lectura pública (disponibilidad), escritura solo admin
+    match /reservas/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Actividades: lectura pública, escritura solo admin
+    match /activities/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Testimonios: lectura pública, escritura solo admin
+    match /testimonials/{testimonialId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Settings: lectura pública, escritura solo admin
+    match /settings/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Cabañas: lectura pública, escritura solo admin
+    match /cabins/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Usuarios: lectura autenticada, escritura propia o admin
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
+        (request.auth.uid == userId || isAdmin());
+    }
+
+    // Contadores: lectura autenticada, escritura solo admin
+    match /counters/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Feriados: lectura pública, escritura solo admin
     match /feriados/{document} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isAdmin();
+    }
+
+    // Huéspedes: solo admin
+    match /guests/{document=**} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Denegar todo lo demás por defecto
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

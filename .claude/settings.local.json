@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(npx next:*)",
+      "Bash(npm install:*)",
+      "Bash(ANALYZE=true npx next:*)",
+      "Bash(du:*)",
+      "Bash(rm:*)",
+      "WebFetch(domain:pagespeed.web.dev)"
+    ]
+  }
+}

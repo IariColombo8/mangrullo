@@ -5,12 +5,21 @@ import Image from "next/image"
 import { Star, ChevronLeft, ChevronRight } from "lucide-react"
 import { useLanguage } from "@/context/language-context"
 import { collection, getDocs } from "firebase/firestore"
-import { db } from "../../lib/firebase" // Asegúrate de tener este archivo con la configuración de Firebase
+import { db } from "@/lib/firebase"
+
+interface Testimonial {
+  id: string
+  name: string
+  location?: string
+  image?: string
+  rating: number
+  text: Record<string, string>
+}
 
 export default function Testimonials() {
-  const [testimonials, setTestimonials] = useState([])
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [visibleTestimonials, setVisibleTestimonials] = useState([])
+  const [visibleTestimonials, setVisibleTestimonials] = useState<Testimonial[]>([])
   const [loading, setLoading] = useState(true)
   const { language, t } = useLanguage()
 
@@ -42,19 +51,26 @@ export default function Testimonials() {
   }, [])
 
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>
     const handleResize = () => {
-      if (window.innerWidth < 640) {
-        setItemsPerPage(1)
-      } else if (window.innerWidth < 1024) {
-        setItemsPerPage(2)
-      } else {
-        setItemsPerPage(3)
-      }
+      clearTimeout(timeoutId)
+      timeoutId = setTimeout(() => {
+        if (window.innerWidth < 640) {
+          setItemsPerPage(1)
+        } else if (window.innerWidth < 1024) {
+          setItemsPerPage(2)
+        } else {
+          setItemsPerPage(3)
+        }
+      }, 150)
     }
 
     handleResize()
-    window.addEventListener("resize", handleResize)
-    return () => window.removeEventListener("resize", handleResize)
+    window.addEventListener("resize", handleResize, { passive: true })
+    return () => {
+      clearTimeout(timeoutId)
+      window.removeEventListener("resize", handleResize)
+    }
   }, [])
 
   useEffect(() => {
@@ -80,7 +96,7 @@ export default function Testimonials() {
 
   if (loading) {
     return (
-      <section className="section-padding bg-white">
+      <section id="testimonials" className="section-padding bg-white">
         <div className="container-custom">
           <h2 className="section-title text-brown">{t("testimonials.title")}</h2>
           <p className="text-center text-gray-600 mb-12">Cargando testimonios...</p>
@@ -91,7 +107,7 @@ export default function Testimonials() {
 
   if (testimonials.length === 0) {
     return (
-      <section className="section-padding bg-white">
+      <section id="testimonials" className="section-padding bg-white">
         <div className="container-custom">
           <h2 className="section-title text-brown">{t("testimonials.title")}</h2>
           <p className="text-center text-gray-600 mb-12">No hay testimonios disponibles.</p>
@@ -101,7 +117,7 @@ export default function Testimonials() {
   }
 
   return (
-    <section className="section-padding bg-white">
+    <section id="testimonials" className="section-padding bg-white">
       <div className="container-custom">
         <h2 className="section-title text-brown">{t("testimonials.title")}</h2>
         <p className="text-center text-gray-600 mb-12 max-w-3xl mx-auto">{t("testimonials.subtitle")}</p>
@@ -116,6 +132,8 @@ export default function Testimonials() {
                       src={testimonial.image || "/placeholder.svg"}
                       alt={testimonial.name}
                       fill
+                      sizes="48px"
+                      loading="lazy"
                       className="object-cover"
                     />
                   </div>

@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app"
+import { initializeApp, getApps, getApp } from "firebase/app"
 import { getAuth, GoogleAuthProvider } from "firebase/auth"
 import { getFirestore } from "firebase/firestore"
 import { getStorage } from "firebase/storage"
@@ -12,14 +12,13 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 }
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig)
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()
+
 const auth = getAuth(app)
 
-// Configuración adicional para Google Auth
 const googleProvider = new GoogleAuthProvider()
 googleProvider.setCustomParameters({
-  prompt: "select_account" // Esto fuerza a mostrar el selector de cuentas cada vez
+  prompt: "select_account",
 })
 
 const db = getFirestore(app)

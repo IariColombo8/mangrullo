@@ -107,17 +107,24 @@ export default function Activities() {
           {activities.map((activity) => (
             <div
               key={activity.id}
-              className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 group cursor-pointer"
+              role="button"
+              tabIndex={0}
+              className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 group cursor-pointer focus:outline-none focus:ring-2 focus:ring-green"
               onClick={() => {
                 setSelectedActivity(activity);
                 setIsDialogOpen(true);
               }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedActivity(activity); setIsDialogOpen(true); } }}
+              aria-label={`Ver detalles de ${getTitle(activity)}`}
             >
               <div className="relative aspect-square overflow-hidden">
                 <Image
                   src={activity.image || "/placeholder.svg"}
                   alt={getTitle(activity)}
                   fill
+                  sizes="(max-width: 768px) 50vw, 20vw"
+                  loading="lazy"
+                  quality={70}
                   className="object-cover group-hover:scale-105 transition-transform duration-300"
                 />
                 {activity.category && (
@@ -233,7 +240,7 @@ export default function Activities() {
                       variant="outline"
                       className="flex-1"
                       onClick={() =>
-                        window.open(selectedActivity.infoLink, "_blank")
+                        window.open(selectedActivity.infoLink, "_blank", "noopener,noreferrer")
                       }
                     >
                       <ExternalLink className="h-4 w-4 mr-2" />

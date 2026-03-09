@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,12 +10,23 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useLanguage } from "@/context/language-context"
 import { Wifi, Users, MapPin, Check, Snowflake, Droplets, Tv, UtensilsCrossed, Coffee, CookingPot, Bed, Eye, ChevronLeft, ChevronRight, MessageCircle, X } from "lucide-react"
 import { collection, getDocs } from "firebase/firestore"
-import { db } from "../../lib/firebase"
+import { db } from "@/lib/firebase"
+
+interface Cabin {
+  id: string
+  name: string | { es?: string; en?: string; pt?: string }
+  description: string | { es?: string; en?: string; pt?: string }
+  image?: string
+  images?: string[]
+  capacity?: number
+  floor?: string
+  amenities?: Record<string, boolean> | string[]
+}
 
 export default function CabinsSection() {
-  const [cabins, setCabins] = useState([])
+  const [cabins, setCabins] = useState<Cabin[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [selectedCabin, setSelectedCabin] = useState(null)
+  const [selectedCabin, setSelectedCabin] = useState<Cabin | null>(null)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const { language, t } = useLanguage()
 
@@ -30,7 +41,7 @@ export default function CabinsSection() {
       const cabinsData = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      }))
+      })) as Cabin[]
       setCabins(cabinsData)
     } catch (error) {
       console.error("Error al cargar los departamentos:", error)
@@ -126,10 +137,15 @@ export default function CabinsSection() {
     }
   }
 
-  const handleWhatsApp = (cabin) => {
+  const selectedCabinAmenities = useMemo(
+    () => (selectedCabin ? selectedCabinAmenities : []),
+    [selectedCabin]
+  )
+
+  const handleWhatsApp = (cabin: Cabin) => {
     const message = `Hola! Me interesa el departamento "${getCabinName(cabin)}". ¿Podrían darme más información sobre precios y disponibilidad?`
     const whatsappUrl = `https://wa.me/5493456551306?text=${encodeURIComponent(message)}`
-    window.open(whatsappUrl, '_blank')
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
   }
 
   const CabinCardSkeleton = () => (
@@ -172,18 +188,26 @@ export default function CabinsSection() {
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
             {cabins.map((cabin) => {
               const activeAmenities = getActiveAmenities(cabin)
+              const mainImage = getMainImage(cabin)
               return (
                 <Card
                   key={cabin.id}
-                  className="overflow-hidden hover:shadow-xl transition-all duration-300 group cursor-pointer scale-90 md:scale-100"
+                  role="button"
+                  tabIndex={0}
+                  className="overflow-hidden hover:shadow-xl transition-all duration-300 group cursor-pointer scale-90 md:scale-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   onClick={() => handleViewDetails(cabin)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleViewDetails(cabin) } }}
+                  aria-label={`Ver detalles de ${getCabinName(cabin)}`}
                 >
                   <div className="relative h-48 md:h-64 overflow-hidden rounded-lg">
-                    {getMainImage(cabin) ? (
+                    {mainImage ? (
                       <Image
-                        src={getMainImage(cabin)}
+                        src={mainImage}
                         alt={getCabinName(cabin)}
                         fill
+                        sizes="(max-width: 768px) 50vw, (max-width: 1024px) 50vw, 25vw"
+                        loading="lazy"
+                        quality={70}
                         className="object-cover group-hover:scale-110 transition-transform duration-300"
                       />
                     ) : (
@@ -295,6 +319,7 @@ export default function CabinsSection() {
                             src={selectedCabin.images[currentImageIndex]}
                             alt={`${getCabinName(selectedCabin)} - Imagen ${currentImageIndex + 1}`}
                             fill
+                            sizes="(max-width: 768px) 95vw, 896px"
                             className="object-contain"
                           />
                         </div>
@@ -332,7 +357,7 @@ export default function CabinsSection() {
                                   : 'border-gray-200 opacity-60 hover:opacity-100 hover:border-emerald-400'
                               }`}
                             >
-                              <Image src={img} alt={`Miniatura ${idx + 1}`} fill className="object-cover" />
+                              <Image src={img} alt={`Miniatura ${idx + 1}`} fill sizes="64px" className="object-cover" />
                             </button>
                           ))}
                         </div>
@@ -353,12 +378,12 @@ export default function CabinsSection() {
                   </div>
 
                   {/* Amenidades */}
-                  {getActiveAmenities(selectedCabin).length > 0 && (
+                  {selectedCabinAmenities.length > 0 && (
                     <div className="mb-3 md:mb-6">
                       <h3 className="text-sm md:text-lg font-semibold text-gray-900 mb-2 md:mb-4">El departamento cuenta con:</h3>
 
                       {/* Vista y Espacios */}
-                      {getActiveAmenities(selectedCabin).includes('balconyView') && (
+                      {selectedCabinAmenities.includes('balconyView') && (
                         <div className="mb-2 md:mb-4">
                           <h4 className="text-xs md:text-sm font-semibold text-gray-700 mb-1.5 md:mb-2">Vista y Espacios</h4>
                           <div className="flex items-center gap-1.5 md:gap-2 bg-blue-50 p-2 md:p-3 rounded-lg">
@@ -369,14 +394,14 @@ export default function CabinsSection() {
                       )}
 
                       {/* Equipamiento Completo */}
-                      {getActiveAmenities(selectedCabin).filter(a =>
+                      {selectedCabinAmenities.filter(a =>
                         ['ac', 'fridge', 'microwave', 'kettle', 'electricPot', 'dishes', 'waterHeater', 'tv', 'wifi'].includes(a)
                       ).length > 0 && (
                         <div className="mb-2 md:mb-4">
                           <h4 className="text-xs md:text-sm font-semibold text-gray-700 mb-1.5 md:mb-2">Equipamiento Completo</h4>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 md:gap-2">
                             {['ac', 'fridge', 'microwave', 'kettle', 'electricPot', 'dishes', 'waterHeater', 'tv', 'wifi']
-                              .filter(key => getActiveAmenities(selectedCabin).includes(key))
+                              .filter(key => selectedCabinAmenities.includes(key))
                               .map((amenity) => {
                                 const info = getAmenityInfo(amenity)
                                 return (
@@ -391,14 +416,14 @@ export default function CabinsSection() {
                       )}
 
                       {/* Ropa de Cama */}
-                      {getActiveAmenities(selectedCabin).filter(a =>
+                      {selectedCabinAmenities.filter(a =>
                         ['bedding', 'blankets', 'towels'].includes(a)
                       ).length > 0 && (
                         <div className="mb-2 md:mb-4">
                           <h4 className="text-xs md:text-sm font-semibold text-gray-700 mb-1.5 md:mb-2">Ropa de Cama Incluida</h4>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 md:gap-2">
                             {['bedding', 'blankets', 'towels']
-                              .filter(key => getActiveAmenities(selectedCabin).includes(key))
+                              .filter(key => selectedCabinAmenities.includes(key))
                               .map((amenity) => {
                                 const info = getAmenityInfo(amenity)
                                 return (

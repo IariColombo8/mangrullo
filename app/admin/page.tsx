@@ -3,17 +3,46 @@
 import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/auth-context"
-import { LanguageProvider } from "@/context/language-context"
-import ReservasManager, {
-  type ReservasManagerRef,
-} from "@/components/admin/reservas/reserva-manager";
-import CabinsManager from "@/components/admin/cabins-manager"
-import TestimonialsManager from "@/components/admin/testimonials-manager"
-import ActivitiesManager from "@/components/admin/activities-manager"
-import GuestsDatabaseManager from "@/components/admin/guests-database-manager"
+import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Home, Calendar, MessageSquare, MapPin, Settings, Menu, Users, Plus } from "lucide-react"
+
+const ReservasManager = dynamic(
+  () => import("@/components/admin/reservas/reserva-manager"),
+  { ssr: false, loading: () => <AdminSectionLoader label="reservas" /> }
+)
+
+const CabinsManager = dynamic(
+  () => import("@/components/admin/cabins-manager"),
+  { ssr: false, loading: () => <AdminSectionLoader label="cabañas" /> }
+)
+
+const TestimonialsManager = dynamic(
+  () => import("@/components/admin/testimonials-manager"),
+  { ssr: false, loading: () => <AdminSectionLoader label="testimonios" /> }
+)
+
+const ActivitiesManager = dynamic(
+  () => import("@/components/admin/activities-manager"),
+  { ssr: false, loading: () => <AdminSectionLoader label="actividades" /> }
+)
+
+const GuestsDatabaseManager = dynamic(
+  () => import("@/components/admin/guests-database-manager"),
+  { ssr: false, loading: () => <AdminSectionLoader label="huéspedes" /> }
+)
+
+function AdminSectionLoader({ label }: { label: string }) {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <div className="flex flex-col items-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600" />
+        <p className="mt-4 text-gray-500 capitalize">Cargando {label}...</p>
+      </div>
+    </div>
+  )
+}
 
 const SettingsManager = () => (
   <div className="p-6 text-center text-muted-foreground">
@@ -28,7 +57,6 @@ export default function AdminPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("reservas")
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const reservasManagerRef = useRef<ReservasManagerRef>(null)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -40,15 +68,15 @@ export default function AdminPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green" />
+          <p className="mt-4 text-gray-600">Cargando...</p>
         </div>
       </div>
     )
   }
 
   if (!user) {
-    return null // Will redirect to login
+    return null
   }
 
   const tabItems = [
@@ -61,11 +89,9 @@ export default function AdminPage() {
   ]
 
   return (
-    <LanguageProvider>
       <div className="min-h-screen bg-gray-50">
         <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
           <div className="container flex h-16 items-center justify-between px-4">
-            {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-1">
               {tabItems.map((item) => (
                 <Button
@@ -87,9 +113,6 @@ export default function AdminPage() {
                 className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg"
                 onClick={() => {
                   setActiveTab("reservas")
-                  setTimeout(() => {
-                    reservasManagerRef.current?.openNewDialog()
-                  }, 100)
                 }}
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -97,7 +120,6 @@ export default function AdminPage() {
                 <span className="sm:hidden">Nueva</span>
               </Button>
 
-              {/* Mobile Menu */}
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild>
                   <Button variant="outline" size="icon" className="md:hidden bg-transparent">
@@ -128,7 +150,6 @@ export default function AdminPage() {
               </Sheet>
             </div>
 
-            {/* Active Tab Title for Mobile */}
             <div className="md:hidden flex items-center gap-2 absolute left-1/2 transform -translate-x-1/2">
               {tabItems.find((item) => item.value === activeTab) && (
                 <>
@@ -136,7 +157,9 @@ export default function AdminPage() {
                     const ActiveIcon = tabItems.find((item) => item.value === activeTab)?.icon
                     return ActiveIcon ? <ActiveIcon className="h-4 w-4" /> : null
                   })()}
-                  <span className="font-semibold">{tabItems.find((item) => item.value === activeTab)?.label}</span>
+                  <span className="font-semibold">
+                    {tabItems.find((item) => item.value === activeTab)?.label}
+                  </span>
                 </>
               )}
             </div>
@@ -145,13 +168,12 @@ export default function AdminPage() {
 
         <main className="container py-6 px-4">
           {activeTab === "cabins" && <CabinsManager />}
-          {activeTab === "reservas" && <ReservasManager ref={reservasManagerRef} />}
+          {activeTab === "reservas" && <ReservasManager />}
           {activeTab === "guests" && <GuestsDatabaseManager />}
           {activeTab === "testimonials" && <TestimonialsManager />}
           {activeTab === "activities" && <ActivitiesManager />}
           {activeTab === "settings" && <SettingsManager />}
         </main>
       </div>
-    </LanguageProvider>
   )
 }
