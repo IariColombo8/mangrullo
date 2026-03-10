@@ -3,7 +3,7 @@ import type { Timestamp } from "firebase/firestore"
 export type OrigenReserva = "booking" | "airbnb" | "upcn" | "particular"
 export type ContactoParticular = "iara" | "angel" | "claudia"
 export type Departamento = string
-export type EstadoReserva = "activa" | "cancelada" | "no_presentado" | "pagado"
+export type EstadoReserva = "activa" | "confirmada" | "cancelada" | "no_presentado" | "pagado"
 
 export interface PrecioNoche {
   pesos?: number

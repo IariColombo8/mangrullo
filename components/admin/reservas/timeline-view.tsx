@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils"
 interface TimelineViewProps {
   reservas: Reserva[]
   mes: Date
-  cabins: { id: string; name: string }[]
+  cabins: { id: string; name: string | { es?: string; en?: string; pt?: string } }[]
   setViewingReserva: (reserva: Reserva) => void
   isFeriado: (date: Date) => boolean
   getFeriadoLabel: (date: Date) => string | undefined
@@ -40,7 +40,8 @@ interface TimelineViewProps {
   error?: string | null
 }
 
-const parseDate = (date: Date | string | number): Date => {
+const parseDate = (date: any): Date => {
+  if (date && typeof date.toDate === 'function') return date.toDate()
   if (date instanceof Date && !isNaN(date.getTime())) {
     return date
   }
@@ -80,6 +81,9 @@ const TimelineView: React.FC<TimelineViewProps> = ({
   removeCustomHoliday,
   error,
 }) => {
+  const getCabinName = (name: string | { es?: string; en?: string; pt?: string }): string =>
+    typeof name === 'string' ? name : (name?.es || name?.en || '')
+
   const [feriadoDate, setFeriadoDate] = useState<Date | undefined>(undefined)
   const [feriadoNombre, setFeriadoNombre] = useState("")
   const [isFeriadosOpen, setIsFeriadosOpen] = useState(false)
@@ -108,11 +112,11 @@ const TimelineView: React.FC<TimelineViewProps> = ({
     return (
       monthReservations.find((r) => {
         // Manejar nombre como string o como objeto
-        const deptName = typeof r.departamento === 'string' ? r.departamento : (r.departamento?.es || r.departamento?.en || '')
+        const deptName = typeof r.departamento === 'string' ? r.departamento : ((r.departamento as any)?.es || (r.departamento as any)?.en || '')
         const matchesDept =
           deptName === departamento ||
           (r.departamentos && r.departamentos.some((d) => {
-            const dName = typeof d.departamento === 'string' ? d.departamento : (d.departamento?.es || d.departamento?.en || '')
+            const dName = typeof d.departamento === 'string' ? d.departamento : ((d.departamento as any)?.es || (d.departamento as any)?.en || '')
             return dName === departamento
           }))
         if (!matchesDept) return false
@@ -200,7 +204,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                 >
                   <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-2 font-semibold text-xs flex items-center border-r-2 border-gray-300">
                     <Home className="h-3 w-3 mr-1 text-emerald-600 flex-shrink-0" />
-                    <span className="truncate">{cabin.name}</span>
+                    <span className="truncate">{getCabinName(cabin.name)}</span>
                   </div>
 
                   <div
@@ -209,7 +213,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                   >
                     {daysInMonth.map((day, dayIndex) => {
                       const isToday = isSameDay(day, new Date())
-                      const reserva = getReservationForDayAndDept(day, cabin.name)
+                      const reserva = getReservationForDayAndDept(day, getCabinName(cabin.name))
                       const hasAlert = reserva ? needsPaymentAlert(reserva) : false
                       const holiday = isFeriado(day)
                       const prevIsHoliday = dayIndex > 0 ? isFeriado(daysInMonth[dayIndex - 1]) : false
@@ -236,8 +240,8 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                     {monthReservations
                       .filter((r) => {
                         return (
-                          r.departamento === cabin.name ||
-                          (r.departamentos && r.departamentos.some((d) => d.departamento === cabin.name))
+                          r.departamento === getCabinName(cabin.name) ||
+                          (r.departamentos && r.departamentos.some((d) => d.departamento === getCabinName(cabin.name)))
                         )
                       })
                       .map((reserva, idx) => {
@@ -318,7 +322,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                 <div key={cabin.id} className="p-1 border-l border-emerald-200 text-center">
                   <div className="flex items-center justify-center gap-0.5">
                     <Home className="h-2.5 w-2.5 text-emerald-600 flex-shrink-0" />
-                    <span className="font-bold text-emerald-900 text-[9px] truncate">{cabin.name}</span>
+                    <span className="font-bold text-emerald-900 text-[9px] truncate">{getCabinName(cabin.name)}</span>
                   </div>
                 </div>
               ))}
@@ -365,7 +369,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                   </div>
 
                   {cabins.map((cabin) => {
-                    const reserva = getReservationForDayAndDept(day, cabin.name)
+                    const reserva = getReservationForDayAndDept(day, getCabinName(cabin.name))
                     const hasAlert = reserva ? needsPaymentAlert(reserva) : false
 
                     const isFirstDay = reserva ? isFirstPaintedDay(day, reserva) : false

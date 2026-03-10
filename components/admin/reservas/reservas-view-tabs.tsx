@@ -104,6 +104,8 @@ interface ReservasViewTabsProps {
   setFilterMes: (date: Date) => void
   hasActiveFilters: boolean
   clearAllFilters: () => void
+  filterNumeroReservaBooking?: string
+  setFilterNumeroReservaBooking?: (value: string) => void
 }
 
 function calculateNights(checkIn: Date, checkOut: Date): number {
@@ -189,24 +191,24 @@ export default function ReservasViewTabs({
   const expandedReservas = useMemo(() => {
     const expanded: ExpandedReserva[] = []
     filteredReservas.forEach((reserva) => {
-      if (reserva.esMultiple && reserva.departamentos && reserva.departamentos.length > 0) {
+      if (reserva.esReservaMultiple && reserva.departamentos && reserva.departamentos.length > 0) {
         // Si es múltiple, crear una fila por cada departamento
-        const departamentosTexto = `alquiló ${reserva.departamentos.length} departamentos: ${reserva.departamentos.map((d) => d.nombre).join(", ")}`
+        const departamentosTexto = `alquiló ${reserva.departamentos.length} departamentos: ${reserva.departamentos.map((d) => d.departamento).join(", ")}`
         reserva.departamentos.forEach((depto, index) => {
           const currency = getCurrency(reserva.pais, reserva.origen)
           const precioNoche =
             depto.precioNoche && typeof depto.precioNoche === "object"
-              ? depto.precioNoche[currency as keyof PrecioNoche] || 0
+              ? (depto.precioNoche as Record<string, number | undefined>)[currency] || 0
               : 0
 
           expanded.push({
             reserva,
-            departamento: depto.nombre,
-            adultos: depto.adultos,
-            menores: depto.menores,
+            departamento: depto.departamento,
+            adultos: depto.cantidadAdultos,
+            menores: depto.cantidadMenores,
             precioNoche,
             precioTotal: depto.precioTotal || 0,
-            uniqueKey: `${reserva.id}-${depto.nombre}-${index}`,
+            uniqueKey: `${reserva.id}-${depto.departamento}-${index}`,
             esMultiple: true,
             departamentosTexto: index === 0 ? departamentosTexto : undefined, // Solo en la primera fila
           })
@@ -216,17 +218,17 @@ export default function ReservasViewTabs({
         const currency = getCurrency(reserva.pais, reserva.origen)
         const precioNoche =
           reserva.precioNoche && typeof reserva.precioNoche === "object"
-            ? reserva.precioNoche[currency as keyof PrecioNoche] || 0
+            ? (reserva.precioNoche as Record<string, number | undefined>)[currency] || 0
             : 0
 
         expanded.push({
           reserva,
           departamento: reserva.departamento,
-          adultos: reserva.adultos,
-          menores: reserva.menores,
+          adultos: reserva.cantidadAdultos || 0,
+          menores: reserva.cantidadMenores || 0,
           precioNoche,
           precioTotal: reserva.precioTotal || 0,
-          uniqueKey: reserva.id,
+          uniqueKey: reserva.id || '',
           esMultiple: false,
         })
       }
@@ -318,11 +320,14 @@ export default function ReservasViewTabs({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todos">Todos</SelectItem>
-                    {cabins.map((cabin) => (
-                      <SelectItem key={cabin.id} value={cabin.name}>
-                        {cabin.name}
-                      </SelectItem>
-                    ))}
+                    {cabins.map((cabin) => {
+                      const name = typeof cabin.name === 'string' ? cabin.name : (cabin.name?.es || cabin.id)
+                      return (
+                        <SelectItem key={cabin.id} value={name}>
+                          {name}
+                        </SelectItem>
+                      )
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -497,7 +502,7 @@ export default function ReservasViewTabs({
                                 {hasAlert && (
                                   <AlertTriangle
                                     className="h-3 w-3 text-red-500 flex-shrink-0"
-                                    title="Reserva vencida sin pago"
+                                    aria-label="Reserva vencida sin pago"
                                   />
                                 )}
                                 <Badge

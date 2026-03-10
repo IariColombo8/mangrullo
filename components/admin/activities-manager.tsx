@@ -521,7 +521,7 @@ export default function ActivitiesManager() {
             <div className="text-2xl font-bold text-purple-600">
               {stats.byCategory.reduce(
                 (max, cat) => (cat.count > max.count ? cat : max),
-                { count: 0 },
+                { count: 0, name: "N/A" } as { count: number; name: string },
               ).name || "N/A"}
             </div>
             <div className="text-sm text-slate-600">Categoría Popular</div>

@@ -19,7 +19,7 @@ import { calculateNights } from "./utilidadesReserva";
 
 interface SeccionPreciosProps {
   formData: ReservaFormData;
-  setFormData: (data: ReservaFormData) => void;
+  setFormData: (data: ReservaFormData | ((prev: ReservaFormData) => ReservaFormData)) => void;
   esReservaMultiple: boolean;
   departamentosDetalles: Map<string, DepartamentoDetalle>;
   setDepartamentosDetalles: (value: Map<string, DepartamentoDetalle>) => void;

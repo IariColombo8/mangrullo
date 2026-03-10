@@ -85,7 +85,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
 
   const precioNocheMostrar =
     reserva.precioNoche && typeof reserva.precioNoche === "object"
-      ? reserva.precioNoche[monedaReserva] || 0
+      ? (reserva.precioNoche as Record<string, number>)[monedaReserva] || 0
       : 0;
 
   const createCaptureCanvas = async () => {
@@ -474,7 +474,7 @@ const ComprobanteProfesional: React.FC<ComprobanteProfesionalProps> = ({
                     Precios por departamento:
                   </label>
                   {reserva.departamentos.map((dept) => {
-                    const precioNoche = dept.precioNoche[monedaReserva] || 0;
+                    const precioNoche = (dept.precioNoche as Record<string, number>)[monedaReserva] || 0;
                     return (
                       <div
                         key={dept.departamento}

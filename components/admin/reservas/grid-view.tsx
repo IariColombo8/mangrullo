@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils"
 interface GridViewProps {
   reservas: Reserva[]
   mes: Date
-  cabins: { id: string; name: string }[]
+  cabins: { id: string; name: string | { es?: string; en?: string; pt?: string } }[]
   setViewingReserva: (reserva: Reserva) => void
   isFeriado: (date: Date) => boolean
   getFeriadoLabel: (date: Date) => string | undefined
@@ -48,6 +48,9 @@ const GridView: React.FC<GridViewProps> = ({
 
   const monthReservations = getMonthReservations()
 
+  const getCabinName = (name: string | { es?: string; en?: string; pt?: string }): string =>
+    typeof name === 'string' ? name : (name?.es || name?.en || '')
+
   const needsPaymentAlert = (reserva: Reserva): boolean => {
     const today = startOfDay(new Date())
     const fechaSalida = reserva.fechaFin as Date
@@ -68,12 +71,12 @@ const GridView: React.FC<GridViewProps> = ({
       // Manejar nombre como string o como objeto
       if (r.esReservaMultiple && r.departamentos) {
         const includesDepartamento = r.departamentos.some((d) => {
-          const dName = typeof d.departamento === 'string' ? d.departamento : (d.departamento?.es || d.departamento?.en || '')
+          const dName = typeof d.departamento === 'string' ? d.departamento : ((d.departamento as any)?.es || (d.departamento as any)?.en || '')
           return dName === departamento
         })
         if (!includesDepartamento) return false
       } else {
-        const deptName = typeof r.departamento === 'string' ? r.departamento : (r.departamento?.es || r.departamento?.en || '')
+        const deptName = typeof r.departamento === 'string' ? r.departamento : ((r.departamento as any)?.es || (r.departamento as any)?.en || '')
         if (deptName !== departamento) return false
       }
 
@@ -158,12 +161,12 @@ const GridView: React.FC<GridViewProps> = ({
             const deptReservations = monthReservations.filter((r) => {
               if (r.esReservaMultiple && r.departamentos) {
                 return r.departamentos.some((d) => {
-                  const dName = typeof d.departamento === 'string' ? d.departamento : (d.departamento?.es || d.departamento?.en || '')
-                  return dName === cabin.name
+                  const dName = typeof d.departamento === 'string' ? d.departamento : ((d.departamento as any)?.es || (d.departamento as any)?.en || '')
+                  return dName === getCabinName(cabin.name)
                 })
               }
-              const deptName = typeof r.departamento === 'string' ? r.departamento : (r.departamento?.es || r.departamento?.en || '')
-              return deptName === cabin.name
+              const deptName = typeof r.departamento === 'string' ? r.departamento : ((r.departamento as any)?.es || (r.departamento as any)?.en || '')
+              return deptName === getCabinName(cabin.name)
             })
 
             return (
@@ -172,7 +175,7 @@ const GridView: React.FC<GridViewProps> = ({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1 lg:gap-2">
                       <Home className="h-3 w-3 lg:h-4 lg:w-4" />
-                      <CardTitle className="text-xs lg:text-sm font-bold">{cabin.name}</CardTitle>
+                      <CardTitle className="text-xs lg:text-sm font-bold">{getCabinName(cabin.name)}</CardTitle>
                     </div>
                     <Badge className="bg-white/20 text-white border-white/30 text-[9px] lg:text-[10px] px-1.5 lg:px-2 py-0">
                       {deptReservations.length}
@@ -204,7 +207,7 @@ const GridView: React.FC<GridViewProps> = ({
                             return <div key={dayIdx} className="h-6 lg:h-8 bg-gray-50 rounded" />
                           }
 
-                          const dayReservations = getReservationsForDay(day, cabin.name)
+                          const dayReservations = getReservationsForDay(day, getCabinName(cabin.name))
                           const primaryReservation = dayReservations[0]
                           const hasMultiple = dayReservations.length > 1
                           const isToday = isSameDay(day, new Date())

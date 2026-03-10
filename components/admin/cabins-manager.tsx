@@ -36,6 +36,21 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useLanguage } from "@/context/language-context";
+import { ReactNode } from "react";
+
+interface CabinAdmin {
+  id: string;
+  name: string | { es?: string; en?: string; pt?: string };
+  description: string | { es?: string; en?: string; pt?: string };
+  images: string[];
+  image: string;
+  capacity: number;
+  floor: string;
+  amenities: Record<string, boolean>;
+  createdAt: any;
+  updatedAt: any;
+  [key: string]: any;
+}
 import {
   Edit,
   Trash,
@@ -82,25 +97,33 @@ const CURRENCY_TYPES = {
 };
 
 export default function CabinsManager() {
-  const [cabins, setCabins] = useState([]);
-  const [filteredCabins, setFilteredCabins] = useState([]);
+  const [cabins, setCabins] = useState<CabinAdmin[]>([]);
+  const [filteredCabins, setFilteredCabins] = useState<CabinAdmin[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [currentCabin, setCurrentCabin] = useState(null);
+  const [currentCabin, setCurrentCabin] = useState<CabinAdmin | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [images, setImages] = useState([]);
+  const [images, setImages] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState("grid");
-  const { language } = useLanguage();
+  const { t } = useLanguage();
+  const language = "es";
   const { toast } = useToast();
   const MAX_IMAGES = 10;
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    description: string;
+    capacity: number;
+    images: string[];
+    floor: string;
+    amenities: Record<string, boolean>;
+  }>({
     name: "",
     description: "",
     capacity: 0,
-    images: [],
+    images: [] as string[],
     floor: "", // "upper" o "lower"
     amenities: {
       balconyView: false, // Balcón con vista al parque y la piscina
@@ -130,7 +153,7 @@ export default function CabinsManager() {
       const cabinsData = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      }));
+      })) as CabinAdmin[];
       setCabins(cabinsData);
       setFilteredCabins(cabinsData);
     } catch (error) {
@@ -149,7 +172,7 @@ export default function CabinsManager() {
     if (!searchQuery) {
       setFilteredCabins(cabins);
     } else {
-      const filtered = cabins.filter((cabin) => {
+      const filtered = cabins.filter((cabin: CabinAdmin) => {
         const name = getCabinName(cabin).toLowerCase();
         const description = getCabinDescription(cabin).toLowerCase();
         const query = searchQuery.toLowerCase();
@@ -188,7 +211,7 @@ export default function CabinsManager() {
     setIsDialogOpen(true);
   };
 
-  const handleEdit = (cabin) => {
+  const handleEdit = (cabin: CabinAdmin) => {
     setIsEditing(true);
     setCurrentCabin(cabin);
 
@@ -234,9 +257,9 @@ export default function CabinsManager() {
         amenitiesObj = { ...amenitiesObj, ...cabin.amenities };
       } else if (Array.isArray(cabin.amenities)) {
         // Convertir array antiguo a objeto nuevo
-        cabin.amenities.forEach((item) => {
+        cabin.amenities.forEach((item: string) => {
           if (amenitiesObj.hasOwnProperty(item)) {
-            amenitiesObj[item] = true;
+            (amenitiesObj as Record<string, boolean>)[item] = true;
           }
           // Compatibilidad con valores antiguos
           if (
@@ -261,7 +284,7 @@ export default function CabinsManager() {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (cabin) => {
+  const handleDelete = (cabin: CabinAdmin) => {
     setCurrentCabin(cabin);
     setIsDeleteDialogOpen(true);
   };
@@ -272,7 +295,7 @@ export default function CabinsManager() {
     setIsLoading(true);
     try {
       await deleteDoc(doc(db, "cabins", currentCabin.id));
-      setCabins(cabins.filter((cabin) => cabin.id !== currentCabin.id));
+      setCabins(cabins.filter((cabin: CabinAdmin) => cabin.id !== currentCabin.id));
       toast({
         title: "Departamento eliminado",
         description: "El departamento ha sido eliminado exitosamente.",
@@ -290,7 +313,7 @@ export default function CabinsManager() {
     }
   };
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -298,7 +321,7 @@ export default function CabinsManager() {
     }));
   };
 
-  const handleAmenityChange = (amenity, checked) => {
+  const handleAmenityChange = (amenity: string, checked: boolean) => {
     setFormData((prev) => ({
       ...prev,
       amenities: {
@@ -308,8 +331,8 @@ export default function CabinsManager() {
     }));
   };
 
-  const handleImageChange = (e) => {
-    const files = Array.from(e.target.files);
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
 
     if (images.length + files.length > MAX_IMAGES) {
       toast({
@@ -347,10 +370,10 @@ export default function CabinsManager() {
       reader.readAsDataURL(file);
     });
 
-    e.target.value = null;
+    e.target.value = "";
   };
 
-  const removeImage = (index) => {
+  const removeImage = (index: number) => {
     const newImages = [...images];
     newImages.splice(index, 1);
     setImages(newImages);
@@ -361,12 +384,12 @@ export default function CabinsManager() {
     }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent | React.MouseEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const cabinData = {
+      const cabinData: Record<string, any> = {
         name: formData.name,
         description: formData.description,
         images: formData.images,
@@ -380,9 +403,9 @@ export default function CabinsManager() {
       if (isEditing && currentCabin) {
         await updateDoc(doc(db, "cabins", currentCabin.id), cabinData);
         setCabins(
-          cabins.map((cabin) =>
+          cabins.map((cabin: CabinAdmin) =>
             cabin.id === currentCabin.id
-              ? { id: currentCabin.id, ...cabinData }
+              ? ({ id: currentCabin.id, ...cabinData } as CabinAdmin)
               : cabin,
           ),
         );
@@ -393,7 +416,7 @@ export default function CabinsManager() {
       } else {
         cabinData.createdAt = new Date();
         const docRef = await addDoc(collection(db, "cabins"), cabinData);
-        const newCabin = { id: docRef.id, ...cabinData };
+        const newCabin = { id: docRef.id, ...cabinData } as CabinAdmin;
         setCabins([...cabins, newCabin]);
         toast({
           title: "Departamento agregado",
@@ -416,14 +439,14 @@ export default function CabinsManager() {
     }
   };
 
-  const getMainImage = (cabin) => {
+  const getMainImage = (cabin: CabinAdmin) => {
     if (Array.isArray(cabin.images) && cabin.images.length > 0) {
       return cabin.images[0];
     }
     return cabin.image || "";
   };
 
-  const getCabinName = (cabin) => {
+  const getCabinName = (cabin: CabinAdmin | null) => {
     if (!cabin) return "Sin nombre";
     if (typeof cabin.name === "string") {
       return cabin.name;
@@ -434,7 +457,7 @@ export default function CabinsManager() {
     return "Sin nombre";
   };
 
-  const getCabinDescription = (cabin) => {
+  const getCabinDescription = (cabin: CabinAdmin | null) => {
     if (!cabin) return "Sin descripción";
     if (typeof cabin.description === "string") {
       return cabin.description;
@@ -450,8 +473,8 @@ export default function CabinsManager() {
     return "Sin descripción";
   };
 
-  const getAmenityInfo = (key) => {
-    const amenities = {
+  const getAmenityInfo = (key: string) => {
+    const amenities: Record<string, { icon: ReactNode; label: string }> = {
       balconyView: {
         icon: <Eye className="h-4 w-4" />,
         label: "Balcón con vista al parque y la piscina",
@@ -611,7 +634,7 @@ export default function CabinsManager() {
                 {getMainImage(cabin) ? (
                   <Image
                     src={getMainImage(cabin) || "/placeholder.svg"}
-                    alt={cabin.name || "Departamento"}
+                    alt={getCabinName(cabin) || "Departamento"}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-300"
                   />

@@ -101,7 +101,7 @@ export default function CheckInsOutsHoy({ reservas, onReservaClick }: CheckInsOu
                       </div>
                       <div className="flex items-center gap-2">
                         {!reserva.hizoDeposito && (
-                          <AlertTriangle className="h-4 w-4 text-red-500" title="Sin depósito" />
+                          <AlertTriangle className="h-4 w-4 text-red-500" aria-label="Sin depósito" />
                         )}
                         <Badge className={cn("text-white text-xs", getOrigenColor(reserva.origen))}>
                           {ORIGENES.find((o) => o.value === reserva.origen)?.label}
@@ -137,7 +137,7 @@ export default function CheckInsOutsHoy({ reservas, onReservaClick }: CheckInsOu
                       </div>
                       <div className="flex items-center gap-2">
                         {!reserva.hizoDeposito && (
-                          <AlertTriangle className="h-4 w-4 text-red-500" title="Sin depósito" />
+                          <AlertTriangle className="h-4 w-4 text-red-500" aria-label="Sin depósito" />
                         )}
                         <Badge className={cn("text-white text-xs", getOrigenColor(reserva.origen))}>
                           {ORIGENES.find((o) => o.value === reserva.origen)?.label}

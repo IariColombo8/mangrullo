@@ -50,7 +50,25 @@ import {
   serverTimestamp,
   query,
   orderBy,
+  FieldValue,
 } from "firebase/firestore"
+
+interface Booking {
+  id: string
+  guestName: string
+  guestEmail: string
+  guestPhone: string
+  departmentId: string
+  bookingType: string
+  checkIn: Date
+  checkOut: Date
+  guests: number
+  totalAmount: number
+  notes: string
+  status: string
+  createdAt?: Date | FieldValue
+  updatedAt?: Date | FieldValue
+}
 
 // Definir los 4 departamentos
 const DEPARTMENTS = [
@@ -104,11 +122,11 @@ const BOOKING_TYPES = [
 ]
 
 export default function BookingsManager() {
-  const [bookings, setBookings] = useState([])
-  const [filteredBookings, setFilteredBookings] = useState([])
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [filteredBookings, setFilteredBookings] = useState<Booking[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [currentBooking, setCurrentBooking] = useState(null)
+  const [currentBooking, setCurrentBooking] = useState<Booking | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -117,9 +135,9 @@ export default function BookingsManager() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedWeekStart, setSelectedWeekStart] = useState(new Date())
   const [isSyncing, setIsSyncing] = useState(false)
-  const [lastSync, setLastSync] = useState(null)
+  const [lastSync, setLastSync] = useState<Date | null>(null)
   const [syncStatus, setSyncStatus] = useState("success") // success, error, warning
-  const { language, t } = useLanguage()
+  const { t } = useLanguage()
   const { toast } = useToast()
 
   const [formData, setFormData] = useState({
@@ -155,12 +173,12 @@ export default function BookingsManager() {
       setIsLoading(true)
       const bookingsCollection = collection(db, "bookings")
       const bookingsSnapshot = await getDocs(query(bookingsCollection, orderBy("checkIn", "asc")))
-      const bookingsList = bookingsSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        checkIn: doc.data().checkIn?.toDate ? doc.data().checkIn.toDate() : new Date(doc.data().checkIn),
-        checkOut: doc.data().checkOut?.toDate ? doc.data().checkOut.toDate() : new Date(doc.data().checkOut),
-      }))
+      const bookingsList = bookingsSnapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+        checkIn: docSnap.data().checkIn?.toDate ? docSnap.data().checkIn.toDate() : new Date(docSnap.data().checkIn),
+        checkOut: docSnap.data().checkOut?.toDate ? docSnap.data().checkOut.toDate() : new Date(docSnap.data().checkOut),
+      })) as Booking[]
       setBookings(bookingsList)
       setFilteredBookings(bookingsList)
     } catch (error) {
@@ -218,7 +236,7 @@ export default function BookingsManager() {
     setIsDialogOpen(true)
   }
 
-  const handleEdit = (booking) => {
+  const handleEdit = (booking: Booking) => {
     setIsEditing(true)
     setCurrentBooking(booking)
     setFormData({
@@ -237,7 +255,7 @@ export default function BookingsManager() {
     setIsDialogOpen(true)
   }
 
-  const handleDelete = (booking) => {
+  const handleDelete = (booking: Booking) => {
     setCurrentBooking(booking)
     setIsDeleteDialogOpen(true)
   }
@@ -265,7 +283,7 @@ export default function BookingsManager() {
     }
   }
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
@@ -273,12 +291,12 @@ export default function BookingsManager() {
     }))
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent | React.MouseEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
-      const bookingData = {
+      const bookingData: Omit<Booking, "id"> = {
         guestName: formData.guestName,
         guestEmail: formData.guestEmail,
         guestPhone: formData.guestPhone,
@@ -346,13 +364,14 @@ export default function BookingsManager() {
     setIsSyncing(true)
     try {
       // Simular llamada a API de Airbnb
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      await new Promise<void>((resolve) => setTimeout(resolve, 2000))
 
       // Simular algunas reservas nuevas de Airbnb
-      const newAirbnbBookings = [
+      const newAirbnbBookings: Omit<Booking, "id">[] = [
         {
           guestName: "John Smith",
           guestEmail: "john@email.com",
+          guestPhone: "",
           departmentId: "dept1",
           bookingType: "airbnb",
           checkIn: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -368,7 +387,7 @@ export default function BookingsManager() {
       // Agregar a Firestore (simulado)
       for (const booking of newAirbnbBookings) {
         const docRef = await addDoc(collection(db, "bookings"), booking)
-        setBookings((prev) => [...prev, { ...booking, id: docRef.id }])
+        setBookings((prev) => [...prev, { ...booking, id: docRef.id } as Booking])
       }
 
       setLastSync(new Date())
@@ -390,7 +409,7 @@ export default function BookingsManager() {
   }
 
   // Obtener reservas para una fecha específica y departamento
-  const getBookingsForDepartmentAndDate = (departmentId, date) => {
+  const getBookingsForDepartmentAndDate = (departmentId: string, date: Date) => {
     const dateStr = date.toISOString().split("T")[0]
     return filteredBookings.filter((booking) => {
       const checkIn = booking.checkIn.toISOString().split("T")[0]
@@ -443,7 +462,7 @@ export default function BookingsManager() {
     return days
   }
 
-  const navigateMonth = (direction) => {
+  const navigateMonth = (direction: number) => {
     setCurrentDate((prev) => {
       const newDate = new Date(prev)
       newDate.setMonth(prev.getMonth() + direction)
@@ -451,7 +470,7 @@ export default function BookingsManager() {
     })
   }
 
-  const navigateWeek = (direction) => {
+  const navigateWeek = (direction: number) => {
     setSelectedWeekStart((prev) => {
       const newDate = new Date(prev)
       newDate.setDate(prev.getDate() + direction * 7)
@@ -459,17 +478,17 @@ export default function BookingsManager() {
     })
   }
 
-  const selectDateFromCalendar = (date) => {
+  const selectDateFromCalendar = (date: Date) => {
     const monday = new Date(date)
     monday.setDate(date.getDate() - date.getDay() + 1)
     setSelectedWeekStart(monday)
   }
 
-  const getDepartmentInfo = (departmentId) => {
+  const getDepartmentInfo = (departmentId: string) => {
     return DEPARTMENTS.find((dept) => dept.id === departmentId) || DEPARTMENTS[0]
   }
 
-  const getBookingTypeInfo = (bookingType) => {
+  const getBookingTypeInfo = (bookingType: string) => {
     return BOOKING_TYPES.find((type) => type.id === bookingType) || BOOKING_TYPES[0]
   }
 

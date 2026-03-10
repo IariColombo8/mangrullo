@@ -24,7 +24,7 @@ interface DialogFormularioReservaProps {
   isOpen: boolean;
   onClose: () => void;
   formData: ReservaFormData;
-  setFormData: (data: ReservaFormData) => void;
+  setFormData: (data: ReservaFormData | ((prev: ReservaFormData) => ReservaFormData)) => void;
   editingReserva: Reserva | null;
   cabins: { id: string; name: string }[];
   reservas?: Reserva[];

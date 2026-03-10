@@ -36,7 +36,7 @@ export const formatCurrency = (value: number | undefined | null): string => {
 export const getPrecioNocheValue = (reserva: Reserva): number => {
   if (!reserva.precioNoche || typeof reserva.precioNoche !== "object") return 0
   const currency = reserva.moneda || "ARS"
-  return reserva.precioNoche[currency] || 0
+  return (reserva.precioNoche as Record<string, number>)[currency] || 0
 }
 
 export const calculateNights = (inicio: Date, fin: Date): number => {

@@ -48,19 +48,32 @@ import {
 import { db } from "../../lib/firebase"
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore"
 
+interface Testimonial {
+  id: string
+  name: string
+  location: string
+  rating: number
+  text: { es: string; en: string; pt: string }
+  image: string
+  status: string
+  createdAt: any
+  updatedAt: any
+}
+
 export default function TestimonialsManager() {
-  const [testimonials, setTestimonials] = useState([])
-  const [filteredTestimonials, setFilteredTestimonials] = useState([])
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([])
+  const [filteredTestimonials, setFilteredTestimonials] = useState<Testimonial[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [currentTestimonial, setCurrentTestimonial] = useState(null)
+  const [currentTestimonial, setCurrentTestimonial] = useState<Testimonial | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [ratingFilter, setRatingFilter] = useState("all")
   const [viewMode, setViewMode] = useState("grid")
-  const { language, t } = useLanguage()
+  const { t } = useLanguage()
+  const language: "es" | "en" | "pt" = "es"
   const { toast } = useToast()
 
   const [formData, setFormData] = useState({
@@ -86,7 +99,7 @@ export default function TestimonialsManager() {
       const testimonialsList = testimonialsSnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      }))
+      })) as Testimonial[]
       setTestimonials(testimonialsList)
       setFilteredTestimonials(testimonialsList)
     } catch (error) {
@@ -145,7 +158,7 @@ export default function TestimonialsManager() {
     setIsDialogOpen(true)
   }
 
-  const handleEdit = (testimonial) => {
+  const handleEdit = (testimonial: Testimonial) => {
     setIsEditing(true)
     setCurrentTestimonial(testimonial)
     setFormData({
@@ -160,7 +173,7 @@ export default function TestimonialsManager() {
     setIsDialogOpen(true)
   }
 
-  const handleDelete = (testimonial) => {
+  const handleDelete = (testimonial: Testimonial) => {
     setCurrentTestimonial(testimonial)
     setIsDeleteDialogOpen(true)
   }
@@ -188,7 +201,7 @@ export default function TestimonialsManager() {
     }
   }
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
@@ -196,8 +209,8 @@ export default function TestimonialsManager() {
     }))
   }
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0]
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
     if (file) {
       if (!file.type.match("image.*")) {
         toast({
@@ -221,19 +234,19 @@ export default function TestimonialsManager() {
       reader.onloadend = () => {
         setFormData((prev) => ({
           ...prev,
-          image: reader.result,
+          image: reader.result as string,
         }))
       }
       reader.readAsDataURL(file)
     }
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent | React.MouseEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
-      const testimonialData = {
+      const testimonialData: Record<string, any> = {
         name: formData.name,
         location: formData.location,
         rating: formData.rating,
@@ -274,7 +287,7 @@ export default function TestimonialsManager() {
             ...testimonialData,
             id: docRef.id,
             createdAt: new Date(),
-          },
+          } as Testimonial,
         ])
         toast({
           title: t("admin.testimonials.addSuccess") || "Testimonio agregado",
@@ -295,7 +308,7 @@ export default function TestimonialsManager() {
     }
   }
 
-  const handleStatusChange = async (testimonial, newStatus) => {
+  const handleStatusChange = async (testimonial: Testimonial, newStatus: string) => {
     try {
       setIsLoading(true)
       const testimonialRef = doc(db, "testimonials", testimonial.id)
@@ -336,7 +349,7 @@ export default function TestimonialsManager() {
     }
   }
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case "pending":
         return <Clock className="h-4 w-4" />
@@ -349,7 +362,7 @@ export default function TestimonialsManager() {
     }
   }
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case "pending":
         return "bg-yellow-100 text-yellow-800 border-yellow-200"

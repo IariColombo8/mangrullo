@@ -42,7 +42,7 @@ import { es } from "date-fns/locale"
 
 import CabinsManager from "./cabins-manager"
 import TestimonialsManager from "./testimonials-manager"
-import ReservasManager from "./reservas-manager"
+import ReservasManager from "./reservas/reserva-manager"
 import ActivitiesManager from "./activities-manager"
 
 const SettingsManager = () => (
@@ -422,7 +422,7 @@ export default function Dashboard() {
                               <AvatarFallback className="bg-emerald-100 text-emerald-700">
                                 {booking.guest
                                   .split(" ")
-                                  .map((n) => n[0])
+                                  .map((n: string) => n[0])
                                   .join("")}
                               </AvatarFallback>
                             </Avatar>

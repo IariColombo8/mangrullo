@@ -10,9 +10,9 @@ export const PAISES = [
 ]
 
 export const ESTADOS_RESERVA = [
-  { value: "activa", label: "Activa", color: "bg-gradient-to-r from-emerald-600 to-teal-600" },
-  { value: "confirmada", label: "Confirmada", color: "bg-gradient-to-r from-blue-600 to-indigo-600" },
-  { value: "cancelada", label: "Cancelada", color: "bg-gradient-to-r from-red-600 to-pink-600" },
-  { value: "no_presentado", label: "No Presentado", color: "bg-gradient-to-r from-orange-600 to-yellow-600" },
-  { value: "pagado", label: "Pagada", color: "bg-gradient-to-r from-green-600 to-black-600" },
+  { value: "activa" as const, label: "Activa", color: "bg-gradient-to-r from-emerald-600 to-teal-600" },
+  { value: "confirmada" as const, label: "Confirmada", color: "bg-gradient-to-r from-blue-600 to-indigo-600" },
+  { value: "cancelada" as const, label: "Cancelada", color: "bg-gradient-to-r from-red-600 to-pink-600" },
+  { value: "no_presentado" as const, label: "No Presentado", color: "bg-gradient-to-r from-orange-600 to-yellow-600" },
+  { value: "pagado" as const, label: "Pagada", color: "bg-gradient-to-r from-green-600 to-black-600" },
 ]
