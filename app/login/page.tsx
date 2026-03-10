@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -18,12 +19,12 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-beige py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-3 flex flex-col items-center">
-          <img
+          <Image
             src="/ccccccc.jpg"
             alt="El Mangrullo"
-            className="h-24 w-24 object-contain rounded-2xl"
             width={96}
             height={96}
+            className="h-24 w-24 object-contain rounded-2xl"
           />
           <CardDescription className="text-center">
             Ingrese sus credenciales para acceder al sistema

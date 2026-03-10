@@ -151,17 +151,17 @@ export default function AdminPage() {
             </div>
 
             <div className="md:hidden flex items-center gap-2 absolute left-1/2 transform -translate-x-1/2">
-              {tabItems.find((item) => item.value === activeTab) && (
-                <>
-                  {(() => {
-                    const ActiveIcon = tabItems.find((item) => item.value === activeTab)?.icon
-                    return ActiveIcon ? <ActiveIcon className="h-4 w-4" /> : null
-                  })()}
-                  <span className="font-semibold">
-                    {tabItems.find((item) => item.value === activeTab)?.label}
-                  </span>
-                </>
-              )}
+              {(() => {
+                const activeItem = tabItems.find((item) => item.value === activeTab)
+                if (!activeItem) return null
+                const ActiveIcon = activeItem.icon
+                return (
+                  <>
+                    <ActiveIcon className="h-4 w-4" />
+                    <span className="font-semibold">{activeItem.label}</span>
+                  </>
+                )
+              })()}
             </div>
           </div>
         </header>
