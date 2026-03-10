@@ -21,7 +21,8 @@ export default function Testimonials() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [visibleTestimonials, setVisibleTestimonials] = useState<Testimonial[]>([])
   const [loading, setLoading] = useState(true)
-  const { language, t } = useLanguage()
+  const { t } = useLanguage()
+  const language = "es"
 
   // Determine how many testimonials to show based on screen size
   const [itemsPerPage, setItemsPerPage] = useState(3)
@@ -37,8 +38,8 @@ export default function Testimonials() {
         const testimonialsData = testimonialsSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        }))
-        
+        })) as Testimonial[]
+
         setTestimonials(testimonialsData)
         setLoading(false)
       } catch (error) {

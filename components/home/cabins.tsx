@@ -1,4 +1,5 @@
 "use client"
+import type React from "react"
 import { useState, useEffect, useMemo } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -28,7 +29,7 @@ export default function CabinsSection() {
   const [isLoading, setIsLoading] = useState(false)
   const [selectedCabin, setSelectedCabin] = useState<Cabin | null>(null)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
-  const { language, t } = useLanguage()
+  const { t } = useLanguage()
 
   useEffect(() => {
     fetchCabins()
@@ -50,14 +51,14 @@ export default function CabinsSection() {
     }
   }
 
-  const getMainImage = (cabin) => {
+  const getMainImage = (cabin: Cabin): string => {
     if (Array.isArray(cabin.images) && cabin.images.length > 0) {
       return cabin.images[0]
     }
     return cabin.image || ""
   }
 
-  const getCabinName = (cabin) => {
+  const getCabinName = (cabin: Cabin | null): string => {
     if (!cabin) return "Sin nombre"
     if (typeof cabin.name === 'string') {
       return cabin.name
@@ -68,7 +69,7 @@ export default function CabinsSection() {
     return "Sin nombre"
   }
 
-  const getCabinDescription = (cabin) => {
+  const getCabinDescription = (cabin: Cabin | null): string => {
     if (!cabin) return "Sin descripción"
     if (typeof cabin.description === 'string') {
       return cabin.description
@@ -79,7 +80,7 @@ export default function CabinsSection() {
     return "Sin descripción"
   }
 
-  const getAmenityInfo = (key) => {
+  const getAmenityInfo = (key: string) => {
     const amenities = {
       balconyView: { icon: <Eye className="w-4 h-4" />, label: "Balcón con vista al parque y la piscina", emoji: "🏞️" },
       ac: { icon: <Snowflake className="w-4 h-4" />, label: "Aire acondicionado", emoji: "❄️" },
@@ -95,10 +96,10 @@ export default function CabinsSection() {
       blankets: { icon: <Bed className="w-4 h-4" />, label: "Frazadas", emoji: "🧴" },
       towels: { icon: <Bed className="w-4 h-4" />, label: "Toallas", emoji: "🧴" },
     }
-    return amenities[key] || { icon: null, label: key, emoji: "" }
+    return (amenities as Record<string, { icon: React.ReactNode; label: string; emoji: string }>)[key] || { icon: null, label: key, emoji: "" }
   }
 
-  const getActiveAmenities = (cabin) => {
+  const getActiveAmenities = (cabin: Cabin): string[] => {
     if (!cabin.amenities) return []
     if (typeof cabin.amenities === 'object' && !Array.isArray(cabin.amenities)) {
       return Object.entries(cabin.amenities)
@@ -111,7 +112,7 @@ export default function CabinsSection() {
     return []
   }
 
-  const handleViewDetails = (cabin) => {
+  const handleViewDetails = (cabin: Cabin) => {
     setSelectedCabin(cabin)
     setCurrentImageIndex(0)
   }
@@ -122,23 +123,21 @@ export default function CabinsSection() {
   }
 
   const handlePrevImage = () => {
-    if (selectedCabin && selectedCabin.images) {
-      setCurrentImageIndex((prev) =>
-        prev === 0 ? selectedCabin.images.length - 1 : prev - 1
-      )
+    if (selectedCabin?.images) {
+      const len = selectedCabin.images.length
+      setCurrentImageIndex((prev) => (prev === 0 ? len - 1 : prev - 1))
     }
   }
 
   const handleNextImage = () => {
-    if (selectedCabin && selectedCabin.images) {
-      setCurrentImageIndex((prev) =>
-        prev === selectedCabin.images.length - 1 ? 0 : prev + 1
-      )
+    if (selectedCabin?.images) {
+      const len = selectedCabin.images.length
+      setCurrentImageIndex((prev) => (prev === len - 1 ? 0 : prev + 1))
     }
   }
 
-  const selectedCabinAmenities = useMemo(
-    () => (selectedCabin ? selectedCabinAmenities : []),
+  const selectedCabinAmenities: string[] = useMemo(
+    () => (selectedCabin ? getActiveAmenities(selectedCabin) : []),
     [selectedCabin]
   )
 
@@ -394,7 +393,7 @@ export default function CabinsSection() {
                       )}
 
                       {/* Equipamiento Completo */}
-                      {selectedCabinAmenities.filter(a =>
+                      {selectedCabinAmenities.filter((a: string) =>
                         ['ac', 'fridge', 'microwave', 'kettle', 'electricPot', 'dishes', 'waterHeater', 'tv', 'wifi'].includes(a)
                       ).length > 0 && (
                         <div className="mb-2 md:mb-4">
@@ -416,7 +415,7 @@ export default function CabinsSection() {
                       )}
 
                       {/* Ropa de Cama */}
-                      {selectedCabinAmenities.filter(a =>
+                      {selectedCabinAmenities.filter((a: string) =>
                         ['bedding', 'blankets', 'towels'].includes(a)
                       ).length > 0 && (
                         <div className="mb-2 md:mb-4">
